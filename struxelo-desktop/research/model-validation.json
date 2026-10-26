@@ -1,0 +1,12 @@
+{
+  "checkedAt": "2026-10-26T13:25:17.181Z",
+  "checks": [
+    "Self-contained GLB import",
+    "Unique name-code assignment",
+    "Project export includes embedded model and assignments",
+    "Reload restores GLB and assignment",
+    "PNG viewport export",
+    "Saved-project import round-trip"
+  ],
+  "consoleErrors": []
+}

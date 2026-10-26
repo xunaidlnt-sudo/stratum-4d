@@ -1,0 +1,29 @@
+{
+  "name": "struxelo-4d",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Independent Windows desktop construction planning prototype",
+  "main": "desktop/main.cjs",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "test": "node --test tests/*.test.js",
+    "package:windows": "npm run build && node scripts/package-windows.mjs",
+    "docs:build": "node scripts/build-docs.mjs",
+    "test:ui": "node tests/ui-smoke.mjs",
+    "fixtures:download": "node scripts/fetch-training.mjs"
+  },
+  "dependencies": {
+    "fast-xml-parser": "5.5.8",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "@electron/get": "^3.1.0",
+    "markdown-it": "14.1.0",
+    "playwright-core": "1.58.2",
+    "resedit": "2.0.3",
+    "vite": "8.3.5"
+  },
+  "author": "Junaid Quamar"
+}

@@ -1,0 +1,20 @@
+{
+  "checkedAt": "2026-10-26T13:19:25.273Z",
+  "host": "Linux Chromium renderer; native Windows shell not exercised",
+  "checks": [
+    "Renderer starts with supplied branding and WebGL",
+    "Task edit, Undo and Redo preserve data",
+    "Day stepping changes focus date",
+    "Playback advances and pauses",
+    "Search and previewed unique assignment work",
+    "Costs view displays leaf-task calculations",
+    "About contains requested credit without CV contact details",
+    "Compact desktop layout has no horizontal overflow",
+    "Real P6 XML imports 95 tasks and displays unresolved-link warning",
+    "P6 recalculation refuses unresolved links",
+    "Real MSP XML imports 118 non-root tasks",
+    "Local recovery survives reload",
+    "Invalid project is rejected without replacing current data"
+  ],
+  "consoleErrors": []
+}

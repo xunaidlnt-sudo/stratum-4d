@@ -1,0 +1,44 @@
+import {chromium} from 'playwright-core';
+import assert from 'node:assert/strict';
+import {mkdir,writeFile} from 'node:fs/promises';
+import {resolve} from 'node:path';
+
+const root=resolve(import.meta.dirname,'..');
+await mkdir(resolve(root,'research/screenshots'),{recursive:true});
+const browser=await chromium.launch({executablePath:process.env.CHROMIUM_PATH||'/usr/bin/chromium',headless:true,args:['--no-sandbox','--enable-unsafe-swiftshader']});
+const page=await browser.newPage({viewport:{width:1600,height:1000},deviceScaleFactor:1});
+const errors=[],checks=[];page.on('pageerror',e=>errors.push(e.message));
+try{
+  await page.goto(process.env.STRUXELO_URL||'http://127.0.0.1:5173');
+  await page.waitForSelector('#viewport canvas');await page.waitForTimeout(700);
+  assert.equal(await page.title(),'Struxelo 4D — Construction planning');
+  assert.ok(await page.locator('.brand-wordmark').evaluate(img=>img.complete&&img.naturalWidth>0));checks.push('Renderer starts with supplied branding and WebGL');
+  assert.equal(await page.locator('.gantt-row').count(),10);
+  await page.locator('[data-task="T04"]').click();
+  await page.locator('[name="progress"]').fill('42');await page.locator('#task-form button[type="submit"]').click();
+  assert.equal(await page.locator('[name="progress"]').inputValue(),'42');
+  await page.locator('[data-action="undo"]').click();assert.equal(await page.locator('[name="progress"]').inputValue(),'25');
+  await page.locator('[data-action="redo"]').click();assert.equal(await page.locator('[name="progress"]').inputValue(),'42');checks.push('Task edit, Undo and Redo preserve data');
+  const previous=Number(await page.locator('#timeline').inputValue());await page.locator('[data-action="forward"]').click();assert.equal(Number(await page.locator('#timeline').inputValue()),previous+1);checks.push('Day stepping changes focus date');
+  await page.locator('[data-action="play"]').click();await page.waitForTimeout(400);await page.locator('[data-action="play"]').click();assert.ok(Number(await page.locator('#timeline').inputValue())>previous+1);checks.push('Playback advances and pauses');
+  await page.locator('#task-search').fill('Roof');assert.equal(await page.locator('.gantt-row').count(),1);await page.locator('#task-search').fill('');
+  await page.locator('[data-part="site"]').click();await page.locator('[data-action="unassign"]').click();
+  await page.locator('[data-action="auto-match"]').click();assert.match(await page.locator('#dialog-body').textContent(),/1 unassigned parts/);await page.locator('#dialog-confirm').click();checks.push('Search and previewed unique assignment work');
+  await page.locator('[data-view="cost"]').click();assert.equal(await page.locator('.cost-table tbody tr').count(),10);checks.push('Costs view displays leaf-task calculations');
+  await page.locator('[data-action="about"]').click();assert.match(await page.locator('#dialog-body').textContent(),/Junaid Quamar/);assert.doesNotMatch(await page.locator('#dialog-body').textContent(),/@hotmail/);await page.locator('[data-action="close-dialog"]').click();checks.push('About contains requested credit without CV contact details');
+  await page.locator('[data-view="schedule"]').click();
+  await page.screenshot({path:resolve(root,'research/screenshots/workspace.png'),fullPage:true});
+  await page.setViewportSize({width:1100,height:800});await page.waitForTimeout(200);assert.ok(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth));
+  await page.screenshot({path:resolve(root,'research/screenshots/compact-workspace.png'),fullPage:true});checks.push('Compact desktop layout has no horizontal overflow');
+  await page.setViewportSize({width:1600,height:1000});
+  await page.locator('#schedule-file').setInputFiles(resolve(root,'research/samples/Training Project Schedule_P6.xml'));
+  await page.locator('#dialog-confirm').click();await page.waitForFunction(()=>document.querySelectorAll('.gantt-row').length===95);
+  assert.match(await page.locator('#dialog-body').textContent(),/3 unresolved/);await page.locator('[data-action="close-dialog"]').click();checks.push('Real P6 XML imports 95 tasks and displays unresolved-link warning');
+  await page.locator('[data-action="recalculate"]').click();await page.locator('#dialog-confirm').click();assert.match(await page.locator('#toast').textContent(),/Resolve the retained/);checks.push('P6 recalculation refuses unresolved links');
+  await page.locator('#schedule-file').setInputFiles(resolve(root,'research/samples/Training Project Schedule_MSP.xml'));await page.locator('#dialog-confirm').click();await page.waitForFunction(()=>document.querySelectorAll('.gantt-row').length===118);await page.locator('[data-action="close-dialog"]').click();checks.push('Real MSP XML imports 118 non-root tasks');
+  await page.reload();await page.waitForSelector('.gantt-row');assert.equal(await page.locator('.gantt-row').count(),118);checks.push('Local recovery survives reload');
+  await page.locator('#project-file').setInputFiles({name:'bad.struxelo',mimeType:'application/json',buffer:Buffer.from('{"schema":1,"name":"broken","tasks":[],"parts":[{}]}')});assert.match(await page.locator('#toast').textContent(),/Model part/);assert.equal(await page.locator('.gantt-row').count(),118);checks.push('Invalid project is rejected without replacing current data');
+  assert.deepEqual(errors,[]);
+  const report={checkedAt:new Date().toISOString(),host:'Linux Chromium renderer; native Windows shell not exercised',checks,consoleErrors:errors};
+  await writeFile(resolve(root,'research/ui-validation.json'),JSON.stringify(report,null,2));console.log(JSON.stringify(report,null,2));
+}finally{await browser.close();}
