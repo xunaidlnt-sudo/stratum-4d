@@ -2,6 +2,7 @@
 #   Windows: NSIS .exe installer
 #   macOS:   .dmg (Intel + Apple Silicon)
 #   Linux:   .AppImage and .deb
+#   Android: .apk (Capacitor) for phones and tablets
 # Push to the stratum-4d branch (or main) to get installers as workflow artifacts.
 # Push a tag like v0.2.0 to also attach them to a draft GitHub Release, or run
 # the workflow by hand with "publish" ticked to tag v<package.json version>
@@ -82,9 +83,61 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+  android:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+      - run: npm ci
+      - run: npx vite build
+      - name: Create the Android project and icons
+        run: |
+          npx cap add android
+          mkdir -p assets && cp brand/stratum-icon.png assets/icon-only.png
+          npx --yes @capacitor/assets@3.0.5 generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#0b2545' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#0b2545'
+          npx cap sync android
+      - name: Set the app version
+        run: |
+          V=$(node -p 'require("./package.json").version')
+          sed -i -E "s/versionCode [0-9]+/versionCode ${{ github.run_number }}/; s/versionName \"[^\"]*\"/versionName \"$V\"/" android/app/build.gradle
+          echo "VERSION=$V" >> "$GITHUB_ENV"
+      # With the ANDROID_KEYSTORE secrets set, the APK is signed with your own key so
+      # new versions install over old ones; without them it is debug-signed.
+      - name: Build APK
+        env:
+          KS: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KS_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+        run: |
+          mkdir -p release
+          cd android
+          if [ -n "$KS" ]; then
+            ./gradlew --no-daemon assembleRelease
+            echo "$KS" | base64 -d > ../ks.jks
+            BT=$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)
+            "$BT/zipalign" -p -f 4 app/build/outputs/apk/release/app-release-unsigned.apk ../aligned.apk
+            "$BT/apksigner" sign --ks ../ks.jks --ks-pass env:KS_PASS --ks-key-alias "$KS_ALIAS" --out "../release/Stratum-4D-$VERSION-android.apk" ../aligned.apk
+          else
+            ./gradlew --no-daemon assembleDebug
+            cp app/build/outputs/apk/debug/app-debug.apk "../release/Stratum-4D-$VERSION-android.apk"
+          fi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: stratum-4d-Android
+          path: release/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
   release:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
-    needs: build
+    needs: [build, android]
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

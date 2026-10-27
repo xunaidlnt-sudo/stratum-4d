@@ -1,6 +1,7 @@
 // More P6 dialogs: Schedule Options, Level Resources, Calendars, Activity
 // Codes, User Defined Fields and Claim Digger.
 
+import { download as saveFile } from "../files";
 import { useMemo, useState } from "react";
 import { claimDigger, claimDiggerCsv, type ClaimDiggerReport } from "../../core/compare";
 import { DEFAULT_SCHEDULE_OPTIONS } from "../../core/cpm";
@@ -704,12 +705,7 @@ export function ClaimDiggerDialog() {
   };
   const download = () => {
     if (!report) return;
-    const url = URL.createObjectURL(new Blob([claimDiggerCsv(report)], { type: "text/csv" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `claim-digger-${schedule.projectCode}.csv`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveFile(`claim-digger-${schedule.projectCode}.csv`, claimDiggerCsv(report), "text/csv");
   };
   return (
     <Shell

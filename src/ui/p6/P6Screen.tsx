@@ -4,6 +4,7 @@
 // Details, usage profiles / spreadsheets or Trace Logic), the Command bar
 // (right) and the status bar.
 
+import { download as saveFile } from "../files";
 import {
   AlignVerticalSpaceAround,
   ArrowDownToLine,
@@ -470,12 +471,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
     const head = [...document.querySelectorAll(".p6t-pane .p6t-th span")].map((c) => c.textContent ?? "");
     const esc = (t: string) => t.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]!);
     const html = `<!doctype html><meta charset="utf-8"><title>${esc(schedule?.projectName ?? "Layout")}</title><style>body{font:12px system-ui}table{border-collapse:collapse}td,th{border:1px solid #ccc;padding:2px 6px}</style><h3>${esc(`${schedule?.projectCode} – ${schedule?.projectName}`)}</h3><p>Data date ${fmtDate(schedule?.dataDate)} · ${esc(layout.name)} · visible rows</p><table><tr>${head.map((h) => `<th>${esc(h)}</th>`).join("")}</tr>${rows.map((r) => `<tr>${r.map((c) => `<td>${esc(c)}</td>`).join("")}</tr>`).join("")}</table>`;
-    const url = URL.createObjectURL(new Blob([html], { type: "text/html" }));
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${schedule?.projectCode ?? "layout"}.html`;
-    link.click();
-    URL.revokeObjectURL(url);
+    saveFile(`${schedule?.projectCode ?? "layout"}.html`, html, "text/html");
   };
 
   const menus: [string, MenuItem[]][] = [

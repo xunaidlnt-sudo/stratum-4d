@@ -54,7 +54,7 @@ import {
 import { ActivityEditor } from "./ActivityEditor";
 import { clearAutosave, loadAutosave, startAutosave } from "./autosave";
 import { CostPanel, QuantityPanel, ResourcePanel } from "./Analysis";
-import { download, downloadDataUrl, pickFile } from "./files";
+import { download, downloadDataUrl, isNativeApp, pickFile } from "./files";
 import { Gantt } from "./Gantt";
 import { Help } from "./Help";
 import { SidePanel } from "./SidePanel";
@@ -850,7 +850,7 @@ function Workspace() {
       </span>
       {savedAt && <span className="muted autosaved">Autosaved {savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
       <ModeSwitch />
-      <DisplaysButton className="tb icon-label" />
+      {!isNativeApp() && <DisplaysButton className="tb icon-label" />}
       <TrainingButton className="tb" />
       <ThemeButton />
       {btn.settings}
@@ -981,7 +981,7 @@ function Workspace() {
           a={classicActions}
           banners={bannersNode}
           status={status}
-          displays={{ menu: [{ label: "Displays: Open a View on Another Monitor…", onClick: () => useDisplays.getState().show(true) }] }}
+          displays={isNativeApp() ? undefined : { menu: [{ label: "Displays: Open a View on Another Monitor…", onClick: () => useDisplays.getState().show(true) }] }}
         />
       )}
       {mode === "msp" && <MspScreen a={classicActions} banners={bannersNode} status={status} />}

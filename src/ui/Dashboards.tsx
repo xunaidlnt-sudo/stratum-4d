@@ -59,7 +59,7 @@ import {
   type WidgetKind,
 } from "../core/reporting";
 import type { Schedule } from "../core/types";
-import { download } from "./files";
+import { download, printPage } from "./files";
 import { useStore } from "./store";
 import { ModeSwitch, ThemeButton } from "./ModeSwitch";
 import { TrainingButton } from "./training/Training";
@@ -428,7 +428,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
                 />
                 {!edit && (
                   <>
-                    <button onClick={() => window.print()} title="Print or save as PDF">
+                    <button onClick={() => printPage()} title="Print or save as PDF">
                       <Printer size={15} aria-hidden /> PDF
                     </button>
                     <button onClick={exportExcel} title="Excel workbook">

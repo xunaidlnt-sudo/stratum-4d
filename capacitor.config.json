@@ -1,0 +1,7 @@
+{
+  "appId": "com.miqyaslabs.stratum4d",
+  "appName": "Stratum 4D",
+  "webDir": "dist",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false, "captureInput": true }
+}

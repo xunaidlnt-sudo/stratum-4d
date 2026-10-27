@@ -4,6 +4,8 @@
 // Activity Codes, Page Setup and Print, Project details, Spelling and Store
 // Period Performance.
 
+import { printPage } from "../files";
+import { download as saveFile } from "../files";
 import { X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { fieldCtx, fieldsFor, OP_LABEL, type FilterDef, type FilterOp, type FilterRule } from "../../core/fields";
@@ -670,12 +672,7 @@ function LayoutsDialog() {
       <div className="row">
         <button
           onClick={() => {
-            const url = URL.createObjectURL(new Blob([JSON.stringify({ stratumLayout: 1, layout: cur, filters: useLayout.getState().customFilters }, null, 2)], { type: "application/json" }));
-            const a = document.createElement("a");
-            a.href = url;
-            a.download = `${cur.name.replace(/[^\w -]+/g, "")}.plf.json`;
-            a.click();
-            URL.revokeObjectURL(url);
+            saveFile(`${cur.name.replace(/[^\w -]+/g, "")}.plf.json`, JSON.stringify({ stratumLayout: 1, layout: cur, filters: useLayout.getState().customFilters }, null, 2), "application/json");
           }}
         >
           Export layout…
@@ -1408,7 +1405,7 @@ export function printLayout() {
   // The table normally draws only the rows on screen; ask it to draw them all, then print.
   window.dispatchEvent(new CustomEvent("stratum:print", { detail: true }));
   setTimeout(() => {
-    window.print();
+    printPage();
     document.body.classList.remove("printing-p6");
     window.dispatchEvent(new CustomEvent("stratum:print", { detail: false }));
   }, 400);

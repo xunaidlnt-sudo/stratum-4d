@@ -1,6 +1,7 @@
 // User Preferences, the Schedule Log, and Excel export / import of the
 // activity table (P6's "Export to Excel" and "Import from Excel").
 
+import { download as saveFile } from "../files";
 import { useMemo, useState } from "react";
 import { fieldCtx, fieldsFor, fieldText, type DateFormat } from "../../core/fields";
 import { scheduleLog, scheduleLogText } from "../../core/scheduleLog";
@@ -11,14 +12,7 @@ import { close, Shell } from "./Dialogs";
 import { useLayout } from "./layout";
 import { usePrefs } from "./prefs";
 
-const download = (name: string, data: BlobPart, type: string) => {
-  const url = URL.createObjectURL(new Blob([data], { type }));
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = name;
-  a.click();
-  URL.revokeObjectURL(url);
-};
+const download = (name: string, data: BlobPart, type: string) => saveFile(name, data, type);
 
 // ---------------------------------------------------------------- User Preferences
 
