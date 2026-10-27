@@ -6,7 +6,7 @@
 
 Stratum links a Primavera P6 schedule to an IFC building model and plays back the construction sequence over time. It runs in the browser, as a desktop app for Windows, macOS and Linux, or on a team server.
 
-Release 0.3 adds three interface modes, a project database, live Primavera P6 connections, and a dashboard and report builder with scheduled email. Everything from release 0.2 (phases 1 to 4 of the roadmap) is still there:
+Release 0.4 makes the P6 layout work like P6 Professional (configurable activity table, Global Change, Update Progress, baselines, Check Schedule, Activity Network, all the Directory bar windows), opens any view on another monitor with **Displays**, and schedules 25,000-activity projects in under a second. Release 0.3 added three interface modes, a project database, live Primavera P6 connections, and a dashboard and report builder with scheduled email. Everything from release 0.2 (phases 1 to 4 of the roadmap) is still there:
 
 **4D**
 - **Schedules**: Primavera P6 XER (activities, WBS, logic, codes, UDFs, calendars, constraints, actuals, baseline, resources and costs) and Microsoft Project XML.

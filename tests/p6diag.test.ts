@@ -138,11 +138,12 @@ describe.skipIf(!hasOpenssl)("P6 connection check over HTTPS with a company cert
   });
 
   it("names an expired or wrong-name certificate", async () => {
-    const d = await p6Diagnose({ ...base, url: base.url!.replace("localhost", "127.0.0.2"), caCert: caPem }, { where: "server" });
+    const d = await p6Diagnose({ ...base, url: base.url!.replace("localhost", "127.0.0.2"), caCert: caPem }, { where: "server", timeoutMs: 1500 });
     // 127.0.0.2 isn't on the certificate (only localhost / 127.0.0.1).
+    // On macOS it isn't a loopback address at all, so the port check times out instead.
     if (step(d, "port")!.status === "ok") {
       expect(step(d, "cert")!.status).toBe("fail");
       expect(step(d, "cert")!.hint).toMatch(/server name on the certificate/);
     }
-  });
+  }, 15_000);
 });
