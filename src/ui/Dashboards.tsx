@@ -41,6 +41,7 @@ import { parseRecipients } from "../services/mailer";
 import { dimensions, groupValues } from "../core/progress";
 import {
   BUILTIN_TEMPLATES,
+  adaptToFields,
   cloneDashboard,
   computeNextRun,
   widgetCols,
@@ -237,7 +238,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
   };
   const create = (id: string) => {
     const t = BUILTIN_TEMPLATES.find((x) => x.id === id);
-    if (t) return createFrom(t.make(currentId));
+    if (t) return createFrom(adaptToFields(t.make(currentId), dimensions(open).map((d) => d.value)));
     const user = list?.find((d) => d.id === id);
     if (user) return createFrom({ ...cloneDashboard(user, user.name.replace(/ \(template\)$/, "")), projectId: currentId ?? user.projectId });
   };
@@ -918,7 +919,7 @@ function Inspector({
   );
 }
 
-const CHARTS: WidgetKind[] = ["scurve", "pscurve", "phasecurves", "groupbars"];
+const CHARTS: WidgetKind[] = ["scurve", "pscurve", "phasecurves", "groupbars", "combo"];
 const SERIES_IDS: Partial<Record<WidgetKind, [string, string][]>> = {
   scurve: [
     ["pv", "Planned"],
@@ -940,6 +941,12 @@ const SERIES_IDS: Partial<Record<WidgetKind, [string, string][]>> = {
     ["plan", "Plan"],
     ["actual", "Actual"],
     ["forecast", "Forecast"],
+  ],
+  combo: [
+    ["baseline", "Baseline"],
+    ["actual", "Actual"],
+    ["remaining", "Remaining"],
+    ["bars", "Histogram bars"],
   ],
 };
 
@@ -970,6 +977,9 @@ const KIND_ICON: Record<WidgetKind, LucideIcon> = {
   text: Type,
   image: ImageIcon,
   slicer: ListFilter,
+  cards: LayoutGrid,
+  controltable: TableProperties,
+  combo: ChartColumnStacked,
 };
 function WidgetIcon({ kind }: { kind: WidgetKind }) {
   const I = KIND_ICON[kind] ?? Hash;
@@ -1293,8 +1303,48 @@ function WidgetSettings({ w, onChange, projects, raw }: { w: Widget; onChange: (
             <option value="status">Progress status</option>
             <option value="float">Total float bands</option>
             <option value="critical">Critical vs not critical</option>
+            <option value="weight">Scope weightage by group</option>
           </select>
         </label>
+      )}
+      {w.kind === "slicer" && (
+        <label>
+          Look
+          <select value={w.slicerStyle ?? "buttons"} onChange={(e) => onChange({ ...w, slicerStyle: e.target.value as Widget["slicerStyle"] })}>
+            <option value="buttons">Row of buttons</option>
+            <option value="list">Vertical list</option>
+          </select>
+        </label>
+      )}
+      {(w.kind === "controltable" || (w.kind === "gauge" && w.metric === "actualPct")) && (
+        <label>
+          Baseline plan measured
+          <select value={w.cutoff ?? "datadate"} onChange={(e) => onChange({ ...w, cutoff: e.target.value as Widget["cutoff"] })}>
+            <option value="datadate">At the data date</option>
+            <option value="monthstart">To the end of last month</option>
+            <option value="monthend">To the end of this month</option>
+          </select>
+        </label>
+      )}
+      {w.kind === "combo" && (
+        <label className="check">
+          <input type="checkbox" checked={w.showLabels !== false} onChange={(e) => onChange({ ...w, showLabels: e.target.checked ? undefined : false })} /> Data labels
+        </label>
+      )}
+      {w.kind === "cards" && (
+        <>
+          <label>
+            Cards per row
+            <select value={w.cardCols ?? 3} onChange={(e) => onChange({ ...w, cardCols: Number(e.target.value) })}>
+              {[1, 2, 3, 4, 5, 6, 8].map((n) => (
+                <option key={n} value={n}>
+                  {n}
+                </option>
+              ))}
+            </select>
+          </label>
+          <InfoRowsEditor rows={w.rows ?? []} onChange={(rows) => onChange({ ...w, rows })} />
+        </>
       )}
       {w.kind === "quantity" && (
         <label>
@@ -1302,7 +1352,7 @@ function WidgetSettings({ w, onChange, projects, raw }: { w: Widget; onChange: (
           <input value={w.quantityKey ?? "BaseQuantities.NetVolume"} onChange={(e) => onChange({ ...w, quantityKey: e.target.value })} />
         </label>
       )}
-      {(w.kind === "progress" || w.kind === "slicer" || w.kind === "groupbars" || w.kind === "phasecurves") && (
+      {(w.kind === "progress" || w.kind === "slicer" || w.kind === "groupbars" || w.kind === "phasecurves" || w.kind === "controltable" || (w.kind === "donut" && w.split === "weight")) && (
         <label>
           {w.kind === "phasecurves" ? "One curve per" : "Group by"}
           <select value={w.dimension ?? "wbs1"} onChange={(e) => onChange({ ...w, dimension: e.target.value, weightage: undefined })}>
@@ -1314,7 +1364,7 @@ function WidgetSettings({ w, onChange, projects, raw }: { w: Widget; onChange: (
           </select>
         </label>
       )}
-      {(w.kind === "progress" || w.kind === "pscurve" || w.kind === "groupbars" || w.kind === "phasecurves" || (w.kind === "gauge" && w.metric === "percentComplete")) && (
+      {(w.kind === "progress" || w.kind === "pscurve" || w.kind === "groupbars" || w.kind === "phasecurves" || w.kind === "controltable" || w.kind === "combo" || w.kind === "cards" || (w.kind === "donut" && w.split === "weight") || (w.kind === "gauge" && (w.metric === "percentComplete" || w.metric === "actualPct"))) && (
         <label>
           Weight activities by
           <select value={w.basis ?? "cost"} onChange={(e) => onChange({ ...w, basis: e.target.value as Widget["basis"] })}>
@@ -1325,7 +1375,7 @@ function WidgetSettings({ w, onChange, projects, raw }: { w: Widget; onChange: (
           </select>
         </label>
       )}
-      {(w.kind === "pscurve" || w.kind === "phasecurves") && (
+      {(w.kind === "pscurve" || w.kind === "phasecurves" || w.kind === "combo") && (
         <label>
           Period
           <select value={w.step ?? "month"} onChange={(e) => onChange({ ...w, step: e.target.value as "month" | "week" })}>

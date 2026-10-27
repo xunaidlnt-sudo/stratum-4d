@@ -2,6 +2,8 @@ import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
 import {
   activityRows,
   compact,
+  controlRows,
+  type ControlRow,
   fmtDay,
   kpi,
   lookahead,
@@ -18,7 +20,7 @@ import { quantityCurve } from "../core/quantities";
 import { widgetCols, widgetRows, type Dashboard, type KpiMetric, type TableColumn, type TableFilter, type Widget, type WidgetKind } from "../core/reporting";
 import { scheduleRange } from "../core/simulation";
 import type { Schedule } from "../core/types";
-import { Donut, Gauge, GroupBars, LineChart, OTHER, PeriodBars, pct, pct2, SERIES, STATUS, StackedBars } from "./charts";
+import { ComboChart, Donut, Gauge, GroupBars, LineChart, OTHER, PeriodBars, pct, pct2, SERIES, STATUS, StackedBars, type ComboPeriod } from "./charts";
 import { useStore } from "./store";
 
 export type WidgetGroup = "Numbers" | "Charts" | "Tables" | "Layout";
@@ -43,6 +45,9 @@ export const WIDGET_KINDS: { kind: WidgetKind; label: string; group: WidgetGroup
   { kind: "text", label: "Text / note", group: "Layout", hint: "Commentary, with {project} and {datadate}", defaults: { w: 12, h: 1, text: "Notes for this report." } },
   { kind: "image", label: "Image / logo", group: "Layout", hint: "Logo, site photo or a drawing", defaults: { w: 3, h: 1.5, fit: "contain" } },
   { kind: "slicer", label: "Filter buttons (slicer)", group: "Layout", hint: "Click to filter every widget", defaults: { w: 4, h: 1, dimension: "wbs1" } },
+  { kind: "cards", label: "Figure cards", group: "Numbers", hint: "Grid of dates, %s and durations, computed or typed", defaults: { w: 4, h: 1.5, cardCols: 3, rows: [{ label: "Baseline UTM", metric: "blUtm" }, { label: "Estimated UTM", metric: "estUtm" }, { label: "Actual to date", metric: "actualPct" }] } },
+  { kind: "controltable", label: "Discipline control table", group: "Tables", hint: "Weight, BL plan, actual, variance, BL and estimated finish", defaults: { w: 12, h: 2.5, dimension: "wbs1", basis: "hours", cutoff: "monthstart" } },
+  { kind: "combo", label: "S-curve with histograms", group: "Charts", hint: "Cumulative weight % and monthly bars, labels, date slider", defaults: { w: 12, h: 4, basis: "hours", step: "month", showLabels: true } },
 ];
 
 export const TABLE_COLUMNS: { id: TableColumn; label: string }[] = [
@@ -67,7 +72,11 @@ export const DEFAULT_COLUMNS: TableColumn[] = ["code", "name", "percent", "start
 
 /** Fill {project} and {datadate} in titles and notes. */
 export function fillText(t: string, s: Schedule | null): string {
-  return t.replace(/\{datadate\}/g, fmtDay(s?.dataDate ?? null)).replace(/\{project\}/g, s ? `${s.projectCode} – ${s.projectName}` : "");
+  return t
+    .replace(/\{datadate\}/g, fmtDay(s?.dataDate ?? null))
+    .replace(/\{project\}/g, s ? `${s.projectCode} – ${s.projectName}` : "")
+    .replace(/\{baseline\}/g, s?.baselineInfo?.name ?? "project baseline")
+    .replace(/\{baselinedate\}/g, s?.baselineInfo ? fmtDay(s.baselineInfo.dataDate) : fmtDay(s?.dataDate ?? null));
 }
 
 /** A widget's schedule: dashboard slicers (unless ignored), then its own filters. */
@@ -141,6 +150,24 @@ export const KPI_LABELS: Record<KpiMetric, string> = {
   critical: "Open critical activities",
   late: "Late against baseline",
   startingSoon: "Starting soon",
+  actualPct: "Actual % (weighted)",
+  blPlanPct: "Baseline plan % at data date",
+  estPlanPct: "Current plan % at data date",
+  sai: "Schedule adherence index",
+  blUtm: "Baseline UTM (to month end)",
+  estUtm: "Estimated UTM",
+  estFtm: "Estimated FTM (this month)",
+  actFtm: "Actual FTM (this month)",
+  gapFtm: "Shortfall FTM",
+  start: "Estimated start",
+  blStart: "Baseline start",
+  blFinish: "Baseline finish",
+  blDuration: "Baseline duration (months)",
+  estDuration: "Estimated duration (months)",
+  elapsed: "Elapsed duration (months)",
+  elapsedPct: "Elapsed duration %",
+  remainingDuration: "Remaining duration (months)",
+  overrun: "Overrun (months)",
 };
 
 export const FILTER_LABELS: Record<TableFilter, string> = {
@@ -193,7 +220,13 @@ export function WidgetView({ w, schedule, portfolio, slice }: { w: Widget; sched
     case "gauge":
       return <GaugeWidget w={w} schedule={schedule} />;
     case "donut":
-      return <DonutWidget w={w} schedule={schedule} />;
+      return <DonutWidget w={w} schedule={schedule} slice={slice} />;
+    case "cards":
+      return <Cards w={w} schedule={schedule} />;
+    case "controltable":
+      return <ControlTable w={w} schedule={schedule} slice={slice} />;
+    case "combo":
+      return <ComboWidget w={w} schedule={schedule} />;
     case "groupbars":
       return <GroupBarsWidget w={w} schedule={schedule} />;
     case "phasecurves":
@@ -377,6 +410,18 @@ export function kpiFormatted(schedule: Schedule, w: Widget) {
 
 function GaugeWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
   const metric = w.metric ?? "spi";
+  if (metric === "actualPct" || metric === "estPlanPct" || metric === "blPlanPct") {
+    const plan = cutoffPlan(schedule, w);
+    const v = kpi(schedule, metric, { basis: w.basis ?? "hours" }).raw;
+    const tone = v === null ? undefined : v >= plan - 0.05 ? "good" : undefined;
+    void tone;
+    return (
+      <div className="gauge-wrap">
+        <Gauge value={v} min={0} max={100} label={w.title} fmt={(x) => x.toFixed(w.decimals ?? 1)} marker={metric === "actualPct" ? { value: plan, label: plan.toFixed(1) } : undefined} accent={STATUS.good} />
+        {metric === "actualPct" && <div className="muted kpi-hint">Baseline plan {plan.toFixed(1)} ({cutoffLabel(w)})</div>}
+      </div>
+    );
+  }
   const k = kpi(schedule, metric, { measure: w.measure, days: w.days });
   const isPct = metric === "percentComplete";
   const ratio = metric === "spi" || metric === "cpi";
@@ -398,8 +443,30 @@ function GaugeWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
 
 const TONE_COLOR: Record<string, string> = { good: STATUS.good, warning: STATUS.warning, serious: STATUS.serious, critical: STATUS.critical, neutral: "#b9bec6", info: STATUS.info };
 
-function DonutWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
-  const mix = useMemo(() => statusMix(schedule, w.split ?? "status"), [schedule, w.split]);
+function DonutWidget({ w, schedule, slice }: { w: Widget; schedule: Schedule; slice?: SliceProps }) {
+  const dim = w.dimension ?? "wbs1";
+  const weights = useMemo(
+    () => (w.split === "weight" ? progressTable(schedule, { dimension: dim, basis: w.basis ?? "hours", weightage: w.weightage }).rows : []),
+    [schedule, w.split, dim, w.basis, w.weightage],
+  );
+  if (w.split === "weight") {
+    const sel = slice?.slices.find((x) => x.dimension === dim)?.values ?? [];
+    return (
+      <Donut
+        caption="weight %"
+        total="100%"
+        fmtValue={(v) => `${(v * 100).toFixed(2)}%`}
+        selected={sel}
+        onPick={slice?.onSlices ? (id) => toggleSlice(slice, dim, id) : undefined}
+        slices={weights.map((r, i) => ({ id: r.key, label: r.label, value: r.weightage, color: i < SERIES.length ? SERIES[i] : OTHER }))}
+      />
+    );
+  }
+  return <StatusDonut w={w} schedule={schedule} />;
+}
+
+function StatusDonut({ w, schedule }: { w: Widget; schedule: Schedule }) {
+  const mix = useMemo(() => statusMix(schedule, (w.split as "status" | "float" | "critical") ?? "status"), [schedule, w.split]);
   return <Donut caption={w.split && w.split !== "status" ? "open" : "activities"} slices={mix.map((m) => ({ id: m.id, label: m.label, value: m.value, color: TONE_COLOR[m.tone] }))} />;
 }
 
@@ -723,7 +790,7 @@ function Slicer({ w, raw, slice }: { w: Widget; raw: Schedule; slice?: SliceProp
     slice.onSlices(next.length ? [...others, { dimension: dim, values: next }] : others);
   };
   return (
-    <div className="slicer">
+    <div className={`slicer ${w.slicerStyle === "list" ? "slicer-list" : ""}`}>
       {values.map((v) => (
         <button key={v} className={selected.includes(v) ? "on" : ""} onClick={() => toggle(v)} disabled={!slice?.onSlices}>
           {v}
@@ -739,6 +806,153 @@ function Slicer({ w, raw, slice }: { w: Widget; raw: Schedule; slice?: SliceProp
 }
 
 export { compact };
+
+/** Toggle one value of a dimension in the dashboard's slicer selections (cross-filtering). */
+function toggleSlice(slice: SliceProps, dim: string, v: string) {
+  if (!slice.onSlices) return;
+  const cur = slice.slices.find((x) => x.dimension === dim)?.values ?? [];
+  const next = cur.includes(v) ? cur.filter((x) => x !== v) : [...cur, v];
+  const others = slice.slices.filter((x) => x.dimension !== dim);
+  slice.onSlices(next.length ? [...others, { dimension: dim, values: next }] : others);
+}
+
+const DAY_MS = 86_400_000;
+/** The date a "baseline plan" figure is measured at. */
+function cutoffAt(s: Schedule, w: Widget): number {
+  const dd = s.dataDate ?? Date.now();
+  const d = new Date(dd);
+  if (w.cutoff === "monthstart") return Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  if (w.cutoff === "monthend") return Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) - 1;
+  return dd;
+}
+function cutoffLabel(w: Widget) {
+  return w.cutoff === "monthstart" ? "to last month end" : w.cutoff === "monthend" ? "to this month end" : "at data date";
+}
+function cutoffPlan(s: Schedule, w: Widget) {
+  return progressTable(s, { dimension: w.dimension ?? "wbs1", basis: w.basis ?? "hours", weightage: w.weightage, at: cutoffAt(s, w) }).total.plan * 100;
+}
+
+function Cards({ w, schedule }: { w: Widget; schedule: Schedule }) {
+  const rows = w.rows ?? [];
+  if (!rows.length) return <p className="muted">Add figures in the widget settings.</p>;
+  return (
+    <div className="cards-grid" style={{ gridTemplateColumns: `repeat(${Math.max(1, Math.min(8, w.cardCols ?? 3))}, minmax(0, 1fr))` }}>
+      {rows.map((r, i) => {
+        const k = r.metric ? kpi(schedule, r.metric, { basis: w.basis ?? "hours", measure: w.measure }) : null;
+        const val = k ? (w.decimals !== undefined && typeof k.raw === "number" && !/Date|start|finish|Finish|Start/.test(r.metric ?? "") && k.raw < 1e9 ? `${k.raw.toFixed(w.decimals)}${/uration|elapsed$|overrun/.test(r.metric ?? "") ? "m" : ""}` : k.value) : fillText(r.value || "–", schedule);
+        return (
+          <div key={i} className="fig-card" title={k?.hint}>
+            <div className={`fig-value ${k?.tone ?? ""}`}>{val}</div>
+            <div className="fig-label">{r.label}</div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function ControlTable({ w, schedule, slice }: { w: Widget; schedule: Schedule; slice?: SliceProps }) {
+  const dim = w.dimension ?? "wbs1";
+  const basis = w.basis ?? "hours";
+  const at = cutoffAt(schedule, w);
+  const data = useMemo(() => {
+    const now = controlRows(schedule, { dimension: dim, basis, weightage: w.weightage });
+    const bl = progressTable(schedule, { dimension: dim, basis, weightage: w.weightage, at });
+    const blBy = new Map(bl.rows.map((r) => [r.key, r.plan]));
+    return { rows: now.rows.map((r) => ({ ...r, plan: blBy.get(r.key) ?? r.plan })), total: { ...now.total, plan: bl.total.plan } };
+  }, [schedule, dim, basis, w.weightage, at]);
+  const sel = slice?.slices.find((x) => x.dimension === dim)?.values ?? [];
+  const f1 = (v: number) => (v * 100).toFixed(w.decimals ?? 1);
+  const row = (r: ControlRow, total = false) => {
+    const variance = (r.actual - r.plan) * 100;
+    const dv = r.durationVariance;
+    return (
+      <tr
+        key={r.key}
+        className={`${total ? "ct-total" : "ct-row"} ${sel.includes(r.key) ? "on" : ""}`}
+        onClick={!total && slice?.onSlices ? () => toggleSlice(slice, dim, r.key) : undefined}
+        title={!total && slice?.onSlices ? "Click to filter the dashboard to this row" : undefined}
+      >
+        <td className="ct-name">{r.label}</td>
+        <td>{(r.weight * 100).toFixed(2)}%</td>
+        <td>{f1(r.plan)}</td>
+        <td className="ct-actual">{f1(r.actual)}</td>
+        <td className={total ? "" : variance < -0.05 ? "ct-bad" : variance > 0.05 ? "ct-good" : ""}>{variance.toFixed(w.decimals ?? 1)}</td>
+        <td className="ct-bl">{fmtDay(r.blFinish)}</td>
+        <td className="ct-est">{fmtDay(r.finish)}</td>
+        <td className={dv !== null && dv > 0 && !total ? "ct-bad" : ""}>{dv ?? ""}</td>
+      </tr>
+    );
+  };
+  if (!data.rows.length) return <p className="muted">No weighted activities.</p>;
+  return (
+    <table className="data ctable">
+      <thead>
+        <tr>
+          <th className="ct-name">{w.title.match(/discipline/i) ? "Discipline" : "Group"}</th>
+          <th>Criteria weight</th>
+          <th>Baseline plan</th>
+          <th>Actual progress</th>
+          <th>BL variance</th>
+          <th>Baseline finish</th>
+          <th>Estimated finish</th>
+          <th>Duration variance (d)</th>
+        </tr>
+      </thead>
+      <tbody>
+        {data.rows.map((r) => row(r))}
+        {row(data.total, true)}
+      </tbody>
+    </table>
+  );
+}
+
+function ComboWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
+  const basis = w.basis ?? "hours";
+  const built = useMemo(() => {
+    const pts = progressCurve(schedule, { basis, step: w.step ?? "month" });
+    if (!pts.length) return null;
+    const dd = schedule.dataDate ?? Date.now();
+    const nowActual = progressTable(schedule, { dimension: "wbs1", basis }).total.actual * 100;
+    const step = w.step === "week" ? 7 * DAY_MS : 0;
+    const periods: ComboPeriod[] = pts.map((p, i) => {
+      const prev = pts[i - 1];
+      const t0 = prev ? prev.t + 1 : step ? p.t - step : Date.UTC(new Date(p.t).getUTCFullYear(), new Date(p.t).getUTCMonth(), 1);
+      let act = 0;
+      let rem = 0;
+      if (p.t <= dd) act = (p.periodActual ?? 0) * 100;
+      else if (!prev || prev.t < dd) {
+        act = Math.max(0, nowActual - (prev?.actual ?? 0) * 100);
+        rem = Math.max(0, p.forecast * 100 - nowActual);
+      } else rem = Math.max(0, (p.forecast - prev.forecast) * 100);
+      return { t: p.t, t0, bl: p.periodPlan * 100, act, rem };
+    });
+    const past = pts.filter((p) => p.t <= dd && p.actual !== null).map((p) => ({ t: p.t, v: p.actual! * 100 }));
+    const fut = pts.filter((p) => p.t > dd).map((p) => ({ t: p.t, v: p.forecast * 100 }));
+    const lines = [
+      { id: "baseline", label: "Baseline weight %", color: COMBO.bl, points: pts.map((p) => ({ t: p.t, v: p.plan * 100 })) },
+      { id: "actual", label: "Actual weight %", color: COMBO.act, points: [...past, { t: dd, v: nowActual }] },
+      { id: "remaining", label: "Remaining weight %", color: COMBO.rem, points: [{ t: dd, v: nowActual }, ...fut] },
+    ];
+    return { periods, lines, dd };
+  }, [schedule, basis, w.step]);
+  if (!built) return <p className="muted">No weighted activities.</p>;
+  const hidden = w.hiddenSeries ?? [];
+  return (
+    <ComboChart
+      periods={built.periods}
+      lines={built.lines.filter((l) => !hidden.includes(l.id))}
+      labels={w.showLabels !== false}
+      legend={w.showLegend !== false}
+      showBars={!hidden.includes("bars")}
+      colors={COMBO}
+      marker={{ t: built.dd, label: `Data date ${fmtDay(built.dd)}` }}
+    />
+  );
+}
+
+/** Combo chart colours: baseline, actual, remaining. */
+const COMBO = { bl: "#4b4fc4", act: "#1fbf5f", rem: "#f08c5a" };
 
 /** Report header: logo, title and subtitle from the dashboard's page set-up. */
 export function PageHead({ dash, schedule, print = false }: { dash: Dashboard; schedule: Schedule | null; print?: boolean }) {
@@ -776,7 +990,7 @@ export function PageHead({ dash, schedule, print = false }: { dash: Dashboard; s
 export function pageStyle(dash: Dashboard): { className: string; style: CSSProperties & Record<string, string | number | undefined> } {
   const pg = dash.page ?? {};
   return {
-    className: `${dash.theme === "report" ? "theme-report" : dash.theme === "executive" ? "theme-exec" : ""} orient-${pg.orientation ?? "landscape"}`,
+    className: `${dash.theme === "report" ? "theme-report" : dash.theme === "executive" ? "theme-exec" : ""} orient-${pg.orientation ?? "landscape"} ${pg.dense ? "dense" : ""}`,
     style: { "--page-accent": pg.accent, "--page-bg": pg.background, "--dash-gap": pg.gap !== undefined ? `${pg.gap}px` : undefined },
   };
 }

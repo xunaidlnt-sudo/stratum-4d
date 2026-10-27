@@ -22,7 +22,10 @@ export type WidgetKind =
   | "groupbars" // plan vs actual % by discipline / WBS / code
   | "phasecurves" // one progress S-curve per discipline (E, P, C…)
   | "donut" // status mix: progress status, float bands or critical share
-  | "image"; // logo, photo or site picture
+  | "image" // logo, photo or site picture
+  | "cards" // a grid of labelled figures: dates, %s, durations (computed or typed)
+  | "controltable" // per discipline: weight, scope, BL plan, actual, variance, BL/est. finish, duration variance
+  | "combo"; // progress S-curve with monthly histograms on one % axis, data labels and a date-range slider
 
 export type KpiMetric =
   | "finish"
@@ -39,7 +42,26 @@ export type KpiMetric =
   | "activities"
   | "critical"
   | "late"
-  | "startingSoon";
+  | "startingSoon"
+  // Weighted progress and project-control figures (EPPM-style dashboards)
+  | "actualPct"
+  | "blPlanPct"
+  | "estPlanPct"
+  | "sai"
+  | "blUtm"
+  | "estUtm"
+  | "estFtm"
+  | "actFtm"
+  | "gapFtm"
+  | "start"
+  | "blStart"
+  | "blFinish"
+  | "blDuration"
+  | "estDuration"
+  | "elapsed"
+  | "elapsedPct"
+  | "remainingDuration"
+  | "overrun";
 
 export type TableFilter = "critical" | "late" | "in-progress" | "starting-soon" | "finishing-soon" | "negative-float" | "all";
 
@@ -108,8 +130,16 @@ export interface Widget {
   hiddenSeries?: string[];
   /** Look-ahead length in weeks. */
   weeks?: number;
-  /** Donut: what to split by. */
-  split?: "status" | "float" | "critical";
+  /** Donut: what to split by ("weight" = each group's share of the weighted scope). */
+  split?: "status" | "float" | "critical" | "weight";
+  /** Cards: tiles per row. */
+  cardCols?: number;
+  /** Slicer look: a row of buttons or a vertical list. */
+  slicerStyle?: "buttons" | "list";
+  /** Charts: value labels on points and bars. */
+  showLabels?: boolean;
+  /** Where "baseline plan" is measured: data date, end of last month, or end of this month. */
+  cutoff?: "datadate" | "monthstart" | "monthend";
   /** Milestones: show achieved ones too. */
   showDone?: boolean;
   /** Image as a data URL. */
@@ -180,6 +210,8 @@ export interface DashboardPage {
   /** Default card look for widgets without their own. */
   border?: "card" | "line" | "none";
   showDataDate?: boolean;
+  /** Pack widgets into gaps (CSS grid dense flow), for tightly laid-out pages. */
+  dense?: boolean;
 }
 
 export type Frequency = "daily" | "weekly" | "monthly";
@@ -409,8 +441,135 @@ export function planningDashboard(projectId: string | null): Dashboard {
   };
 }
 
+/**
+ * Project control dashboard, page 1: the executive summary used on EPPM
+ * projects. Weighted by the progress-weightage units ("Labour hours" basis);
+ * baseline plan measured to the end of last month, as monthly reports do.
+ */
+export function eppmSummaryDashboard(projectId: string | null): Dashboard {
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, basis: "hours", ...extra });
+  return {
+    id: uid("dash"),
+    name: "Project control – summary",
+    projectId,
+    theme: "classic",
+    page: { header: "{project}", subtitle: "Selected baseline: {baseline} · data date {baselinedate}", accent: "#1f3c88", showDataDate: true, dense: true, gap: 10 },
+    updatedAt: new Date().toISOString(),
+    slices: [],
+    widgets: [
+      w("cards", "Key dates", {
+        w: 3,
+        h: 4,
+        cardCols: 2,
+        rows: [
+          { label: "NOA / LOA date", metric: null, value: "" },
+          { label: "Schedule adherence (SAI)", metric: "sai" },
+          { label: "Contract start date", metric: "blStart" },
+          { label: "Contract finish date", metric: "blFinish" },
+          { label: "Baseline start", metric: "blStart" },
+          { label: "Baseline finish", metric: "blFinish" },
+          { label: "Estimated start", metric: "start" },
+          { label: "Estimated finish", metric: "finish" },
+        ],
+      }),
+      w("gauge", "Weighted percent", { w: 3, h: 2, metric: "actualPct", cutoff: "monthstart" }),
+      w("donut", "Scope composition weightage", { w: 3, h: 2.5, split: "weight", dimension: "wbs1", ignoreSlicers: true }),
+      w("cards", "Progress summary", {
+        w: 3,
+        h: 2,
+        style: { accent: "#c62828" },
+        rows: [
+          { label: "Estimated FTM", metric: "estFtm" },
+          { label: "Actual FTM", metric: "actFtm" },
+          { label: "Shortfall FTM", metric: "gapFtm" },
+          { label: "Baseline UTM", metric: "blUtm" },
+          { label: "Estimated UTM", metric: "estUtm" },
+          { label: "Actual to date", metric: "actualPct" },
+        ],
+      }),
+      w("cards", "Project durations", {
+        w: 3,
+        h: 2,
+        style: { accent: "#c62828" },
+        rows: [
+          { label: "Baseline duration", metric: "blDuration" },
+          { label: "Estimated", metric: "estDuration" },
+          { label: "Elapsed duration", metric: "elapsed" },
+          { label: "Elapsed duration %", metric: "elapsedPct" },
+          { label: "Remaining", metric: "remainingDuration" },
+          { label: "Overrun (m)", metric: "overrun" },
+        ],
+      }),
+      w("text", "Contract description", { w: 3, h: 1, text: "{project}" }),
+      w("controltable", "Discipline", { w: 9, h: 2.5, dimension: "wbs1", cutoff: "monthstart", ignoreSlicers: true }),
+      w("text", "Status of EOT", { w: 3, h: 1.5, text: "Type the status of extension of time claims here (Customise → select this card → Data)." }),
+    ],
+  };
+}
+
+/** Project control dashboard, page 2: progress S-curve with histograms and slicers. */
+export function eppmCurveDashboard(projectId: string | null): Dashboard {
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 2, h: 1, basis: "hours", ...extra });
+  return {
+    id: uid("dash"),
+    name: "Project control – S-curve",
+    projectId,
+    theme: "classic",
+    page: { header: "{project}", subtitle: "Selected baseline: {baseline} · data date {baselinedate}", accent: "#1f3c88", dense: true, gap: 10 },
+    updatedAt: new Date().toISOString(),
+    slices: [],
+    widgets: [
+      w("slicer", "Discipline", { h: 2, dimension: "wbs1", slicerStyle: "list" }),
+      w("combo", "Progress S-curve", { w: 8, h: 4.5, step: "month", showLabels: true }),
+      w("slicer", "Work package", { h: 3.5, dimension: "wbs2", slicerStyle: "list" }),
+      w("slicer", "Package", { h: 1.5, dimension: "wbs2", slicerStyle: "list" }),
+      w("slicer", "Domain", { h: 2, dimension: "wbs1", slicerStyle: "list" }),
+      w("cards", "", {
+        w: 12,
+        h: 1,
+        cardCols: 8,
+        style: { hideTitle: true },
+        rows: [
+          { label: "Schedule data date", metric: "dataDate" },
+          { label: "BL start date", metric: "blStart" },
+          { label: "BL finish date", metric: "blFinish" },
+          { label: "Estimated start date", metric: "start" },
+          { label: "Estimated finish date", metric: "finish" },
+          { label: "Baseline plan %", metric: "blUtm" },
+          { label: "Current plan %", metric: "estUtm" },
+          { label: "Actual %", metric: "actualPct" },
+        ],
+      }),
+    ],
+  };
+}
+
+/**
+ * Point the template's slicers at the project's own fields when it has them
+ * (P6 user fields or activity codes named Discipline, Domain, Package, Work Package).
+ */
+export function adaptToFields(d: Dashboard, fields: string[]): Dashboard {
+  const find = (name: string) => fields.find((f) => f.toLowerCase() === name.toLowerCase());
+  const pick = (title: string, fallback: string) => {
+    const f = find(`user:${title}`) ?? find(`code:${title}`) ?? fields.find((x) => x.toLowerCase().endsWith(`:${title.toLowerCase()}`));
+    return f ?? fallback;
+  };
+  return {
+    ...d,
+    widgets: d.widgets.map((x) => {
+      if (x.kind === "slicer" || x.kind === "controltable" || (x.kind === "donut" && x.split === "weight")) {
+        const t = x.kind === "slicer" ? x.title : "Discipline";
+        return { ...x, dimension: pick(t, x.dimension ?? "wbs1") };
+      }
+      return x;
+    }),
+  };
+}
+
 /** Built-in starting points shown under "New". */
 export const BUILTIN_TEMPLATES: { id: string; name: string; hint: string; make: (projectId: string | null) => Dashboard }[] = [
+  { id: "eppm-summary", name: "Project control – summary", hint: "EPPM style: key dates, weighted %, FTM/UTM, durations, discipline table", make: eppmSummaryDashboard },
+  { id: "eppm-curve", name: "Project control – S-curve", hint: "Weight % curves with monthly histograms, slicers, date slider", make: eppmCurveDashboard },
   { id: "planning", name: "Planning dashboard", hint: "Gauges, milestones, look-ahead, E/P/C curves", make: planningDashboard },
   { id: "progress", name: "Progress report (EPC style)", hint: "Key figures, weighted progress, S-curve", make: progressReportDashboard },
   { id: "status", name: "Project status", hint: "KPIs, S-curve, critical and late work", make: defaultDashboard },

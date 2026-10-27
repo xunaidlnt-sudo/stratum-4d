@@ -156,6 +156,19 @@ export interface Schedule {
   sourceFormat?: "xer" | "mspdi" | "stratum" | "p6-eppm" | "p6-db";
   /** Where the schedule was pulled from, for refresh and push-back. */
   p6Source?: { connectionId: string; projectObjectId: string; kind: string; pulledAt: string } | null;
+  /** The baseline the baseline dates came from, when assigned from another schedule. */
+  baselineInfo?: BaselineInfo | null;
+}
+
+export interface BaselineInfo {
+  /** e.g. "000-N-20016-BL – Contractual baseline" */
+  name: string;
+  /** Data date of the baseline schedule. */
+  dataDate: number | null;
+  assignedAt: string;
+  matched: number;
+  /** Activities in the current schedule with no baseline counterpart. */
+  missing: number;
 }
 
 /** A model element (IFC product or demo element) as seen by the linking engine. */

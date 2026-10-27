@@ -393,7 +393,10 @@ export function Gauge({
   label,
   fmt,
   accent,
+  marker,
 }: {
+  /** A reference value drawn as a tick on the dial, e.g. the baseline plan. */
+  marker?: { value: number; label: string };
   value: number | null;
   min?: number;
   max: number;
@@ -443,6 +446,20 @@ export function Gauge({
         {value !== null && <path d={arc(0, Math.max(0.002, f(value)))} stroke={tone ? STATUS[tone] : accent ?? SERIES[0]} strokeWidth="12" fill="none" />}
         {value !== null && <line x1={cx} y1={cy} x2={nx} y2={ny} className="gauge-needle" strokeWidth="2.5" strokeLinecap="round" />}
         <circle cx={cx} cy={cy} r="4" className="gauge-hub" />
+        {marker &&
+          (() => {
+            const [x0, y0] = pt(f(marker.value), R - 9);
+            const [x1, y1] = pt(f(marker.value), R + 9);
+            const [lx, ly] = pt(f(marker.value), R + 20);
+            return (
+              <g>
+                <line x1={x0} y1={y0} x2={x1} y2={y1} stroke={STATUS.critical} strokeWidth="2.5" strokeLinecap="round" />
+                <text x={lx} y={ly} textAnchor={f(marker.value) > 0.85 ? "end" : f(marker.value) < 0.15 ? "start" : "middle"} className="gauge-marker">
+                  {marker.label}
+                </text>
+              </g>
+            );
+          })()}
         <text x={cx - R} y={cy + 16} textAnchor="middle" className="tick">
           {fmt(min)}
         </text>
@@ -459,7 +476,21 @@ export function Gauge({
 }
 
 /** Donut with a legend that carries the labels and counts. */
-export function Donut({ slices, total, caption = "activities" }: { slices: { id: string; label: string; value: number; color: string }[]; total?: string; caption?: string }) {
+export function Donut({
+  slices,
+  total,
+  caption = "activities",
+  fmtValue = (v: number) => String(v),
+  selected = [],
+  onPick,
+}: {
+  slices: { id: string; label: string; value: number; color: string }[];
+  total?: string;
+  caption?: string;
+  fmtValue?: (v: number) => string;
+  selected?: string[];
+  onPick?: (id: string) => void;
+}) {
   const [hover, setHover] = useState<string | null>(null);
   const sum = slices.reduce((t, s) => t + s.value, 0);
   if (!sum) return <p className="muted">Nothing to show.</p>;
@@ -485,10 +516,19 @@ export function Donut({ slices, total, caption = "activities" }: { slices: { id:
     <figure className="donut">
       <svg viewBox="0 0 120 120" role="img" aria-label={slices.map((s) => `${s.label} ${s.value}`).join(", ")} onPointerLeave={() => setHover(null)}>
         {paths.map((s) => (
-          <path key={s.id} d={s.d} fill={s.color} fillRule="evenodd" opacity={hover && hover !== s.id ? 0.4 : 1} onPointerEnter={() => setHover(s.id)} />
+          <path
+            key={s.id}
+            d={s.d}
+            fill={s.color}
+            fillRule="evenodd"
+            opacity={(hover && hover !== s.id) || (selected.length && !selected.includes(s.id)) ? 0.4 : 1}
+            onPointerEnter={() => setHover(s.id)}
+            onClick={onPick ? () => onPick(s.id) : undefined}
+            style={onPick ? { cursor: "pointer" } : undefined}
+          />
         ))}
         <text x="60" y="58" textAnchor="middle" className="donut-total">
-          {h ? h.value : (total ?? sum)}
+          {h ? fmtValue(h.value) : (total ?? sum)}
         </text>
         <text x="60" y="72" textAnchor="middle" className="tick">
           {h ? `${Math.round((h.value / sum) * 100)}%` : caption}
@@ -496,10 +536,16 @@ export function Donut({ slices, total, caption = "activities" }: { slices: { id:
       </svg>
       <ul className="donut-legend">
         {slices.map((s) => (
-          <li key={s.id} onPointerEnter={() => setHover(s.id)} onPointerLeave={() => setHover(null)} className={hover === s.id ? "on" : ""}>
+          <li
+            key={s.id}
+            onPointerEnter={() => setHover(s.id)}
+            onPointerLeave={() => setHover(null)}
+            onClick={onPick ? () => onPick(s.id) : undefined}
+            className={`${hover === s.id || selected.includes(s.id) ? "on" : ""} ${onPick ? "pick" : ""}`}
+          >
             <span className="swatch" style={{ background: s.color }} />
             <span>{s.label}</span>
-            <b>{s.value}</b>
+            <b>{fmtValue(s.value)}</b>
           </li>
         ))}
       </ul>
@@ -548,6 +594,199 @@ export function GroupBars({
           </div>
         ))}
       </div>
+    </figure>
+  );
+}
+
+export interface ComboPeriod {
+  /** Period end (ms). */
+  t: number;
+  /** Period start (ms). */
+  t0: number;
+  /** Progress in the period, %: baseline plan, actual, remaining (forecast). */
+  bl: number;
+  act: number;
+  rem: number;
+}
+
+/**
+ * Cumulative progress lines with period histograms on one 0–100 % axis
+ * (both are progress %), the way EPPM progress dashboards show them.
+ * Hover a month for its figures; drag the slider ends to zoom in time.
+ */
+export function ComboChart({
+  periods,
+  lines,
+  labels = true,
+  legend = true,
+  marker,
+  colors,
+  showBars = true,
+}: {
+  periods: ComboPeriod[];
+  lines: LineSeries[];
+  labels?: boolean;
+  legend?: boolean;
+  marker?: { t: number; label: string };
+  colors: { bl: string; act: string; rem: string };
+  showBars?: boolean;
+}) {
+  const n = periods.length;
+  const [range, setRange] = useState<[number, number]>([0, Math.max(0, n - 1)]);
+  const [hover, setHover] = useState<number | null>(null);
+  const r0 = Math.min(range[0], n - 1);
+  const r1 = Math.min(Math.max(range[1], r0), n - 1);
+  if (!n) return <p className="muted">No weighted activities.</p>;
+  const Wc = 960;
+  const Hc = 380;
+  const Mc = { l: 40, r: 14, t: 16, b: 28 };
+  const vis = periods.slice(r0, r1 + 1);
+  const lo = vis[0].t0;
+  const hi = vis[vis.length - 1].t;
+  const x = (t: number) => Mc.l + ((t - lo) / Math.max(1, hi - lo)) * (Wc - Mc.l - Mc.r);
+  const y = (v: number) => Hc - Mc.b - (Math.min(100, Math.max(0, v)) / 100) * (Hc - Mc.t - Mc.b);
+  const inRange = (t: number) => t >= lo - 1 && t <= hi + 1;
+  const band = (Wc - Mc.l - Mc.r) / vis.length;
+  const bw = Math.max(2, band * 0.36);
+  const fmt1 = (v: number) => (Math.abs(v) >= 99.95 ? "100" : v.toFixed(1));
+  // Labels: at most ~16 per line, never a repeated 100.
+  const every = Math.max(1, Math.ceil(vis.length / 16));
+  const ticks = vis.filter((_, i) => i % Math.max(1, Math.ceil(vis.length / 12)) === 0);
+  return (
+    <figure className="chart combo">
+      {legend && (
+        <div className="legend-row">
+          {showBars && (
+            <>
+              <span className="legend-item">
+                <span className="swatch" style={{ background: colors.bl, opacity: 0.6 }} /> Baseline histogram
+              </span>
+              <span className="legend-item">
+                <span className="swatch" style={{ background: colors.act, opacity: 0.6 }} /> Actual histogram
+              </span>
+              <span className="legend-item">
+                <span className="swatch" style={{ background: colors.rem, opacity: 0.6 }} /> Remaining histogram
+              </span>
+            </>
+          )}
+          {lines.map((s) => (
+            <span key={s.id} className="legend-item">
+              <svg width="18" height="8" aria-hidden>
+                <line x1="0" y1="4" x2="18" y2="4" stroke={s.color} strokeWidth="2.5" />
+              </svg>
+              {s.label}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="chart-wrap">
+        <svg viewBox={`0 0 ${Wc} ${Hc}`} role="img" aria-label="Progress S-curve with monthly histograms" onPointerLeave={() => setHover(null)}>
+          {[0, 20, 40, 60, 80, 100].map((v) => (
+            <g key={v}>
+              <line x1={Mc.l} x2={Wc - Mc.r} y1={y(v)} y2={y(v)} className="grid" strokeDasharray={v ? "4 4" : undefined} />
+              <text x={Mc.l - 6} y={y(v) + 4} textAnchor="end" className="tick">
+                {v}
+              </text>
+            </g>
+          ))}
+          {ticks.map((p) => (
+            <text key={p.t} x={x((p.t0 + p.t) / 2)} y={Hc - 9} textAnchor="middle" className="tick">
+              {monthLabel(p.t0 + 86_400_000)}
+            </text>
+          ))}
+          {marker && inRange(marker.t) && (
+            <g>
+              <line x1={x(marker.t)} x2={x(marker.t)} y1={Mc.t} y2={Hc - Mc.b} stroke="currentColor" opacity="0.45" strokeDasharray="3 3" />
+              <text x={x(marker.t) + 4} y={Mc.t + 10} className="tick">
+                {marker.label}
+              </text>
+            </g>
+          )}
+          {showBars &&
+            vis.map((p, i) => {
+              const cx = x((p.t0 + p.t) / 2);
+              const base = y(0);
+              const yAct = y(p.act);
+              const yRem = y(p.act + p.rem);
+              const lbl = (v: number, xx: number, yy: number) => labels && bw >= 9 && v >= 0.95 && base - yy > 0 && (vis.length <= 24 || i % 2 === 0) && <text x={xx} y={yy - 3} textAnchor="middle" className="bar-label">{v.toFixed(1)}</text>;
+              return (
+                <g key={p.t} onPointerEnter={() => setHover(i)} opacity={hover === null || hover === i ? 1 : 0.55}>
+                  <rect x={cx - band / 2} y={Mc.t} width={band} height={Hc - Mc.t - Mc.b} fill="transparent" />
+                  {p.bl > 0 && <rect x={cx - bw - 1} y={y(p.bl)} width={bw} height={base - y(p.bl)} fill={colors.bl} opacity="0.55" rx="2" />}
+                  {p.act > 0 && <rect x={cx + 1} y={yAct} width={bw} height={base - yAct} fill={colors.act} opacity="0.6" rx="2" />}
+                  {p.rem > 0 && <rect x={cx + 1} y={yRem} width={bw} height={yAct - yRem} fill={colors.rem} opacity="0.55" rx="2" />}
+                  {lbl(p.bl, cx - bw / 2 - 1, y(p.bl))}
+                  {lbl(p.act + p.rem, cx + bw / 2 + 1, yRem)}
+                </g>
+              );
+            })}
+          {lines.map((s) => {
+            const pts = s.points.filter((p) => p.v !== null && inRange(p.t));
+            const d = pts.map((p, i) => `${i ? "L" : "M"}${x(p.t).toFixed(1)},${y(p.v!).toFixed(1)}`).join("");
+            let seen100 = false;
+            return (
+              <g key={s.id}>
+                <path d={d} fill="none" stroke={s.color} strokeWidth="2.5" strokeLinejoin="round" />
+                {pts.map((p, i) => (
+                  <circle key={p.t} cx={x(p.t)} cy={y(p.v!)} r={i % every === 0 || i === pts.length - 1 ? 3.2 : 2} fill={s.color} />
+                ))}
+                {labels &&
+                  pts.map((p, i) => {
+                    const full = p.v! >= 99.95;
+                    if (full && seen100) return null;
+                    if (full) seen100 = true;
+                    if (!(i % every === 0 || i === pts.length - 1 || full)) return null;
+                    return (
+                      <text key={`l${p.t}`} x={x(p.t)} y={y(p.v!) - 7} textAnchor="middle" className="point-label" style={{ fill: s.color }}>
+                        {fmt1(p.v!)}
+                      </text>
+                    );
+                  })}
+              </g>
+            );
+          })}
+        </svg>
+        {hover !== null && vis[hover] && (
+          <div className="tooltip" style={{ left: `${(x((vis[hover].t0 + vis[hover].t) / 2) / Wc) * 100}%` }}>
+            <b>{monthLabel(vis[hover].t0 + 86_400_000)}</b>
+            <div>
+              <span className="swatch" style={{ background: colors.bl }} /> Baseline in month: {vis[hover].bl.toFixed(1)}%
+            </div>
+            <div>
+              <span className="swatch" style={{ background: colors.act }} /> Actual in month: {vis[hover].act.toFixed(1)}%
+            </div>
+            <div>
+              <span className="swatch" style={{ background: colors.rem }} /> Remaining in month: {vis[hover].rem.toFixed(1)}%
+            </div>
+            {lines.map((s) => {
+              let v: number | null = null;
+              for (const p of s.points) if (p.t <= vis[hover].t + 1 && p.v !== null) v = p.v;
+              return (
+                <div key={s.id}>
+                  <span className="swatch" style={{ background: s.color }} /> {s.label}: {v === null ? "–" : `${v.toFixed(1)}%`}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
+      {n > 2 && (
+        <div className="range2" title="Drag the ends to zoom in time">
+          <div className="range2-track">
+            <span style={{ left: `${(r0 / (n - 1)) * 100}%`, width: `${((r1 - r0) / (n - 1)) * 100}%` }} />
+          </div>
+          <input type="range" min={0} max={n - 1} value={r0} aria-label="From" onChange={(e) => setRange([Math.min(Number(e.target.value), r1 - 1), r1])} />
+          <input type="range" min={0} max={n - 1} value={r1} aria-label="To" onChange={(e) => setRange([r0, Math.max(Number(e.target.value), r0 + 1)])} />
+          <span className="range2-text muted">
+            {monthLabel(periods[r0].t0 + 86_400_000)} – {monthLabel(periods[r1].t0 + 86_400_000)}
+            {(r0 > 0 || r1 < n - 1) && (
+              <button className="link" onClick={() => setRange([0, n - 1])}>
+                reset
+              </button>
+            )}
+          </span>
+        </div>
+      )}
     </figure>
   );
 }

@@ -60,6 +60,8 @@ export interface ClassicActions {
   openFile: () => void;
   saveFile: () => void;
   sample: (kind: "gis" | "rc") => void;
+  /** Take baseline dates from an approved-baseline XER/XML (P6: Assign Baselines). */
+  assignBaseline: () => void;
   dashboards: () => void;
   settings: (tab?: "interface" | "data" | "p6" | "email" | "users") => void;
   help: () => void;
@@ -305,6 +307,7 @@ export function P6Screen({ a, banners, status }: { a: ClassicActions; banners: R
       "Project",
       [
         { label: "Schedule…", onClick: a.schedule, disabled: none, shortcut: "F9" },
+        { label: "Assign Baselines… (from XER / XML)", onClick: a.assignBaseline, disabled: none },
         ...(a.pushP6 ? [{ label: "Send Progress to P6", onClick: a.pushP6 }] : []),
         "sep",
         { label: "Reports and Dashboards", onClick: a.dashboards },
@@ -443,7 +446,9 @@ export function P6Screen({ a, banners, status }: { a: ClassicActions; banners: R
         <span>Portfolio: All Projects</span>
         <span>Access Mode: Shared</span>
         <DataDateInput label="Data Date" />
-        <span>Baseline: Project Baseline</span>
+        <span title={schedule?.baselineInfo ? `Assigned ${new Date(schedule.baselineInfo.assignedAt).toLocaleString()}: ${schedule.baselineInfo.matched} activities matched` : "Baseline dates as imported"}>
+          Baseline: {schedule?.baselineInfo ? `${schedule.baselineInfo.name} (DD ${fmtDate(schedule.baselineInfo.dataDate)})` : "Project Baseline"}
+        </span>
         <span>User: {user?.name ?? "Local user"}</span>
         <span>DB: {a.dbLabel}</span>
         <span className="spacer" />
@@ -642,6 +647,9 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
           <div className="rb-field">
             <DataDateInput label="Status Date" />
           </div>
+        </Group>
+        <Group label="Baseline">
+          <Big Icon={CalendarCheck} label="Set Baseline from File" onClick={a.assignBaseline} disabled={none} />
         </Group>
         <Group label="Data">
           <Big Icon={FileInput} label="Import from P6" onClick={a.importP6} />

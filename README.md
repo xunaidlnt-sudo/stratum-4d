@@ -125,6 +125,13 @@ Widgets:
 - tables: activity table, milestone tracker (baseline vs forecast, days late, on track / at risk / late), 1–12 week look-ahead grouped by week, weighted progress table (Cum. BL Plan %, Cum. Actual %, Variance wrt BL) with a shaded **TOTAL** row, portfolio across all projects;
 - layout: section banner, text note, image or logo, slicer buttons by discipline, package or any activity code.
 
+**Project control dashboards (EPPM style).** Two templates reproduce the monthly project-control pages used on P6 EPPM projects:
+
+- *Project control – summary*: key dates (contract, baseline, estimated), schedule adherence index, a weighted-percent gauge with the baseline plan marked, scope weightage by discipline, progress summary (estimated and actual FTM, baseline and estimated UTM, actual to date), project durations in months (baseline, estimated, elapsed, remaining, overrun) and a discipline table (criteria weight, baseline plan, actual, BL variance, baseline and estimated finish, duration variance in working days). Click a row or a pie slice to filter the page.
+- *Project control – S-curve*: baseline, actual and remaining weight % with monthly histograms and data labels on one % axis, a date-range slider, and list slicers for discipline, work package, package and domain.
+
+Progress is weighted by a progress-weightage resource (use *Labour hours*), cost, duration or equally. New dashboards pick up P6 user fields or activity codes named Discipline, Work Package, Package and Domain. Use **Project → Assign Baselines** (MS Project: *Project → Set Baseline from File*) to take baseline dates from the approved-baseline XER by Activity ID, as P6's Assign Baselines does; the status bar shows which baseline is in use.
+
 Progress is weighted by budgeted cost, labour hours, duration or equally, and grouped by WBS level 1 or 2, any activity code or any user field. You can type your own weightage per group (e.g. General 3%, Engineering 7%, Procurement 50%, Construction 40%); the TOTAL row then uses those weights.
 
 Every dashboard prints to PDF (A4, in the orientation set on the page) and exports to Excel (summary, progress table, progress S-curve, late and critical, 3-week look-ahead, all activities, S-curve data, weekly resources, portfolio).

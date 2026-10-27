@@ -5,6 +5,7 @@ import { evm, resourceHistogram, sCurves, type Measure } from "./evm";
 import type { KpiMetric, TableFilter } from "./reporting";
 import type { Activity, Schedule } from "./types";
 import { monthShort } from "./dates";
+import { groupOf, progressCurve, progressTable, type WeightBasis } from "./progress";
 
 const DAY = 86_400_000;
 
@@ -61,11 +62,183 @@ function hasMeasure(s: Schedule, m: Measure): boolean {
   return (s.assignments ?? []).some((x) => (m === "cost" ? x.budgetCost > 0 : x.budgetQty > 0));
 }
 
-export function kpi(s: Schedule, metric: KpiMetric, opts: { measure?: Measure; days?: number } = {}): KpiValue {
+const MONTH = 30.4375 * DAY;
+
+export interface ControlFigures {
+  /** Weighted cumulative %, 0–100, at the data date. */
+  actualPct: number;
+  blPlanPct: number;
+  estPlanPct: number;
+  /** Schedule adherence index: actual to date ÷ baseline plan to the end of this month. */
+  sai: number | null;
+  /** Up to the end of the data date's month (UTM) and for that month (FTM), 0–100. */
+  blUtm: number;
+  estUtm: number;
+  estFtm: number;
+  actFtm: number;
+  start: number | null;
+  finish: number | null;
+  blStart: number | null;
+  blFinish: number | null;
+  /** Months. */
+  blDuration: number | null;
+  estDuration: number | null;
+  elapsed: number | null;
+  remaining: number | null;
+  overrun: number | null;
+}
+
+/**
+ * Figures for an EPPM-style project control dashboard. Progress is weighted
+ * (cost, hours, duration or equal); durations are in months of 30.44 days.
+ */
+export function controlFigures(s: Schedule, basis: WeightBasis = "cost"): ControlFigures {
+  const dd = s.dataDate ?? Date.now();
+  const d = new Date(dd);
+  const monthStart = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1);
+  const monthEnd = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1) - 1;
+  const now = progressTable(s, { dimension: "wbs1", basis });
+  const atEnd = progressTable(s, { dimension: "wbs1", basis, at: monthEnd });
+  const atStart = progressTable(s, { dimension: "wbs1", basis, at: monthStart });
+  const curve = progressCurve(s, { basis, step: "month" });
+  // Actual cumulative at the end of last month (actual work accrues over each activity's actual dates).
+  const prev = [...curve].reverse().find((p) => p.t < monthStart);
+  const prevActual = prev?.actual ?? 0;
+  // This month on the current schedule: work dated inside the month.
+  const estFtm = Math.max(0, atEnd.total.forecast - atStart.total.forecast);
+  const pct = (x: number) => x * 100;
+  let start = Infinity;
+  let blStart = Infinity;
+  for (const a of work(s)) {
+    const st = a.actualStart ?? a.start;
+    if (st !== null) start = Math.min(start, st);
+    if (a.baselineStart !== null) blStart = Math.min(blStart, a.baselineStart);
+  }
+  const finish = projectFinish(s);
+  const blFinish = baselineFinish(s);
+  const S = Number.isFinite(start) ? start : null;
+  const BS = Number.isFinite(blStart) ? blStart : null;
+  const m = (a: number | null, b: number | null) => (a === null || b === null ? null : (b - a) / MONTH);
+  return {
+    actualPct: pct(now.total.actual),
+    blPlanPct: pct(now.total.plan),
+    estPlanPct: pct(now.total.forecast),
+    sai: atEnd.total.plan > 0 ? now.total.actual / atEnd.total.plan : null,
+    blUtm: pct(atEnd.total.plan),
+    estUtm: pct(prevActual + estFtm),
+    estFtm: pct(estFtm),
+    actFtm: pct(Math.max(0, now.total.actual - prevActual)),
+    start: S,
+    finish,
+    blStart: BS,
+    blFinish,
+    blDuration: m(BS, blFinish),
+    estDuration: m(S, finish),
+    elapsed: m(S, dd),
+    remaining: m(dd, finish),
+    overrun: m(blFinish, finish),
+  };
+}
+
+export interface ControlRow {
+  key: string;
+  label: string;
+  weight: number;
+  plan: number;
+  actual: number;
+  variance: number;
+  blFinish: number | null;
+  finish: number | null;
+  /** Estimated finish − baseline finish, in working days of the project calendar (or calendar days). */
+  durationVariance: number | null;
+}
+
+/** One row per group (discipline, WBS, code) for the control table, plus a total row. */
+export function controlRows(
+  s: Schedule,
+  opts: { dimension: string; basis: WeightBasis; weightage?: Record<string, number>; days?: "working" | "calendar" },
+): { rows: ControlRow[]; total: ControlRow } {
+  const t = progressTable(s, opts);
+  const cal = s.calendars?.find((c) => c.id === s.defaultCalendarId) ?? s.calendars?.[0];
+  // Working days by the calendar's work week (holidays not deducted), as P6 dashboards report them.
+  const workDay = cal ? cal.week.map((spans) => spans.length > 0) : null;
+  const diff = (a: number, b: number) => {
+    if (opts.days === "calendar" || !workDay || !workDay.some(Boolean)) return Math.round((b - a) / DAY);
+    const sign = b >= a ? 1 : -1;
+    let lo = Math.floor(Math.min(a, b) / DAY) * DAY;
+    const hi = Math.floor(Math.max(a, b) / DAY) * DAY;
+    let n = 0;
+    for (lo += DAY; lo <= hi; lo += DAY) if (workDay[new Date(lo).getUTCDay()]) n++;
+    return sign * n;
+  };
+  const fin = new Map<string, { bl: number; f: number }>();
+  const idx = new Map(s.wbs.map((w) => [w.id, w]));
+  for (const a of s.activities) {
+    if (a.type === "wbs-summary") continue;
+    const g = groupOf(a, opts.dimension, s, idx);
+    const r = fin.get(g) ?? { bl: -Infinity, f: -Infinity };
+    if (a.baselineFinish !== null) r.bl = Math.max(r.bl, a.baselineFinish);
+    if (a.finish !== null) r.f = Math.max(r.f, a.finish);
+    fin.set(g, r);
+  }
+  const mk = (key: string, label: string, weight: number, plan: number, actual: number, f?: { bl: number; f: number }): ControlRow => {
+    const bl = f && Number.isFinite(f.bl) ? f.bl : null;
+    const ef = f && Number.isFinite(f.f) ? f.f : null;
+    return { key, label, weight, plan, actual, variance: actual - plan, blFinish: bl, finish: ef, durationVariance: bl !== null && ef !== null ? diff(bl, ef) : null };
+  };
+  const rows = t.rows.map((r) => mk(r.key, r.label, r.weightage, r.plan, r.actual, fin.get(r.key)));
+  const all = { bl: Math.max(...[...fin.values()].map((x) => x.bl)), f: Math.max(...[...fin.values()].map((x) => x.f)) };
+  return { rows, total: mk("__total", "Total", t.total.weightage, t.total.plan, t.total.actual, all) };
+}
+
+export function kpi(s: Schedule, metric: KpiMetric, opts: { measure?: Measure; days?: number; basis?: WeightBasis } = {}): KpiValue {
   const measure: Measure = opts.measure && hasMeasure(s, opts.measure) ? opts.measure : hasMeasure(s, "cost") ? "cost" : "hours";
   const m = () => evm(s, measure);
   const dd = s.dataDate ?? Date.now();
+  const cf = () => controlFigures(s, opts.basis ?? "cost");
+  const one = (v: number | null, unit = "") => (v === null || !Number.isFinite(v) ? "–" : `${v.toFixed(1)}${unit}`);
   switch (metric) {
+    case "actualPct":
+    case "blPlanPct":
+    case "estPlanPct":
+    case "blUtm":
+    case "estUtm":
+    case "estFtm":
+    case "actFtm": {
+      const v = cf()[metric];
+      return { label: metric, value: one(v), raw: v };
+    }
+    case "gapFtm": {
+      const c = cf();
+      const v = c.estFtm - c.actFtm;
+      return { label: "Shortfall FTM", value: one(v), raw: v, tone: v > 0.05 ? "bad" : "good" };
+    }
+    case "sai": {
+      const v = cf().sai;
+      return { label: "SAI", value: v === null ? "–" : v.toFixed(2), raw: v, tone: v === null ? undefined : v >= 0.95 ? "good" : v < 0.85 ? "bad" : undefined, hint: "Actual to date ÷ baseline plan to the end of this month (baseline UTM)" };
+    }
+    case "start":
+    case "blStart":
+    case "blFinish": {
+      const v = cf()[metric];
+      return { label: metric, value: fmtDay(v), raw: v };
+    }
+    case "blDuration":
+    case "estDuration":
+    case "elapsed":
+    case "overrun": {
+      const v = cf()[metric];
+      return { label: metric, value: one(v, "m"), raw: v, tone: metric === "overrun" && v !== null ? (v > 0.05 ? "bad" : "good") : undefined };
+    }
+    case "remainingDuration": {
+      const v = cf().remaining;
+      return { label: "Remaining", value: one(v, "m"), raw: v };
+    }
+    case "elapsedPct": {
+      const c = cf();
+      const v = c.elapsed !== null && c.estDuration ? (c.elapsed / c.estDuration) * 100 : null;
+      return { label: "Elapsed %", value: one(v, "%"), raw: v };
+    }
     case "finish": {
       const f = projectFinish(s);
       return { label: "Forecast finish", value: fmtDay(f), raw: f };

@@ -54,6 +54,7 @@ import { Help } from "./Help";
 import { SidePanel } from "./SidePanel";
 import { fmtDate, useStore, type LeftTab } from "./store";
 import { Timeline } from "./Timeline";
+import { assignBaseline } from "../core/baseline";
 import { registerTrainingBridge } from "./training/engine";
 import { TrainingButton, TrainingLayer } from "./training/Training";
 
@@ -291,6 +292,46 @@ function Workspace() {
     const f = await pickFile(".xer,.xml");
     if (!f) return;
     await importScheduleBytes(f.name, new Uint8Array(await f.arrayBuffer()));
+  };
+
+  /** Read an XER / MS Project XML file into a schedule (first project, or the one the user picks). */
+  const readScheduleFile = (name: string, bytes: Uint8Array): Schedule | null => {
+    const head = new TextDecoder().decode(bytes.subarray(0, 400)).trimStart();
+    if (/\.xml$/i.test(name) || head.startsWith("<")) return parseMspdi(new TextDecoder().decode(bytes));
+    const tables = parseXerTables(decodeXer(bytes));
+    const projects = listXerProjects(tables);
+    let projectId = projects[0]?.id;
+    if (projects.length > 1) {
+      const pick = window.prompt(`This XER has ${projects.length} projects. Enter the number to use:\n` + projects.map((p, i) => `${i + 1}. ${p.code} – ${p.name}`).join("\n"), "1");
+      const idx = Number(pick) - 1;
+      if (!projects[idx]) return null;
+      projectId = projects[idx].id;
+    }
+    return xerToSchedule(tables, { projectId });
+  };
+
+  /** P6 "Assign Baselines": take baseline dates from an approved-baseline XER or XML, matched by Activity ID. */
+  const assignBaselineFromFile = async () => {
+    const cur = useStore.getState().schedule;
+    if (!cur) return store.setStatus("Open the current schedule first, then assign its baseline.");
+    const f = await pickFile(".xer,.xml");
+    if (!f) return;
+    try {
+      store.setStatus(`Reading baseline ${f.name}…`, true);
+      const bl = readScheduleFile(f.name, new Uint8Array(await f.arrayBuffer()));
+      if (!bl) return store.setStatus("Baseline not assigned.");
+      const r = assignBaseline(useStore.getState().schedule ?? cur, bl, `${bl.projectCode} – ${bl.projectName}`);
+      if (!r.matched) return store.setStatus(`No Activity IDs in ${f.name} match the open project; baseline not assigned.`);
+      store.setSchedule(r.schedule, { keepTime: true, dirty: false });
+      store.setStatus(
+        `Baseline assigned from ${bl.projectCode} (data date ${fmtDate(bl.dataDate)}): ${r.matched} activities matched` +
+          (r.missing.length ? `, ${r.missing.length} added since the baseline have no baseline dates` : "") +
+          (r.dropped.length ? `, ${r.dropped.length} baseline activities no longer exist` : "") +
+          ". Commit to keep it.",
+      );
+    } catch (err) {
+      store.setStatus(`Baseline import failed: ${(err as Error).message}`);
+    }
   };
 
   const importScheduleBytes = async (name: string, bytes: Uint8Array) => {
@@ -826,6 +867,7 @@ function Workspace() {
     openFile: openProject,
     saveFile: saveProject,
     sample: (k) => loadDemo(k),
+    assignBaseline: () => void assignBaselineFromFile(),
     dashboards: () => store.setView("dashboards"),
     settings: (tab) => setSettingsTab(tab ?? "interface"),
     help: () => setHelpOpen(true),

@@ -1193,3 +1193,46 @@ html[data-theme="dark"] .tr-level.beginner { color: #7fe07f; } html[data-theme="
 .dd-native { position: absolute; left: 0; bottom: 0; width: 1px; height: 1px; opacity: 0; pointer-events: none; border: 0; padding: 0; }
 .rb-field .dd-edit > button { height: 24px; border-color: var(--line); background: var(--panel); color: var(--text); }
 .classic .cl-train.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---------- Project control (EPPM-style) widgets ---------- */
+.dash-grid.dense, .dense .dash-grid { grid-auto-flow: row dense; }
+.cards-grid { display: grid; gap: 8px; height: 100%; align-content: stretch; }
+.fig-card { border: 1px solid var(--line); border-radius: 8px; background: var(--surface-2); display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 8px 6px; min-width: 0; }
+.fig-value { font-size: calc(22px * var(--w-scale, 1)); font-weight: 700; color: var(--w-accent, var(--page-accent, var(--accent))); font-variant-numeric: tabular-nums; line-height: 1.15; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+.fig-value.good { color: var(--good); } .fig-value.bad { color: var(--bad); }
+.fig-label { font-size: 12px; color: var(--text-2); margin-top: 3px; line-height: 1.25; }
+.widget.kind-cards .widget-title { color: var(--w-accent, inherit); font-size: 15px; }
+.widget.kind-cards .widget-body { padding: 8px; }
+.theme-exec .fig-card { background: #1d2a40; border-color: #2c3b55; } .theme-exec .fig-label { color: #b8c4d6; } .theme-exec .fig-value:not(.good):not(.bad) { color: #fff; }
+table.ctable { font-size: 13px; }
+.ctable th { white-space: normal; text-align: right; vertical-align: bottom; }
+.ctable td { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ctable .ct-name { text-align: left; white-space: normal; }
+.ctable tr.ct-row { cursor: pointer; }
+.ctable tr.ct-row:hover td { background: var(--accent-soft); }
+.ctable tr.ct-row.on td { background: var(--accent-soft); font-weight: 600; }
+.ctable .ct-actual { color: #0b7a3e; }
+.ctable .ct-bl { color: #1f3c88; }
+.ctable .ct-est { color: #8a5a00; }
+html[data-theme="dark"] .ctable .ct-actual, .theme-exec .ctable .ct-actual { color: #5fd38b; }
+html[data-theme="dark"] .ctable .ct-bl, .theme-exec .ctable .ct-bl { color: #9db4ff; }
+html[data-theme="dark"] .ctable .ct-est, .theme-exec .ctable .ct-est { color: #f0c36a; }
+.ctable td.ct-bad { background: rgba(208, 59, 59, 0.16); color: inherit; font-weight: 600; }
+.ctable td.ct-good { background: rgba(12, 163, 12, 0.18); font-weight: 600; }
+.ctable tr.ct-total td { font-weight: 700; border-top: 2px solid var(--line); background: var(--surface-2); }
+.slicer.slicer-list { flex-direction: column; flex-wrap: nowrap; align-items: stretch; overflow: auto; max-height: 100%; }
+.slicer.slicer-list button { justify-content: flex-start; text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-height: 28px; flex: none; }
+.donut-legend li.pick { cursor: pointer; }
+.gauge-marker { font-size: 12px; font-weight: 700; fill: #d03b3b; }
+.chart.combo .chart-wrap svg { max-height: none; }
+.dash-grid .chart.combo .chart-wrap svg { max-height: 520px; }
+.point-label { font-size: 10.5px; font-weight: 700; paint-order: stroke; stroke: var(--panel); stroke-width: 3px; }
+.bar-label { font-size: 9.5px; font-weight: 700; fill: var(--text-2); paint-order: stroke; stroke: var(--panel); stroke-width: 2.5px; }
+.range2 { position: relative; height: 34px; margin: 4px 40px 0 40px; }
+.range2-track { position: absolute; left: 0; right: 0; top: 9px; height: 4px; border-radius: 2px; background: var(--grid); }
+.range2-track span { position: absolute; top: 0; bottom: 0; background: var(--text-2); border-radius: 2px; }
+.range2 input[type="range"] { position: absolute; left: 0; right: 0; top: 0; width: 100%; height: 22px; margin: 0; background: transparent; pointer-events: none; -webkit-appearance: none; appearance: none; }
+.range2 input[type="range"]::-webkit-slider-thumb { pointer-events: auto; -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: var(--panel); border: 2px solid var(--text-2); cursor: ew-resize; }
+.range2 input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--panel); border: 2px solid var(--text-2); cursor: ew-resize; }
+.range2 input[type="range"]::-webkit-slider-runnable-track { background: transparent; }
+.range2-text { position: absolute; top: 18px; left: 0; font-size: 11px; display: flex; gap: 8px; }
