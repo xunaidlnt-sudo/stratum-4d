@@ -16,6 +16,8 @@ export interface RowOptions {
   filterMode: "replace" | "highlight";
   text: string;
   collapsed: Set<string>;
+  /** Band labels show the full WBS path code. */
+  wbsPathLabels?: boolean;
   /** A quick filter applied on top of the layout's filters (AND). */
   quick?: FilterDef | null;
 }
@@ -130,7 +132,7 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
     }
     for (const w of kids.get(parent) ?? []) {
       const idx = rows.length;
-      rows.push({ kind: "band", id: w.id, depth, label: `${w.code} ${w.name}`.trim(), start: null, finish: null, count: 0, wbsId: w.id });
+      rows.push({ kind: "band", id: w.id, depth, label: `${o.wbsPathLabels ? c.wbsPath(w.id) : w.code} ${w.name}`.trim(), start: null, finish: null, count: 0, wbsId: w.id });
       const before = rows.length;
       const [s2, f2, n2] = visit(w.id, depth + 1);
       if (filtered && n2 === 0) {

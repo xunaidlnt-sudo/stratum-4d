@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { standardCalendar } from "../core/calendar";
-import { stepsPercent } from "../core/ops";
+import { applyStepTemplate, stepsPercent } from "../core/ops";
 import type { Activity, ActivityStatus, ActivityType, ConstraintType, RelationshipType } from "../core/types";
 import { fmtNum } from "./charts";
 import { fmtDate, fromInputDate, toInputDate, useStore } from "./store";
@@ -545,14 +545,71 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
             </select>
           </label>
         </div>
-        <p className="muted">With the Physical type, the weighted step progress becomes the activity's % complete.</p>
+        <div className="row">
+          {(schedule.stepTemplates ?? []).length > 0 && (
+            <select
+              value=""
+              onChange={(e) => {
+                const t = schedule.stepTemplates!.find((x) => x.name === e.target.value);
+                if (!t) return;
+                const ids = st.selectedActivities.size > 1 ? [...st.selectedActivities] : [act.id];
+                st.commit(applyStepTemplate(schedule, t.name, ids).schedule, `Step template ${t.name}`);
+                st.setStatus(`Added the ${t.name} steps to ${ids.length} activit${ids.length === 1 ? "y" : "ies"}.`);
+              }}
+            >
+              <option value="">Add steps from template…</option>
+              {schedule.stepTemplates!.map((t) => (
+                <option key={t.name} value={t.name}>
+                  {t.name} ({t.steps.length} steps)
+                </option>
+              ))}
+            </select>
+          )}
+          <button
+            disabled={!act.steps?.length}
+            onClick={() => {
+              const name = window.prompt("Save these steps as a template named:", act.name);
+              if (!name?.trim()) return;
+              const tpl = { name: name.trim(), steps: act.steps!.map((x) => ({ name: x.name, weight: x.weight })) };
+              st.commit({ ...schedule, stepTemplates: [...(schedule.stepTemplates ?? []).filter((x) => x.name !== tpl.name), tpl] }, "Save step template");
+            }}
+          >
+            Save as template
+          </button>
+        </div>
+        <p className="muted">With the Physical type, the weighted step progress becomes the activity's % complete. Templates apply to every selected activity.</p>
       </section>
       )}
 
       {show("notebook") && (
       <section className="stack">
         <h4>Notebook</h4>
-        <textarea rows={6} value={act.notes ?? ""} placeholder="Notes for this activity: assumptions, delays, instructions…" onChange={(e) => up({ notes: e.target.value || undefined })} />
+        <textarea rows={4} value={act.notes ?? ""} placeholder="General notes for this activity: assumptions, delays, instructions…" onChange={(e) => up({ notes: e.target.value || undefined })} />
+        {(schedule.notebookTopics ?? []).map((t) => (
+          <label key={t}>
+            {t}
+            <textarea
+              rows={3}
+              value={act.notebook?.[t] ?? ""}
+              onChange={(e) => {
+                const notebook = { ...(act.notebook ?? {}) };
+                if (e.target.value) notebook[t] = e.target.value;
+                else delete notebook[t];
+                up({ notebook });
+              }}
+            />
+          </label>
+        ))}
+        <div className="row">
+          <button
+            onClick={() => {
+              const t = window.prompt("New notebook topic (for every activity), e.g. Delay Reason, Scope, Site Instructions:");
+              if (t?.trim() && !(schedule.notebookTopics ?? []).includes(t.trim())) st.commit({ ...schedule, notebookTopics: [...(schedule.notebookTopics ?? []), t.trim()] }, "Add notebook topic");
+            }}
+          >
+            Add notebook topic
+          </button>
+        </div>
       </section>
       )}
 

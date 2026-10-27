@@ -173,3 +173,42 @@ describe("schedule log, expected finish, suspend", () => {
     expect(get(scheduleCpm(susp).schedule, "A").finish).toBe(T("2026-03-09 17:00"));
   });
 });
+
+import { applyStepTemplate, estimateProgress, monitorThresholds, removeProgress } from "../src/core/ops";
+import { fieldCtx, fieldsFor, filterMatches, STANDARD_FILTERS } from "../src/core/fields";
+
+describe("round 4 operations", () => {
+  it("estimates and removes progress", () => {
+    const s = scheduleCpm(sched([act("A", 40)], [], { dataDate: T(`${MON} 08:00`) })).schedule;
+    const later = { ...s, dataDate: T("2026-03-04 08:00") };
+    const e = estimateProgress(later).schedule;
+    expect(get(e, "A").status).toBe("in-progress");
+    const r = removeProgress(e, ["A"]).schedule;
+    expect(get(r, "A").status).toBe("not-started");
+    expect(get(r, "A").remainingDurationHours).toBe(40);
+  });
+  it("applies step templates", () => {
+    const s = { ...sched([act("A", 8), act("B", 8)], []), stepTemplates: [{ name: "Pour", steps: [{ name: "Rebar", weight: 2 }, { name: "Concrete", weight: 1 }] }] };
+    const r = applyStepTemplate(s, "Pour", ["A", "B"]);
+    expect(r.changed).toBe(2);
+    expect(get(r.schedule, "B").steps!.map((x) => x.name)).toEqual(["Rebar", "Concrete"]);
+  });
+  it("monitors thresholds into issues once", () => {
+    const s0 = scheduleCpm(sched([act("A", 8), act("B", 8), act("C", 40)], [rel("A", "C"), rel("B", "C")])).schedule;
+    const s = { ...s0, mustFinishBy: undefined, registers: { thresholds: [{ id: "t", values: { Parameter: "Total Float", "Lower Threshold": "0", "Upper Threshold": "" } }] } };
+    const neg = { ...s, activities: s.activities.map((a) => (a.id === "A" ? { ...a, totalFloatHours: -16 } : a)) };
+    const r = monitorThresholds(neg);
+    expect(r.created).toBe(1);
+    expect(r.schedule.registers!.issues![0].values["Issue Name"]).toContain("A");
+    expect(monitorThresholds(r.schedule).created).toBe(0);
+  });
+  it("counts expenses in costs and filters a lookahead window", () => {
+    const s0 = scheduleCpm(sched([act("A", 8), act("B", 8, { constraint: { type: "start-on-or-after", date: T("2026-05-04 08:00") } })], [])).schedule;
+    const s = { ...s0, registers: { expenses: [{ id: "e", activityId: "A", values: { "Budgeted Cost": "1,200", "Actual Cost": "", "Remaining Cost": "1200" } }] } };
+    const c = fieldCtx(s);
+    const fields = new Map(fieldsFor(s).map((f) => [f.id, f]));
+    expect(fields.get("budgetCost")!.get(get(s, "A"), c)).toBe(1200);
+    const look = STANDARD_FILTERS.find((f) => f.id === "lookahead2")!;
+    expect(s.activities.filter((a) => filterMatches(look, a, fields, c)).map((a) => a.id)).toEqual(["A"]);
+  });
+});

@@ -488,6 +488,77 @@ function BarsDialog() {
       {tick("relationships", "Relationship lines", "predecessor to successor, critical in red")}
       {tick("dataDateLine", "Data date line", "")}
       {tick("progressLine", "Progress line", "joins each activity's progress point to the data date")}
+      {tick("legend", "Legend", "a key to the bar colours in the chart")}
+      <h4>Custom bars</h4>
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Show</td>
+            <td>Name</td>
+            <td>Timescale</td>
+            <td>Filter</td>
+            <td>Row</td>
+            <td>Colour</td>
+            <td />
+          </tr>
+        </thead>
+        <tbody>
+          {(bars.custom ?? []).map((b, i) => {
+            const put = (patch: Partial<typeof b>) => L.setBars({ custom: bars.custom!.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
+            return (
+              <tr key={b.id}>
+                <td>
+                  <input type="checkbox" checked={b.show} onChange={(e) => put({ show: e.target.checked })} />
+                </td>
+                <td>
+                  <input value={b.name} onChange={(e) => put({ name: e.target.value })} />
+                </td>
+                <td>
+                  <select value={b.timescale} onChange={(e) => put({ timescale: e.target.value as typeof b.timescale })}>
+                    <option value="current">Current (start – finish)</option>
+                    <option value="remaining">Remaining</option>
+                    <option value="actual">Actual</option>
+                    <option value="baseline">Project baseline</option>
+                    <option value="bl2">Baseline 2</option>
+                    <option value="bl3">Baseline 3</option>
+                    <option value="late">Late dates</option>
+                    <option value="float">Total float</option>
+                  </select>
+                </td>
+                <td>
+                  <select value={b.filter} onChange={(e) => put({ filter: e.target.value })}>
+                    <option value="">All activities</option>
+                    {allFilters(useLayout.getState().customFilters).map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select value={b.row} onChange={(e) => put({ row: e.target.value as typeof b.row })}>
+                    <option value="top">Top</option>
+                    <option value="middle">Middle</option>
+                    <option value="bottom">Bottom</option>
+                  </select>
+                </td>
+                <td>
+                  <input type="color" value={b.color} onChange={(e) => put({ color: e.target.value })} />
+                </td>
+                <td>
+                  <button className="link" onClick={() => L.setBars({ custom: bars.custom!.filter((_, k) => k !== i) })}>
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="row">
+        <button onClick={() => L.setBars({ custom: [...(bars.custom ?? []), { id: uid("bar"), name: "Baseline 2", show: true, timescale: "bl2", filter: "", color: "#8b5cf6", row: "bottom" }] })}>Add bar</button>
+        <span className="muted small">For example: Baseline 2 in purple along the bottom, or Late dates for critical activities only.</span>
+      </div>
       <h4>Bar labels</h4>
       <div className="row">
         <label>
@@ -593,7 +664,42 @@ function LayoutsDialog() {
           Save
         </button>
       </div>
-      <p className="muted small">A layout keeps the columns, filters, grouping and sorting, bars, timescale and panes.</p>
+      <div className="row">
+        <button
+          onClick={() => {
+            const url = URL.createObjectURL(new Blob([JSON.stringify({ stratumLayout: 1, layout: cur, filters: useLayout.getState().customFilters }, null, 2)], { type: "application/json" }));
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `${cur.name.replace(/[^\w -]+/g, "")}.plf.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+          }}
+        >
+          Export layout…
+        </button>
+        <label className="p6-drop">
+          Import layout…
+          <input
+            type="file"
+            accept=".json"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              if (!f) return;
+              try {
+                const j = JSON.parse(await f.text());
+                if (!j.layout?.columns) throw new Error("not a Stratum layout file");
+                for (const flt of j.filters ?? []) L.saveFilter(flt);
+                L.open(j.layout);
+                L.saveAs(j.layout.name);
+                useStore.getState().setStatus(`Imported layout ${j.layout.name}.`);
+              } catch (x) {
+                useStore.getState().setStatus(`Could not import ${f.name}: ${(x as Error).message}`);
+              }
+            }}
+          />
+        </label>
+      </div>
+      <p className="muted small">A layout keeps the columns, filters, grouping and sorting, bars, timescale and panes. Export one to share it with your team.</p>
     </Shell>
   );
 }
@@ -839,6 +945,22 @@ function BaselinesDialog({ onAssignFile }: { onAssignFile: () => void }) {
         Project baseline now: <b>{schedule.baselineInfo?.name ?? "as imported"}</b>
         {schedule.baselineInfo ? ` (data date ${fmtDate(schedule.baselineInfo.dataDate)})` : ""}
       </p>
+      <div className="row">
+        {(["bl2", "bl3"] as const).map((k) => (
+          <label key={k}>
+            {k === "bl2" ? "Baseline 2 (comparison)" : "Baseline 3 (comparison)"}{" "}
+            <select value={schedule.compareBaselines?.[k] ?? ""} onChange={(e) => commit({ ...schedule, compareBaselines: { ...(schedule.compareBaselines ?? {}), [k]: e.target.value || null } }, `Assign ${k.toUpperCase()}`)}>
+              <option value="">(none)</option>
+              {list.map((b) => (
+                <option key={b.id} value={b.id}>
+                  {b.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        ))}
+      </div>
+      <p className="muted small">BL2 and BL3 add columns (BL2 Start / Finish…) and can be drawn as bars from Bar Chart Options → Add bar.</p>
       <table className="p6-grid">
         <thead>
           <tr>

@@ -8,6 +8,21 @@ import { STANDARD_FILTERS, type FilterDef } from "../../core/fields";
 export interface ColumnSpec {
   id: string;
   width?: number;
+  /** Custom column title (P6 "Customize activity column titles"). */
+  title?: string;
+}
+
+/** A user-defined Gantt bar (P6 Bars dialog): which dates, for which activities, how it looks. */
+export interface BarDef {
+  id: string;
+  name: string;
+  show: boolean;
+  timescale: "current" | "remaining" | "actual" | "baseline" | "bl2" | "bl3" | "late" | "float";
+  /** Filter id (standard or user); empty = all activities. */
+  filter: string;
+  color: string;
+  /** Where in the row: top, middle or bottom third. */
+  row: "top" | "middle" | "bottom";
 }
 
 export interface SortSpec {
@@ -30,6 +45,10 @@ export interface BarOptions {
   summaryBars: boolean;
   /** P6 progress line: joins each activity's progress point to the data date line. */
   progressLine?: boolean;
+  /** Extra bars defined in the Bars dialog. */
+  custom?: BarDef[];
+  /** Show the bar legend in the Gantt chart. */
+  legend?: boolean;
 }
 
 export type TimescaleUnit = "auto" | "day" | "week" | "month" | "quarter" | "year";
@@ -63,6 +82,8 @@ export interface P6Layout {
   /** Activity Network instead of the Gantt chart. */
   network: boolean;
   rowHeight: number;
+  /** WBS bands show the full WBS path code (P6 "Group by WBS path"). */
+  wbsPathLabels?: boolean;
 }
 
 export const DEFAULT_COLUMNS: ColumnSpec[] = [

@@ -19,6 +19,9 @@ export interface FieldCtx {
   succs: Map<string, string[]>;
   resNames: Map<string, string[]>;
   cost: Map<string, { budget: number; actual: number; remaining: number; budgetUnits: number; actualUnits: number; remainingUnits: number }>;
+  /** Dates of the 2nd and 3rd comparison baselines by Activity ID. */
+  bl2: Record<string, [number | null, number | null]> | null;
+  bl3: Record<string, [number | null, number | null]> | null;
 }
 
 export interface FieldDef {
@@ -145,9 +148,25 @@ export function fieldCtx(s: Schedule): FieldCtx {
     }
     cost.set(x.activityId, c);
   }
+  // Expenses (P6 Expenses window) add to the activity's costs.
+  const money = (v: string | undefined) => {
+    const n = Number(String(v ?? "").replace(/[^0-9.-]/g, ""));
+    return Number.isFinite(n) ? n : 0;
+  };
+  for (const x of s.registers?.expenses ?? []) {
+    if (!x.activityId) continue;
+    const c = cost.get(x.activityId) ?? { budget: 0, actual: 0, remaining: 0, budgetUnits: 0, actualUnits: 0, remainingUnits: 0 };
+    c.budget += money(x.values["Budgeted Cost"]);
+    c.actual += money(x.values["Actual Cost"]);
+    c.remaining += money(x.values["Remaining Cost"]);
+    cost.set(x.activityId, c);
+  }
+  const blDates = (id: string | null | undefined) => (id ? s.baselines?.find((b) => b.id === id)?.dates ?? null : null);
   return {
     s,
     hpd,
+    bl2: blDates(s.compareBaselines?.bl2),
+    bl3: blDates(s.compareBaselines?.bl3),
     cal: (a) => (a.calendarId && cals.get(a.calendarId)) || def,
     wbs,
     wbsPath,
@@ -298,6 +317,10 @@ export const BASE_FIELDS: FieldDef[] = [
   dateField("lateFinish", "Late Finish", (a) => a.lateFinish ?? null),
   dateField("blStart", "BL Project Start", (a) => a.baselineStart),
   dateField("blFinish", "BL Project Finish", (a) => a.baselineFinish),
+  { id: "bl2Start", label: "BL2 Start", group: "Dates", type: "date", width: 84, get: (a, c) => c.bl2?.[a.code]?.[0] ?? null },
+  { id: "bl2Finish", label: "BL2 Finish", group: "Dates", type: "date", width: 84, get: (a, c) => c.bl2?.[a.code]?.[1] ?? null },
+  { id: "bl3Start", label: "BL3 Start", group: "Dates", type: "date", width: 84, get: (a, c) => c.bl3?.[a.code]?.[0] ?? null },
+  { id: "bl3Finish", label: "BL3 Finish", group: "Dates", type: "date", width: 84, get: (a, c) => c.bl3?.[a.code]?.[1] ?? null },
   {
     id: "startVar",
     label: "Variance - BL Project Start Date",
@@ -520,9 +543,12 @@ export const OP_LABEL: Record<FilterOp, string> = {
 };
 
 /** Parse a value typed in a filter for comparison with a field of the given type. */
-function coerce(f: FieldDef, raw: string | undefined): string | number | null {
+function coerce(f: FieldDef, raw: string | undefined, c?: FieldCtx): string | number | null {
   if (raw === undefined || raw === "") return null;
   if (f.type === "date") {
+    // Relative to the data date, as P6 lookahead filters are: "DD", "DD+14", "DD-7" (days).
+    const rel = /^\s*dd\s*(?:([+-])\s*(\d+(?:\.\d+)?)\s*d?)?\s*$/i.exec(raw);
+    if (rel && c?.s.dataDate != null) return c.s.dataDate + (rel[1] === "-" ? -1 : 1) * Number(rel[2] ?? 0) * DAY;
     const t = Date.parse(raw.length <= 10 ? `${raw}T00:00:00Z` : raw);
     if (Number.isFinite(t)) return t;
     const m = /^(\d{1,2})-([A-Za-z]{3})-(\d{2,4})$/.exec(raw.trim());
@@ -554,7 +580,7 @@ export function ruleMatches(rule: FilterRule, a: Activity, f: FieldDef | undefin
     case "isFalse":
       return !(v === true || v === "Yes");
   }
-  const want = coerce(f, rule.value);
+  const want = coerce(f, rule.value, c);
   if (want === null) return true;
   if (isEmpty) return rule.op === "ne" || rule.op === "notContains";
   const have = typeof v === "number" ? v : typeof v === "boolean" ? (v ? 1 : 0) : String(v).toLowerCase();
@@ -613,6 +639,26 @@ export function filterMatches(def: FilterDef, a: Activity, fields: Map<string, F
 export const STANDARD_FILTERS: FilterDef[] = [
   { id: "critical", name: "Critical", match: "all", rules: [{ field: "critical", op: "isTrue" }] },
   { id: "longestPath", name: "Longest Path", match: "all", rules: [{ field: "longestPath", op: "isTrue" }] },
+  {
+    id: "lookahead2",
+    name: "Lookahead – next 2 weeks",
+    match: "all",
+    rules: [
+      { field: "start", op: "le", value: "DD+14" },
+      { field: "finish", op: "ge", value: "DD" },
+      { field: "status", op: "ne", value: "Completed" },
+    ],
+  },
+  {
+    id: "lookahead6",
+    name: "Lookahead – next 6 weeks",
+    match: "all",
+    rules: [
+      { field: "start", op: "le", value: "DD+42" },
+      { field: "finish", op: "ge", value: "DD" },
+      { field: "status", op: "ne", value: "Completed" },
+    ],
+  },
   { id: "negFloat", name: "Negative Float", match: "all", rules: [{ field: "tf", op: "lt", value: "0" }] },
   { id: "notStarted", name: "Not Started", match: "all", rules: [{ field: "status", op: "eq", value: "Not Started" }] },
   { id: "inProgress", name: "In Progress", match: "all", rules: [{ field: "status", op: "eq", value: "In Progress" }] },

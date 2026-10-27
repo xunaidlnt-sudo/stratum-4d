@@ -530,3 +530,126 @@ export function stepsPercent(steps: { weight: number; pct: number }[]): number {
   if (!w) return steps.length ? steps.reduce((t, x) => t + x.pct, 0) / steps.length : 0;
   return Math.round((steps.reduce((t, x) => t + Math.max(0, x.weight) * x.pct, 0) / w) * 10) / 10;
 }
+
+// ---------------------------------------------------------------- progress helpers
+
+/**
+ * P6 Estimate Progress (auto compute actuals): record progress as planned up
+ * to the current data date for the given activities, without moving it.
+ */
+export function estimateProgress(s: Schedule, ids?: Iterable<string>) {
+  if (s.dataDate === null) return { schedule: s, started: 0, finished: 0, progressed: 0 };
+  return updateProgress(s, s.dataDate, ids);
+}
+
+/** P6 Remove Progress: back to not started, with remaining = original duration. */
+export function removeProgress(s: Schedule, ids: Iterable<string>): { schedule: Schedule; changed: number } {
+  const set = new Set(ids);
+  let changed = 0;
+  const activities = s.activities.map((a) => {
+    if (!set.has(a.id) || (a.status === "not-started" && !a.percentComplete)) return a;
+    changed++;
+    return {
+      ...a,
+      status: "not-started" as const,
+      actualStart: null,
+      actualFinish: null,
+      percentComplete: 0,
+      physicalPercent: a.physicalPercent === undefined ? undefined : 0,
+      remainingDurationHours: a.originalDurationHours,
+      steps: a.steps?.map((x) => ({ ...x, pct: 0 })),
+      suspendDate: null,
+      resumeDate: null,
+    };
+  });
+  const assignments = (s.assignments ?? []).map((x) => (set.has(x.activityId) ? { ...x, actualQty: 0, actualCost: 0, remainingQty: x.budgetQty, remainingCost: x.budgetCost } : x));
+  return { schedule: { ...s, activities, assignments }, changed };
+}
+
+/** Add a step template's steps to activities (P6 Assign Step Templates). */
+export function applyStepTemplate(s: Schedule, name: string, ids: Iterable<string>): { schedule: Schedule; changed: number } {
+  const t = s.stepTemplates?.find((x) => x.name === name);
+  if (!t) return { schedule: s, changed: 0 };
+  const set = new Set(ids);
+  let changed = 0;
+  const activities = s.activities.map((a) => {
+    if (!set.has(a.id)) return a;
+    changed++;
+    return { ...a, steps: [...(a.steps ?? []), ...t.steps.map((x) => ({ id: uid("step"), name: x.name, weight: x.weight, pct: 0 }))] };
+  });
+  return { schedule: { ...s, activities }, changed };
+}
+
+// ---------------------------------------------------------------- thresholds
+
+/** Threshold parameters Stratum can monitor, with how to read each from an activity (days or %). */
+export const THRESHOLD_PARAMETERS: Record<string, (a: Activity, hpd: number) => number | null> = {
+  "Total Float": (a, h) => (a.totalFloatHours === null ? null : a.totalFloatHours / h),
+  "Free Float": (a, h) => (a.freeFloatHours == null ? null : a.freeFloatHours / h),
+  "Start Date Variance": (a) => (a.start === null || a.baselineStart === null ? null : (a.baselineStart - a.start) / DAY),
+  "Finish Date Variance": (a) => (a.finish === null || a.baselineFinish === null ? null : (a.baselineFinish - a.finish) / DAY),
+  "Remaining Duration": (a, h) => (a.remainingDurationHours === null ? null : a.remainingDurationHours / h),
+  "Remaining Duration % of Original": (a) => (a.originalDurationHours ? ((a.remainingDurationHours ?? 0) / a.originalDurationHours) * 100 : null),
+  "% Complete": (a) => a.percentComplete,
+};
+
+/**
+ * Monitor thresholds (P6 Monitor Threshold): every activity in the threshold's
+ * WBS and date window whose value falls outside the limits gets an issue in
+ * the Issues register, once.
+ */
+export function monitorThresholds(s: Schedule): { schedule: Schedule; created: number; checked: number } {
+  const hpd = (s.calendars?.find((c) => c.id === s.defaultCalendarId) ?? s.calendars?.[0])?.hoursPerDay ?? 8;
+  const wbsPath = new Map<string, string>();
+  const parent = new Map(s.wbs.map((w) => [w.id, w]));
+  const pathOf = (id: string | null): string => {
+    if (!id) return "";
+    if (wbsPath.has(id)) return wbsPath.get(id)!;
+    const w = parent.get(id);
+    const p = w ? (w.parentId ? `${pathOf(w.parentId)}.${w.code}` : w.code) : "";
+    wbsPath.set(id, p);
+    return p;
+  };
+  const num = (v: string | undefined) => (v === undefined || v.trim() === "" ? null : Number(v.replace(/[^0-9.-]/g, "")));
+  const issues = [...(s.registers?.issues ?? [])];
+  const existing = new Set(issues.map((i) => i.values["Issue Name"]));
+  let created = 0;
+  let checked = 0;
+  for (const t of s.registers?.thresholds ?? []) {
+    if ((t.values["Status"] ?? "").toLowerCase() === "disabled") continue;
+    const get = THRESHOLD_PARAMETERS[(t.values["Parameter"] ?? "").trim()];
+    if (!get) continue;
+    const lo = num(t.values["Lower Threshold"]);
+    const hi = num(t.values["Upper Threshold"]);
+    const wbs = (t.values["WBS"] ?? "").trim();
+    const from = parseDate(t.values["From Date"] ?? "");
+    const to = parseDate(t.values["To Date"] ?? "");
+    for (const a of s.activities) {
+      if (a.status === "complete" || a.type === "wbs-summary") continue;
+      if (wbs && !pathOf(a.wbsId).startsWith(wbs)) continue;
+      if (from !== null && (a.finish ?? 0) < from) continue;
+      if (to !== null && (a.start ?? Infinity) > to) continue;
+      const v = get(a, hpd);
+      if (v === null || !Number.isFinite(v)) continue;
+      checked++;
+      if ((lo === null || v >= lo) && (hi === null || v <= hi)) continue;
+      const name = `${t.values["Parameter"]} ${Math.round(v * 10) / 10} on ${a.code}`;
+      if (existing.has(name)) continue;
+      existing.add(name);
+      created++;
+      issues.push({
+        id: uid("issues"),
+        activityId: a.id,
+        values: {
+          "Issue Name": name,
+          Priority: "Normal",
+          Status: "Open",
+          Responsible: t.values["Responsible"] ?? "",
+          "Date Identified": new Date().toISOString().slice(0, 10),
+          Notes: `Raised by threshold: ${t.values["Parameter"]} outside ${lo ?? "–∞"} … ${hi ?? "+∞"}`,
+        },
+      });
+    }
+  }
+  return { schedule: created ? { ...s, registers: { ...(s.registers ?? {}), issues } } : s, created, checked };
+}

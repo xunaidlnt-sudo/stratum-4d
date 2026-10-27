@@ -43,6 +43,7 @@ Status: **Done** (in Stratum now), **Partial** (some of it works), **Planned** (
 | Calendars, activity codes, UDF dictionaries | — | **Done** | Edit work week, holidays and exceptions; code types and values with colours; UDF definitions |
 | Claim Digger | — | **Done** | Field-level comparison with a file or stored baseline; CSV export |
 | Gantt bar editing | — | **Done** | Drag to move, drag end to change duration, drag to link |
+| P6 user guide coverage | — | **See** | Chapter-by-chapter status in [P6_GAP_ANALYSIS.md](P6_GAP_ANALYSIS.md) |
 | P6-style activity table and layouts | — | **Done** | 40+ fields plus codes and UDFs as columns; Group & Sort, filters (standard and user), in-place edit, multi-select, saved layouts |
 | Global Change, Update Progress, baselines, Check Schedule | — | **Done** | If/Then/Else with change report; progress to a new data date; stored baselines; DCMA 14-point check |
 | Activity Network and Trace Logic | — | **Done** | Canvas network for large schedules; trace N levels each way |

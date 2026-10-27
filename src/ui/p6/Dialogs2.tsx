@@ -104,6 +104,9 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
             <input type="checkbox" checked={o.levelWhenScheduling} onChange={(e) => setO({ ...o, levelWhenScheduling: e.target.checked })} /> Level resources during scheduling
           </label>
           <label className="p6-check">
+            <input type="checkbox" checked={!!o.autoSchedule} onChange={(e) => setO({ ...o, autoSchedule: e.target.checked })} /> Schedule automatically when a change affects dates
+          </label>
+          <label className="p6-check">
             <input type="checkbox" checked={!!o.useExpectedFinish} onChange={(e) => setO({ ...o, useExpectedFinish: e.target.checked })} /> Use Expected Finish dates
           </label>
         </div>

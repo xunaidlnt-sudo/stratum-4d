@@ -5,7 +5,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { MONTHS, monthShort } from "../../core/dates";
-import { fieldCtx, fieldsFor, fieldText, fmtDay, STANDARD_FILTERS, type FieldDef } from "../../core/fields";
+import { fieldCtx, fieldsFor, fieldText, filterMatches, fmtDay, STANDARD_FILTERS, type FieldDef } from "../../core/fields";
 import { buildP6Rows, type P6Row } from "../../core/p6rows";
 import type { Activity } from "../../core/types";
 import { DAY, useStore } from "../store";
@@ -174,7 +174,7 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
   const fieldMap = useMemo(() => new Map(fields.map((f) => [f.id, f])), [fields]);
   const ctx = useMemo(() => (schedule ? fieldCtx(schedule) : null), [schedule]);
   const cols = useMemo(
-    () => layout.columns.map((c) => ({ spec: c, f: fieldMap.get(c.id) })).filter((x): x is { spec: (typeof layout.columns)[number]; f: FieldDef } => !!x.f).map((x) => ({ f: x.f, width: x.spec.width ?? x.f.width })),
+    () => layout.columns.map((c) => ({ spec: c, f: fieldMap.get(c.id) })).filter((x): x is { spec: (typeof layout.columns)[number]; f: FieldDef } => !!x.f).map((x) => ({ f: x.f, width: x.spec.width ?? x.f.width, title: x.spec.title })),
     [layout.columns, fieldMap],
   );
   const COLS = cols.reduce((s, c) => s + c.width, 0);
@@ -195,11 +195,12 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
       text: findText,
       collapsed,
       quick: QUICK[quickKind] ? STANDARD_FILTERS.find((f) => f.id === QUICK[quickKind]) : null,
+      wbsPathLabels: layout.wbsPathLabels,
     });
     if (!trace) return r;
     const kept = r.rows.filter((x) => x.kind === "activity" && trace.has(x.id));
     return { rows: kept.map((x) => ({ ...x, depth: 0 })), shown: kept.length };
-  }, [schedule, ctx, fieldMap, layout.groupBy, layout.sort, filterDefs, layout.filterMatch, layout.filterMode, findText, quickKind, collapsed, trace]);
+  }, [schedule, ctx, fieldMap, layout.groupBy, layout.sort, filterDefs, layout.filterMatch, layout.filterMode, findText, quickKind, collapsed, trace, layout.wbsPathLabels]);
 
   const rowIndex = useMemo(() => {
     const m = new Map<string, number>();
@@ -387,9 +388,19 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
       { label: "Sort Descending", onClick: () => setLayout({ sort: [{ field: f.id, desc: true }] }) },
       { label: `Group by ${f.label}`, onClick: () => setLayout({ groupBy: f.id }), checked: layout.groupBy === f.id },
       { label: "Group by WBS", onClick: () => setLayout({ groupBy: "wbs" }), checked: layout.groupBy === "wbs" },
+      { label: "Show WBS Path in Bands", onClick: () => setLayout({ wbsPathLabels: !layout.wbsPathLabels }), checked: !!layout.wbsPathLabels },
       { label: "No Grouping", onClick: () => setLayout({ groupBy: "none" }), checked: layout.groupBy === "none" },
       "sep",
       { label: `Hide ${f.label}`, onClick: () => setLayout({ columns: layout.columns.filter((c) => c.id !== f.id) }), disabled: layout.columns.length <= 1 },
+      {
+        label: "Rename Column Title…",
+        onClick: () => {
+          const cur = layout.columns.find((c) => c.id === f.id)?.title ?? f.label;
+          const t = window.prompt(`Column title for ${f.label} (empty restores it):`, cur);
+          if (t === null) return;
+          setLayout({ columns: layout.columns.map((c) => (c.id === f.id ? { ...c, title: t.trim() && t.trim() !== f.label ? t.trim() : undefined } : c)) });
+        },
+      },
       { label: "Columns…", onClick: () => open("columns") },
       { label: "Group and Sort…", onClick: () => open("groupSort") },
       { label: "Filters…", onClick: () => open("filters") },
@@ -529,7 +540,7 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
             onClick={(e) => sortBy(c.f.id, e.shiftKey)}
             onContextMenu={(e) => headMenu(c.f, e)}
           >
-            <span>{c.f.label}</span>
+            <span>{c.title || c.f.label}</span>
             {sIdx >= 0 && (
               <i className="p6t-sort">
                 {layout.sort[sIdx].desc ? "▼" : "▲"}
@@ -624,6 +635,30 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
     return f ? fieldText(f, a, ctx) : "";
   };
 
+  // User-defined bars (Bars dialog): each with its own dates, filter, colour and position.
+  const allF = allFilters(custom);
+  const customBars = (bars.custom ?? []).filter((b) => b.show).map((b) => ({ b, def: b.filter ? allF.find((f) => f.id === b.filter) ?? null : null }));
+  const barSpan = (bt: string, a: Activity): [number | null, number | null] => {
+    switch (bt) {
+      case "remaining":
+        return a.status === "complete" ? [null, null] : [a.status === "in-progress" && dd !== null ? Math.max(dd, a.start ?? dd) : a.start, a.finish];
+      case "actual":
+        return a.actualStart === null ? [null, null] : [a.actualStart, a.actualFinish ?? dd];
+      case "baseline":
+        return [a.baselineStart, a.baselineFinish];
+      case "bl2":
+        return ctx.bl2?.[a.code] ?? [null, null];
+      case "bl3":
+        return ctx.bl3?.[a.code] ?? [null, null];
+      case "late":
+        return [a.lateStart ?? null, a.lateFinish ?? null];
+      case "float":
+        return a.status === "complete" ? [null, null] : [a.finish, a.lateFinish ?? null];
+      default:
+        return [a.start, a.finish];
+    }
+  };
+
   const ganttRows = visible.map((r, k) => {
     const top = (first + k) * ROW;
     if (r.kind === "band") {
@@ -667,6 +702,12 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
             </>
           ))}
         {bars.float && f !== null && lateF !== null && lateF > f && a.status !== "complete" && <div className="p6g-float" style={{ left: x(f), width: x(lateF) - x(f) }} title="Total float" />}
+        {customBars.map(({ b, def }) => {
+          if (def && !filterMatches(def, a, fieldMap, ctx)) return null;
+          const [bs, bf] = barSpan(b.timescale, a);
+          if (bs === null || bf === null || bf < bs) return null;
+          return <div key={b.id} className={`p6g-cbar ${b.row}`} style={{ left: x(bs), width: Math.max(2, x(bf) - x(bs)), background: b.color }} title={`${b.name}: ${fmtDay(bs)} – ${fmtDay(bf)}`} />;
+        })}
         {bars.rightLabel && f !== null && <span className="p6g-label" style={{ left: x(f) + (isMs ? 9 : 5) }}>{barLabel(a, bars.rightLabel)}</span>}
         {f !== null && a.status !== "complete" && <i className="p6g-link" style={{ left: x(f) + (isMs ? 7 : 3) }} title="Drag onto another activity to link it as a successor (hold Shift for start-to-start)" onMouseDown={(e) => startDrag("link", a, e)} />}
       </div>
@@ -814,6 +855,46 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
             {dragGhost}
             {bars.dataDateLine && dd !== null && <div className="p6g-dd" style={{ left: x(dd), top: HEAD, height: bodyH }} title={`Data date ${fmtDay(dd)}`} />}
           </div>
+        </div>
+      )}
+      {bars.legend && layout.showGantt && (
+        <div className="p6g-legend">
+          {bars.actual && (
+            <span>
+              <i style={{ background: "var(--p6-actual)" }} />
+              Actual Work
+            </span>
+          )}
+          {bars.remaining && (
+            <span>
+              <i style={{ background: "var(--p6-remaining)" }} />
+              Remaining Work
+            </span>
+          )}
+          {bars.critical && (
+            <span>
+              <i style={{ background: "var(--p6-critical)" }} />
+              Critical Remaining Work
+            </span>
+          )}
+          {bars.baseline && (
+            <span>
+              <i style={{ background: "#d4b106" }} />
+              Project Baseline
+            </span>
+          )}
+          {customBars.map(({ b }) => (
+            <span key={b.id}>
+              <i style={{ background: b.color }} />
+              {b.name}
+            </span>
+          ))}
+          {bars.progressLine && (
+            <span>
+              <i style={{ background: "#e0218a", height: 2 }} />
+              Progress Line
+            </span>
+          )}
         </div>
       )}
       <div className="p6t-count" aria-live="polite">

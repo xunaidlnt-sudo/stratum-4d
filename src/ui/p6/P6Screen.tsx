@@ -73,7 +73,7 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useConfig } from "../../backend/config";
-import { recalcAssignmentCosts } from "../../core/ops";
+import { estimateProgress, recalcAssignmentCosts, removeProgress } from "../../core/ops";
 import { ActivityEditor, type EditorSection } from "../ActivityEditor";
 import { CostPanel, ResourcePanel } from "../Analysis";
 import { DataDateInput, EmptySample, FILTERS, IconBtn, MenuBar, type ClassicActions, type MenuItem } from "../classicParts";
@@ -597,6 +597,28 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       [
         { label: "Global Change…", onClick: () => P.open("globalChange"), disabled: none },
         { label: "Update Progress…", onClick: () => P.open("updateProgress"), disabled: none },
+        {
+          label: "Estimate Progress (selected)",
+          onClick: () => {
+            const st = useStore.getState();
+            if (!st.schedule) return;
+            const r = estimateProgress(st.schedule, st.selectedActivities.size ? st.selectedActivities : undefined);
+            st.commit(r.schedule, "Estimate progress");
+            st.setStatus(`Estimated progress to the data date: ${r.started} started, ${r.finished} finished, ${r.progressed} in progress.`);
+          },
+          disabled: none,
+        },
+        {
+          label: "Remove Progress (selected)",
+          onClick: () => {
+            const st = useStore.getState();
+            if (!st.schedule || !st.selectedActivities.size || !window.confirm(`Remove all progress from ${st.selectedActivities.size} activities?`)) return;
+            const r = removeProgress(st.schedule, st.selectedActivities);
+            st.commit(r.schedule, "Remove progress");
+            st.setStatus(`Removed progress from ${r.changed} activities. Press F9 to reschedule.`);
+          },
+          disabled: !n,
+        },
         { label: "Store Period Performance…", onClick: () => P.open("periods"), disabled: none },
         { label: "Recalculate Assignment Costs", onClick: recalc, disabled: none },
         { label: "Check Schedule…", onClick: () => P.open("checkSchedule"), disabled: none },

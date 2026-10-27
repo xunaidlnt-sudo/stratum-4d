@@ -231,6 +231,23 @@ function Workspace() {
     }
   };
 
+  // Schedule Options → "Schedule automatically": reschedule shortly after any edit.
+  useEffect(() => {
+    let t: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useStore.subscribe((st, prev) => {
+      if (!st.scheduleDirty || st.schedule === prev.schedule || !st.schedule?.scheduleOptions?.autoSchedule) return;
+      if (t) clearTimeout(t);
+      t = setTimeout(() => {
+        t = null;
+        if (useStore.getState().scheduleDirty) runSchedule();
+      }, 700);
+    });
+    return () => {
+      unsub();
+      if (t) clearTimeout(t);
+    };
+  }, []);
+
   // Keyboard: Space play/pause, arrows step, Home/End, F9 schedule, ? help, Esc.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {

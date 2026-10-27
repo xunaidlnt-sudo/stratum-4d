@@ -38,6 +38,8 @@ export interface Activity {
   constraint?: Constraint | null;
   /** Notebook text (P6 activity notebook). */
   notes?: string;
+  /** Notebook entries by topic (P6 notebook topics). */
+  notebook?: Record<string, string>;
   /** Secondary date constraint (P6 allows two). */
   secondaryConstraint?: Constraint | null;
   /** Set by CPM: on the longest path to the project finish. */
@@ -207,6 +209,12 @@ export interface Schedule {
   codeTypes?: CodeType[];
   /** User-defined field definitions (P6 User Defined Fields). */
   udfDefs?: UdfDef[];
+  /** Stored baselines used as the 2nd and 3rd comparison baselines (P6 primary/secondary/tertiary). */
+  compareBaselines?: { bl2?: string | null; bl3?: string | null };
+  /** Activity step templates. */
+  stepTemplates?: { name: string; steps: { name: string; weight: number }[] }[];
+  /** Notebook topics offered on the Notebook tab. */
+  notebookTopics?: string[];
   /** Baselines stored with the project (P6 Maintain Baselines). */
   baselines?: StoredBaseline[];
   /** Period performance snapshots (P6 Store Period Performance). */
@@ -229,6 +237,8 @@ export interface ScheduleOptions {
   openEndsCritical: boolean;
   /** Level resources (F10) right after scheduling. */
   levelWhenScheduling: boolean;
+  /** Reschedule automatically after every change that affects dates. */
+  autoSchedule?: boolean;
   /** Recalculate remaining duration from each activity's Expected Finish. */
   useExpectedFinish?: boolean;
   /** Multiple float paths to an end activity (internal id); null = off. */

@@ -4,7 +4,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { networkLayout, traceLogic } from "../../core/network";
-import { uid } from "../../core/ops";
+import { monitorThresholds, THRESHOLD_PARAMETERS, uid } from "../../core/ops";
 import type { RegisterItem, RegisterKind, Resource, ResourceType, Schedule, WbsNode } from "../../core/types";
 import { usageSheet } from "../../core/usage";
 import { fmtNum } from "../charts";
@@ -357,7 +357,18 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
     <div className="p6-win">
       <div className="p6-win-bar">
         <button onClick={() => put([...items, { id: uid(kind), activityId: usesActivity ? selected : null, values: {} }], `Add ${def.title}`)}>Add</button>
-        <span className="muted small">{usesActivity ? "New rows link to the selected activity." : ""}</span>
+        <span className="muted small">{usesActivity ? "New rows link to the selected activity." : `Parameters: ${Object.keys(THRESHOLD_PARAMETERS).join(", ")} (days or %).`}</span>
+        {kind === "thresholds" && (
+          <button
+            onClick={() => {
+              const r = monitorThresholds(s);
+              if (r.created) commit(r.schedule, "Monitor thresholds");
+              useStore.getState().setStatus(`Thresholds checked against ${r.checked} activity values: ${r.created} new issue${r.created === 1 ? "" : "s"} in the Issues window.`);
+            }}
+          >
+            Monitor
+          </button>
+        )}
         <span className="spacer" />
         <span className="muted">
           {items.length} {def.title.toLowerCase()}
