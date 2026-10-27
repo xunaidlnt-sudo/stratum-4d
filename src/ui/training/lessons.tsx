@@ -76,19 +76,16 @@ export const LESSONS: Lesson[] = [
         target: ".p6-rail-left",
         body: () => (
           <>
-            <p>As in P6, the left bar says <i>where to look</i>:</p>
+            <p>As in P6, the left bar says <i>where to look</i>. Each button opens a window as a tab:</p>
             <ul>
               <li>
-                <b>Projects</b>: open a project from the database.
+                <b>Projects</b>, <b>Resources</b>, <b>Reports</b> and <b>Tracking</b>: the project list, the resource dictionary and the dashboards.
               </li>
               <li>
-                <b>WBS</b> and <b>Activities</b>: collapse the schedule to its work breakdown, or show every activity.
+                <b>WBS</b>, <b>Activities</b> and <b>Assignments</b>: edit the work breakdown, the activities, and every resource assignment.
               </li>
               <li>
-                <b>Assignments</b>, <b>Resources</b> and <b>Activity Usage</b>: who works on what, resource loading, and cost or earned value over time.
-              </li>
-              <li>
-                <b>Reports</b>, <b>Tracking</b> and <b>P6 Import</b>: dashboards and bringing projects in from a P6 server.
+                <b>WPs &amp; Docs</b>, <b>Expenses</b>, <b>Thresholds</b>, <b>Issues</b> and <b>Risks</b>: the project registers.
               </li>
             </ul>
           </>
@@ -99,7 +96,7 @@ export const LESSONS: Lesson[] = [
         target: ".p6-rail-right",
         body: () => (
           <>
-            <p>The right bar says <i>what to do</i>: add and delete activities, <b>Schedule (F9)</b> to recalculate dates, <b>Commit</b> to save to the database, expand or collapse the WBS, zoom the timescale, find, and export to P6 XER.</p>
+            <p>The right bar says <i>what to do</i> in the window you are in: add, delete, cut, copy, paste, dissolve, renumber and link activities, undo, fill down, assign predecessors, successors, resources and codes, expand or collapse the WBS, <b>Schedule (F9)</b> and <b>Commit</b>. Right-click the table for the same commands.</p>
             <p>Most commands also have a keyboard shortcut. Hover a button to see it.</p>
           </>
         ),
@@ -601,10 +598,10 @@ export const LESSONS: Lesson[] = [
       },
       {
         title: "Show the baseline bars",
-        target: ".p6-layoutbar button.p6-drop",
-        task: "Click the Layout button to switch to the layout with baseline bars.",
+        target: ".p6-layoutbar button.p6-blbtn",
+        task: "Click Baseline bars on the layout bar.",
         done: (c) => c.s.ganttTracking,
-        showMe: () => void click(".p6-layoutbar button.p6-drop"),
+        showMe: () => void click(".p6-layoutbar button.p6-blbtn"),
         body: () => <p>In P6 this is the baseline bar option on the Bars dialog; in MS Project it is the Tracking Gantt.</p>,
       },
       {
@@ -647,7 +644,7 @@ export const LESSONS: Lesson[] = [
         showMe: async () => {
           setValue(".p6-layoutbar select", "all");
           await wait(100);
-          if (useStore.getState().ganttTracking) click(".p6-layoutbar button.p6-drop");
+          if (useStore.getState().ganttTracking) click(".p6-layoutbar button.p6-blbtn");
         },
         body: () => <p>A delay is only half the story; the next step is to explain it (cause, responsibility, recovery). The delay analysis practices used for extension of time claims start from exactly this comparison.</p>,
       },

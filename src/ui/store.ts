@@ -16,6 +16,7 @@ import type {
   Schedule,
 } from "../core/types";
 import type { ScheduleDiff } from "../core/update";
+import type { Clip } from "../core/ops";
 import { monthShort } from "../core/dates";
 
 export type SideTab = "selection" | "rules" | "profiles" | "display" | "check" | "tools";
@@ -49,6 +50,12 @@ export interface AppState {
   profiles: AppearanceProfile[];
   selectedElements: Set<string>;
   selectedActivity: string | null;
+  /** All selected activities (P6 multi-select); always contains selectedActivity when set. */
+  selectedActivities: Set<string>;
+  /** Undo / redo history of schedule edits. */
+  past: { s: Schedule; label: string }[];
+  future: { s: Schedule; label: string }[];
+  clipboard: Clip | null;
   time: number;
   playing: boolean;
   /** Playback speed in schedule days per real second. */
@@ -93,6 +100,13 @@ export interface AppState {
   setProfiles: (p: AppearanceProfile[]) => void;
   selectElements: (ids: Set<string>) => void;
   selectActivity: (id: string | null) => void;
+  /** Replace the activity selection; `primary` becomes the focused activity. */
+  setActivitySelection: (ids: Set<string>, primary?: string | null) => void;
+  /** Apply an edited schedule as one undoable step. */
+  commit: (s: Schedule, label: string, select?: string[]) => void;
+  undo: () => void;
+  redo: () => void;
+  setClipboard: (c: Clip | null) => void;
   setTime: (t: number) => void;
   setPlaying: (p: boolean) => void;
   setSpeed: (s: number) => void;
@@ -119,9 +133,20 @@ function derive(base: ModelElement[], segments: ElementSegment[], groups: Elemen
   return expandElements(base, segments, groups);
 }
 
+const HISTORY = 60;
+
 export const useStore = create<AppState>((set) => {
-  const editSchedule = (fn: (s: Schedule) => Schedule) =>
-    set((st) => (st.schedule ? { schedule: fn(st.schedule), scheduleDirty: true } : {}));
+  // Typing in a field edits the schedule on every key: fold quick repeats of the same edit into one undo step.
+  let lastEdit = { label: "", at: 0 };
+  const editSchedule = (fn: (s: Schedule) => Schedule, label = "Edit") =>
+    set((st) => {
+      if (!st.schedule) return {};
+      const now = Date.now();
+      const fold = lastEdit.label === label && now - lastEdit.at < 1200 && st.past.length > 0;
+      lastEdit = { label, at: now };
+      const past = fold ? st.past : [...st.past.slice(-HISTORY + 1), { s: st.schedule, label }];
+      return { schedule: fn(st.schedule), scheduleDirty: true, past, future: [] };
+    });
 
   return {
     schedule: null,
@@ -136,6 +161,10 @@ export const useStore = create<AppState>((set) => {
     profiles: structuredClone(DEFAULT_PROFILES),
     selectedElements: new Set(),
     selectedActivity: null,
+    selectedActivities: new Set(),
+    past: [],
+    future: [],
+    clipboard: null,
     time: Date.now(),
     playing: false,
     speed: 7,
@@ -161,14 +190,17 @@ export const useStore = create<AppState>((set) => {
     setLeftTab: (leftTab) => set({ leftTab }),
     setSchedule: (schedule, opts = {}) =>
       set((st) => {
-        if (!schedule) return { schedule, selectedActivity: null, scheduleDirty: false };
+        if (!schedule) return { schedule, selectedActivity: null, selectedActivities: new Set<string>(), scheduleDirty: false, past: [], future: [] };
         const r = scheduleRange(schedule);
         const time = opts.keepTime ? st.time : schedule.dataDate ?? r?.start ?? Date.now();
-        const keepSel = opts.keepTime && st.selectedActivity && schedule.activities.some((a) => a.id === st.selectedActivity);
+        const ids = opts.keepTime && st.selectedActivities.size ? new Set(schedule.activities.map((a) => a.id)) : null;
+        const keepSel = !!ids && !!st.selectedActivity && ids.has(st.selectedActivity);
         return {
           schedule,
           time,
           selectedActivity: keepSel ? st.selectedActivity : null,
+          selectedActivities: ids ? new Set([...st.selectedActivities].filter((x) => ids.has(x))) : new Set<string>(),
+          ...(opts.keepTime ? {} : { past: [], future: [] }),
           collapsedWbs: opts.keepTime ? st.collapsedWbs : new Set(),
           scheduleDirty: opts.dirty ?? false,
         };
@@ -190,7 +222,28 @@ export const useStore = create<AppState>((set) => {
     setRules: (rules) => set({ rules }),
     setProfiles: (profiles) => set({ profiles }),
     selectElements: (selectedElements) => set({ selectedElements }),
-    selectActivity: (selectedActivity) => set({ selectedActivity }),
+    selectActivity: (selectedActivity) => set({ selectedActivity, selectedActivities: new Set(selectedActivity ? [selectedActivity] : []) }),
+    setActivitySelection: (ids, primary) =>
+      set((st) => ({ selectedActivities: ids, selectedActivity: primary !== undefined ? primary : ids.has(st.selectedActivity ?? "") ? st.selectedActivity : ([...ids][0] ?? null) })),
+    commit: (next, label, select) =>
+      set((st) => {
+        if (!st.schedule || next === st.schedule) return {};
+        const sel = select ? { selectedActivities: new Set(select), selectedActivity: select[0] ?? null } : {};
+        return { schedule: next, scheduleDirty: true, past: [...st.past.slice(-HISTORY + 1), { s: st.schedule, label }], future: [], ...sel };
+      }),
+    undo: () =>
+      set((st) => {
+        const prev = st.past[st.past.length - 1];
+        if (!prev || !st.schedule) return {};
+        return { schedule: prev.s, scheduleDirty: true, past: st.past.slice(0, -1), future: [{ s: st.schedule, label: prev.label }, ...st.future], status: `Undid: ${prev.label}` };
+      }),
+    redo: () =>
+      set((st) => {
+        const next = st.future[0];
+        if (!next || !st.schedule) return {};
+        return { schedule: next.s, scheduleDirty: true, future: st.future.slice(1), past: [...st.past, { s: st.schedule, label: next.label }], status: `Redid: ${next.label}` };
+      }),
+    setClipboard: (clipboard) => set({ clipboard }),
     setTime: (time) => set({ time }),
     setPlaying: (playing) => set({ playing }),
     setSpeed: (speed) => set({ speed }),
@@ -209,19 +262,19 @@ export const useStore = create<AppState>((set) => {
     setScheduleReport: (scheduleReport) => set({ scheduleReport }),
 
     updateActivity: (id, patch) =>
-      editSchedule((s) => ({ ...s, activities: s.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) })),
-    addActivity: (a) => editSchedule((s) => ({ ...s, activities: [...s.activities, a] })),
+      editSchedule((s) => ({ ...s, activities: s.activities.map((a) => (a.id === id ? { ...a, ...patch } : a)) }), `Edit ${Object.keys(patch).join(", ")} of ${id}`),
+    addActivity: (a) => editSchedule((s) => ({ ...s, activities: [...s.activities, a] }), "Add activity"),
     deleteActivity: (id) =>
       editSchedule((s) => ({
         ...s,
         activities: s.activities.filter((a) => a.id !== id),
         relationships: s.relationships.filter((r) => r.predecessorId !== id && r.successorId !== id),
         assignments: (s.assignments ?? []).filter((x) => x.activityId !== id),
-      })),
-    addRelationship: (r) => editSchedule((s) => ({ ...s, relationships: [...s.relationships, r] })),
+      }), "Delete activity"),
+    addRelationship: (r) => editSchedule((s) => ({ ...s, relationships: [...s.relationships, r] }), "Add relationship"),
     updateRelationship: (id, patch) =>
-      editSchedule((s) => ({ ...s, relationships: s.relationships.map((r) => (r.id === id ? { ...r, ...patch } : r)) })),
-    deleteRelationship: (id) => editSchedule((s) => ({ ...s, relationships: s.relationships.filter((r) => r.id !== id) })),
+      editSchedule((s) => ({ ...s, relationships: s.relationships.map((r) => (r.id === id ? { ...r, ...patch } : r)) }), `Edit relationship ${id}`),
+    deleteRelationship: (id) => editSchedule((s) => ({ ...s, relationships: s.relationships.filter((r) => r.id !== id) }), "Delete relationship"),
     upsertAssignment: (a) =>
       editSchedule((s) => {
         const list = s.assignments ?? [];

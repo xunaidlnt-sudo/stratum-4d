@@ -78,7 +78,7 @@ export function deleteSelectedActivity() {
 }
 
 /** Parts of the activity editor; P6's detail tabs show one or two at a time. */
-export type EditorSection = "general" | "status" | "dates" | "predecessors" | "successors" | "resources" | "codes";
+export type EditorSection = "general" | "status" | "dates" | "predecessors" | "successors" | "resources" | "codes" | "udf" | "notebook";
 
 export function ActivityEditor({ only, bare }: { only?: EditorSection[]; bare?: boolean } = {}) {
   const st = useStore();
@@ -124,6 +124,13 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
   const succs = schedule.relationships.filter((r) => r.predecessorId === act.id);
   const byId = new Map(schedule.activities.map((a) => [a.id, a]));
   const [newPred, setNewPred] = useState({ code: "", type: "FS" as RelationshipType, lag: "0" });
+  const [newSucc, setNewSucc] = useState({ code: "", type: "FS" as RelationshipType, lag: "0" });
+  const [newCode, setNewCode] = useState({ key: "", value: "" });
+  const codeTypes = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const a of schedule.activities) for (const k in a.codes) (m.get(k) ?? m.set(k, new Set()).get(k)!).add(a.codes[k]);
+    return m;
+  }, [schedule.activities]);
   const [newField, setNewField] = useState({ key: "", value: "" });
   const resources = schedule.resources ?? [];
   const assignments = (schedule.assignments ?? []).filter((x) => x.activityId === act.id);
@@ -142,6 +149,13 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
     if (p.id === act.id) return st.setStatus("An activity cannot be its own predecessor.");
     st.addRelationship({ id: uid("rel"), predecessorId: p.id, successorId: act.id, type: newPred.type, lagHours: (Number(newPred.lag) || 0) * hpd });
     setNewPred({ code: "", type: "FS", lag: "0" });
+  };
+  const addSucc = () => {
+    const q = schedule.activities.find((a) => a.code.toLowerCase() === newSucc.code.trim().toLowerCase());
+    if (!q) return st.setStatus(`No activity with ID ${newSucc.code}.`);
+    if (q.id === act.id) return st.setStatus("An activity cannot be its own successor.");
+    st.addRelationship({ id: uid("rel"), predecessorId: act.id, successorId: q.id, type: newSucc.type, lagHours: (Number(newSucc.lag) || 0) * hpd });
+    setNewSucc({ code: "", type: "FS", lag: "0" });
   };
 
   return (
@@ -331,6 +345,27 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
       <section>
         <h4>Successors ({succs.length})</h4>
         <RelTable rels={succs} other={(r) => byId.get(r.successorId)} hpd={hpd} />
+        <div className="row">
+          <input placeholder={terms.activityId} value={newSucc.code} onChange={(e) => setNewSucc({ ...newSucc, code: e.target.value })} list="activity-codes-s" style={{ width: 110 }} />
+          <select value={newSucc.type} onChange={(e) => setNewSucc({ ...newSucc, type: e.target.value as RelationshipType })}>
+            {REL_TYPES.map((t) => (
+              <option key={t}>{t}</option>
+            ))}
+          </select>
+          <input type="number" step={0.5} value={newSucc.lag} onChange={(e) => setNewSucc({ ...newSucc, lag: e.target.value })} style={{ width: 64 }} title="Lag (days)" />
+          <button onClick={addSucc} disabled={!newSucc.code.trim()}>
+            Add
+          </button>
+        </div>
+        {!show("predecessors") && (
+          <datalist id="activity-codes-s">
+            {schedule.activities.map((a) => (
+              <option key={a.id} value={a.code}>
+                {a.name}
+              </option>
+            ))}
+          </datalist>
+        )}
       </section>
       )}
 
@@ -411,6 +446,58 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
       )}
 
       {show("codes") && (
+      <section>
+        <h4>Activity codes</h4>
+        <table className="props compact">
+          <tbody>
+            {[...codeTypes.keys()].sort().map((k) => (
+              <tr key={k}>
+                <td>{k}</td>
+                <td>
+                  <input
+                    list={`code-values-${k}`}
+                    value={act.codes[k] ?? ""}
+                    onChange={(e) => {
+                      const next = { ...act.codes };
+                      if (e.target.value) next[k] = e.target.value;
+                      else delete next[k];
+                      up({ codes: next });
+                    }}
+                  />
+                  <datalist id={`code-values-${k}`}>
+                    {[...(codeTypes.get(k) ?? [])].sort().map((v) => (
+                      <option key={v} value={v} />
+                    ))}
+                  </datalist>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <div className="row">
+          <input placeholder="Code type" value={newCode.key} onChange={(e) => setNewCode({ ...newCode, key: e.target.value })} style={{ width: 130 }} />
+          <input placeholder="Code value" value={newCode.value} onChange={(e) => setNewCode({ ...newCode, value: e.target.value })} />
+          <button
+            disabled={!newCode.key.trim() || !newCode.value.trim()}
+            onClick={() => {
+              up({ codes: { ...act.codes, [newCode.key.trim()]: newCode.value.trim() } });
+              setNewCode({ key: "", value: "" });
+            }}
+          >
+            Assign
+          </button>
+        </div>
+      </section>
+      )}
+
+      {show("notebook") && (
+      <section className="stack">
+        <h4>Notebook</h4>
+        <textarea rows={6} value={act.notes ?? ""} placeholder="Notes for this activity: assumptions, delays, instructions…" onChange={(e) => up({ notes: e.target.value || undefined })} />
+      </section>
+      )}
+
+      {show("udf") && (
       <section>
         <h4>User fields</h4>
         {Object.entries(act.userFields ?? {}).map(([k, v]) => (

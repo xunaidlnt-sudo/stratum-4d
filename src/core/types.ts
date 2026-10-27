@@ -36,6 +36,8 @@ export interface Activity {
   freeFloatHours?: number | null;
   /** Primary date constraint. */
   constraint?: Constraint | null;
+  /** Notebook text (P6 activity notebook). */
+  notes?: string;
 }
 
 export type ConstraintType =
@@ -158,6 +160,40 @@ export interface Schedule {
   p6Source?: { connectionId: string; projectObjectId: string; kind: string; pulledAt: string } | null;
   /** The baseline the baseline dates came from, when assigned from another schedule. */
   baselineInfo?: BaselineInfo | null;
+  /** Baselines stored with the project (P6 Maintain Baselines). */
+  baselines?: StoredBaseline[];
+  /** Period performance snapshots (P6 Store Period Performance). */
+  periods?: PeriodSnapshot[];
+  /** Project registers: issues, risks, work products & documents, expenses, thresholds. */
+  registers?: Partial<Record<RegisterKind, RegisterItem[]>>;
+}
+
+export interface StoredBaseline {
+  id: string;
+  name: string;
+  createdAt: string;
+  dataDate: number | null;
+  /** Activity ID (code) -> planned [start, finish] when the baseline was stored. */
+  dates: Record<string, [number | null, number | null]>;
+}
+
+export interface PeriodSnapshot {
+  id: string;
+  /** Period end (the data date when stored). */
+  date: number;
+  name: string;
+  /** Activity internal id -> actuals to date. */
+  actuals: Record<string, { pct: number; actualCost: number; actualUnits: number }>;
+}
+
+export type RegisterKind = "issues" | "risks" | "documents" | "expenses" | "thresholds";
+
+/** A row in one of the project registers. Columns differ per register; values are kept as text. */
+export interface RegisterItem {
+  id: string;
+  /** Linked activity (internal id), if any. */
+  activityId?: string | null;
+  values: Record<string, string>;
 }
 
 export interface BaselineInfo {

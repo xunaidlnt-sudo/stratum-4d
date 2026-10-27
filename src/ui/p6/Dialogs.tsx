@@ -1,0 +1,1570 @@
+// P6 dialogs: Columns, Filters, Group and Sort, Bar Chart Options,
+// Timescale, Layouts, Global Change, Update Progress, Maintain Baselines,
+// Check Schedule, Renumber, Assign Predecessors / Successors / Resources /
+// Activity Codes, Page Setup and Print, Project details, Spelling and Store
+// Period Performance.
+
+import { X } from "lucide-react";
+import { useMemo, useState, type ReactNode } from "react";
+import { fieldCtx, fieldsFor, OP_LABEL, type FilterDef, type FilterOp, type FilterRule } from "../../core/fields";
+import {
+  checkSchedule,
+  deleteBaseline,
+  globalChange,
+  refreshBaseline,
+  renameBaseline,
+  renumber,
+  storeBaseline,
+  storePeriodPerformance,
+  uid,
+  updateProgress,
+  useStoredBaseline,
+  type ChangeOp,
+  type ChangeRule,
+  type GlobalChangeDef,
+} from "../../core/ops";
+import type { RelationshipType } from "../../core/types";
+import { fmtDate, useStore } from "../store";
+import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
+import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
+
+function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
+  return (
+    <div className="help-backdrop p6-dlg-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className={`p6-dlg ${wide ? "wide" : ""}`} role="dialog" aria-label={title} onKeyDown={(e) => e.key === "Escape" && onClose()}>
+        <div className="p6-dlg-title">
+          <span>{title}</span>
+          <button className="icon-btn" onClick={onClose} aria-label="Close" title="Close">
+            <X size={14} aria-hidden />
+          </button>
+        </div>
+        <div className="p6-dlg-body">{children}</div>
+        <div className="p6-dlg-foot">{foot ?? <button onClick={onClose}>Close</button>}</div>
+      </div>
+    </div>
+  );
+}
+
+const close = () => useP6.getState().open(null);
+
+// ---------------------------------------------------------------- Columns
+
+function ColumnsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const layout = useLayout((s) => s.layout);
+  const setLayout = useLayout((s) => s.set);
+  const fields = useMemo(() => fieldsFor(schedule), [schedule]);
+  const [sel, setSel] = useState<string[]>(layout.columns.map((c) => c.id));
+  const [pickA, setPickA] = useState<string | null>(null);
+  const [pickS, setPickS] = useState<string | null>(null);
+  const [q, setQ] = useState("");
+  const groups = useMemo(() => {
+    const m = new Map<string, typeof fields>();
+    for (const f of fields) if (!sel.includes(f.id) && f.label.toLowerCase().includes(q.toLowerCase())) (m.get(f.group) ?? m.set(f.group, []).get(f.group)!).push(f);
+    return m;
+  }, [fields, sel, q]);
+  const label = (id: string) => fields.find((f) => f.id === id)?.label ?? id;
+  const move = (d: -1 | 1) => {
+    if (!pickS) return;
+    const i = sel.indexOf(pickS);
+    const j = i + d;
+    if (j < 0 || j >= sel.length) return;
+    const next = [...sel];
+    [next[i], next[j]] = [next[j], next[i]];
+    setSel(next);
+  };
+  const apply = () => setLayout({ columns: sel.map((id) => layout.columns.find((c) => c.id === id) ?? { id }) });
+  return (
+    <Shell
+      title="Columns"
+      wide
+      onClose={close}
+      foot={
+        <>
+          <button onClick={() => setSel(DEFAULT_LAYOUT.columns.map((c) => c.id))}>Default</button>
+          <span className="spacer" />
+          <button onClick={apply}>Apply</button>
+          <button
+            className="primary"
+            onClick={() => {
+              apply();
+              close();
+            }}
+          >
+            OK
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <div className="p6-cols">
+        <div className="p6-list">
+          <div className="p6-list-head">
+            Available Options <input placeholder="Search" value={q} onChange={(e) => setQ(e.target.value)} />
+          </div>
+          <div className="p6-list-body">
+            {[...groups].map(([g, list]) => (
+              <details key={g} open={q !== "" || g === "General" || g === "Dates"}>
+                <summary>{g}</summary>
+                {list.map((f) => (
+                  <button key={f.id} className={pickA === f.id ? "on" : ""} onClick={() => setPickA(f.id)} onDoubleClick={() => setSel([...sel, f.id])}>
+                    {f.label}
+                  </button>
+                ))}
+              </details>
+            ))}
+          </div>
+        </div>
+        <div className="p6-arrows">
+          <button disabled={!pickA} onClick={() => pickA && (setSel([...sel, pickA]), setPickA(null))} title="Add">
+            ›
+          </button>
+          <button disabled={!pickS || sel.length <= 1} onClick={() => pickS && (setSel(sel.filter((x) => x !== pickS)), setPickS(null))} title="Remove">
+            ‹
+          </button>
+          <button disabled={!pickS} onClick={() => move(-1)} title="Move up">
+            ▲
+          </button>
+          <button disabled={!pickS} onClick={() => move(1)} title="Move down">
+            ▼
+          </button>
+        </div>
+        <div className="p6-list">
+          <div className="p6-list-head">Selected Options</div>
+          <div className="p6-list-body">
+            {sel.map((id) => (
+              <button key={id} className={pickS === id ? "on" : ""} onClick={() => setPickS(id)} onDoubleClick={() => sel.length > 1 && setSel(sel.filter((x) => x !== id))}>
+                {label(id)}
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Filters
+
+const OPS_BY_TYPE: Record<string, FilterOp[]> = {
+  text: ["eq", "ne", "contains", "notContains", "startsWith", "empty", "notEmpty"],
+  enum: ["eq", "ne", "contains", "empty", "notEmpty"],
+  number: ["eq", "ne", "lt", "le", "gt", "ge", "empty", "notEmpty"],
+  duration: ["eq", "ne", "lt", "le", "gt", "ge", "empty", "notEmpty"],
+  percent: ["eq", "ne", "lt", "le", "gt", "ge"],
+  date: ["eq", "ne", "lt", "le", "gt", "ge", "empty", "notEmpty"],
+  bool: ["isTrue", "isFalse"],
+};
+
+function RuleRows({ rules, onChange }: { rules: FilterRule[]; onChange: (r: FilterRule[]) => void }) {
+  const schedule = useStore((s) => s.schedule);
+  const fields = useMemo(() => fieldsFor(schedule), [schedule]);
+  return (
+    <table className="p6-grid">
+      <thead>
+        <tr>
+          <td>Parameter</td>
+          <td>Is</td>
+          <td>Value</td>
+          <td />
+        </tr>
+      </thead>
+      <tbody>
+        {rules.map((r, i) => {
+          const f = fields.find((x) => x.id === r.field);
+          const ops = OPS_BY_TYPE[f?.type ?? "text"];
+          const needsValue = !["empty", "notEmpty", "isTrue", "isFalse"].includes(r.op);
+          return (
+            <tr key={i}>
+              <td>
+                <select
+                  value={r.field}
+                  onChange={(e) => {
+                    const nf = fields.find((x) => x.id === e.target.value);
+                    const op = OPS_BY_TYPE[nf?.type ?? "text"][0];
+                    onChange(rules.map((x, k) => (k === i ? { field: e.target.value, op, value: "" } : x)));
+                  }}
+                >
+                  {fields.map((x) => (
+                    <option key={x.id} value={x.id}>
+                      {x.label}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                <select value={r.op} onChange={(e) => onChange(rules.map((x, k) => (k === i ? { ...x, op: e.target.value as FilterOp } : x)))}>
+                  {ops.map((o) => (
+                    <option key={o} value={o}>
+                      {OP_LABEL[o]}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                {needsValue &&
+                  (f?.type === "enum" ? (
+                    <select value={r.value ?? ""} onChange={(e) => onChange(rules.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)))}>
+                      <option value="" />
+                      {(f.options ?? []).map((o) => (
+                        <option key={o}>{o}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={f?.type === "date" ? "date" : "text"}
+                      value={r.value ?? ""}
+                      placeholder={f?.type === "duration" ? "days" : ""}
+                      onChange={(e) => onChange(rules.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)))}
+                    />
+                  ))}
+              </td>
+              <td>
+                <button className="link" onClick={() => onChange(rules.filter((_, k) => k !== i))} title="Delete row">
+                  ✕
+                </button>
+              </td>
+            </tr>
+          );
+        })}
+      </tbody>
+    </table>
+  );
+}
+
+function FiltersDialog() {
+  const layout = useLayout((s) => s.layout);
+  const custom = useLayout((s) => s.customFilters);
+  const L = useLayout.getState();
+  const all = allFilters(custom);
+  const [on, setOn] = useState<string[]>(layout.filters);
+  const [match, setMatch] = useState(layout.filterMatch);
+  const [mode, setMode] = useState(layout.filterMode);
+  const [edit, setEdit] = useState<FilterDef | null>(null);
+  const apply = () => L.set({ filters: on, filterMatch: match, filterMode: mode });
+  if (edit)
+    return (
+      <Shell
+        title={custom.some((f) => f.id === edit.id) ? "Modify Filter" : "New Filter"}
+        wide
+        onClose={() => setEdit(null)}
+        foot={
+          <>
+            <button onClick={() => setEdit({ ...edit, rules: [...edit.rules, { field: "name", op: "contains", value: "" }] })}>Add Row</button>
+            <span className="spacer" />
+            <button
+              className="primary"
+              disabled={!edit.name.trim() || !edit.rules.length}
+              onClick={() => {
+                L.saveFilter(edit);
+                setOn([...on.filter((x) => x !== edit.id), edit.id]);
+                setEdit(null);
+              }}
+            >
+              OK
+            </button>
+            <button onClick={() => setEdit(null)}>Cancel</button>
+          </>
+        }
+      >
+        <div className="row">
+          <label>
+            Filter Name <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+          </label>
+          <label>
+            Show activities where{" "}
+            <select value={edit.match} onChange={(e) => setEdit({ ...edit, match: e.target.value as "all" | "any" })}>
+              <option value="all">all of the following are met</option>
+              <option value="any">any of the following are met</option>
+            </select>
+          </label>
+        </div>
+        <RuleRows rules={edit.rules} onChange={(rules) => setEdit({ ...edit, rules })} />
+      </Shell>
+    );
+  return (
+    <Shell
+      title="Filters"
+      wide
+      onClose={close}
+      foot={
+        <>
+          <button onClick={() => setEdit({ id: uid("flt"), name: "", match: "all", rules: [{ field: "name", op: "contains", value: "" }] })}>New…</button>
+          <span className="spacer" />
+          <button onClick={apply}>Apply</button>
+          <button
+            className="primary"
+            onClick={() => {
+              apply();
+              close();
+            }}
+          >
+            OK
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Select</td>
+            <td>Filter Name</td>
+            <td>Definition</td>
+            <td />
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>
+              <input type="checkbox" checked={!on.length} onChange={() => setOn([])} />
+            </td>
+            <td>All Activities</td>
+            <td className="muted">No filter</td>
+            <td />
+          </tr>
+          {all.map((f) => {
+            const mine = custom.some((c) => c.id === f.id);
+            return (
+              <tr key={f.id}>
+                <td>
+                  <input type="checkbox" checked={on.includes(f.id)} onChange={(e) => setOn(e.target.checked ? [...on, f.id] : on.filter((x) => x !== f.id))} />
+                </td>
+                <td>
+                  {f.name} {mine ? <span className="muted">(user)</span> : <span className="muted">(default)</span>}
+                </td>
+                <td className="muted small">{f.rules.map((r) => `${r.field} ${OP_LABEL[r.op]} ${r.value ?? ""}`).join(f.match === "all" ? " and " : " or ")}</td>
+                <td className="nowrap">
+                  <button className="link" onClick={() => setEdit(mine ? structuredClone(f) : { ...structuredClone(f), id: uid("flt"), name: `${f.name} (copy)` })}>
+                    {mine ? "Modify" : "Copy"}
+                  </button>
+                  {mine && (
+                    <button className="link" onClick={() => L.deleteFilter(f.id)}>
+                      Delete
+                    </button>
+                  )}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className="row">
+        <label>
+          Show activities that match{" "}
+          <select value={match} onChange={(e) => setMatch(e.target.value as "all" | "any")}>
+            <option value="all">all selected filters</option>
+            <option value="any">any selected filter</option>
+          </select>
+        </label>
+        <label>
+          <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} /> Replace activities shown
+        </label>
+        <label>
+          <input type="radio" checked={mode === "highlight"} onChange={() => setMode("highlight")} /> Highlight activities that match
+        </label>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Group and Sort
+
+function GroupSortDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const layout = useLayout((s) => s.layout);
+  const L = useLayout.getState();
+  const fields = useMemo(() => fieldsFor(schedule), [schedule]);
+  const [groupBy, setGroupBy] = useState(layout.groupBy);
+  const [totals, setTotals] = useState(layout.groupTotals);
+  const [sort, setSort] = useState(layout.sort);
+  const groupable = fields.filter((f) => f.type === "text" || f.type === "enum" || f.type === "bool" || f.group === "Activity Codes");
+  const apply = () => L.set({ groupBy, groupTotals: totals, sort });
+  return (
+    <Shell
+      title="Group and Sort"
+      wide
+      onClose={close}
+      foot={
+        <>
+          <button onClick={() => (setGroupBy("wbs"), setSort([{ field: "start" }]))}>Default</button>
+          <span className="spacer" />
+          <button onClick={apply}>Apply</button>
+          <button
+            className="primary"
+            onClick={() => {
+              apply();
+              close();
+            }}
+          >
+            OK
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <h4>Group By</h4>
+      <div className="row">
+        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
+          <option value="wbs">WBS</option>
+          <option value="none">(no grouping)</option>
+          {groupable
+            .filter((f) => f.id !== "wbs")
+            .map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.group === "Activity Codes" ? `Activity Code: ${f.label}` : f.label}
+              </option>
+            ))}
+        </select>
+        <label>
+          <input type="checkbox" checked={totals} onChange={(e) => setTotals(e.target.checked)} /> Show group totals
+        </label>
+      </div>
+      <h4>Sort By</h4>
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Field</td>
+            <td>Order</td>
+            <td />
+          </tr>
+        </thead>
+        <tbody>
+          {sort.map((s, i) => (
+            <tr key={i}>
+              <td>
+                <select value={s.field} onChange={(e) => setSort(sort.map((x, k) => (k === i ? { ...x, field: e.target.value } : x)))}>
+                  {fields.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </td>
+              <td>
+                <select value={s.desc ? "d" : "a"} onChange={(e) => setSort(sort.map((x, k) => (k === i ? { ...x, desc: e.target.value === "d" } : x)))}>
+                  <option value="a">Ascending</option>
+                  <option value="d">Descending</option>
+                </select>
+              </td>
+              <td>
+                <button className="link" onClick={() => setSort(sort.filter((_, k) => k !== i))}>
+                  ✕
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <button onClick={() => setSort([...sort, { field: "code" }])}>Add sort level</button>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Bars and timescale
+
+function BarsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const bars = useLayout((s) => s.layout.bars);
+  const rowHeight = useLayout((s) => s.layout.rowHeight);
+  const L = useLayout.getState();
+  const fields = useMemo(() => fieldsFor(schedule), [schedule]);
+  const tick = (k: keyof typeof bars, label: string, hint: string) => (
+    <label className="p6-check" title={hint}>
+      <input type="checkbox" checked={!!bars[k]} onChange={(e) => L.setBars({ [k]: e.target.checked })} /> {label} <span className="muted small">{hint}</span>
+    </label>
+  );
+  return (
+    <Shell title="Bar Chart Options" onClose={close}>
+      <h4>Bars</h4>
+      {tick("actual", "Actual Work", "blue, from actual start to the data date")}
+      {tick("remaining", "Remaining Work", "green, from the data date to finish")}
+      {tick("critical", "Critical Remaining Work", "red when the activity is critical")}
+      {tick("baseline", "Project Baseline", "thin bar under each activity")}
+      {tick("float", "Total Float", "line from finish to late finish")}
+      {tick("summaryBars", "Summary bars", "on WBS and group bands")}
+      {tick("relationships", "Relationship lines", "predecessor to successor, critical in red")}
+      {tick("dataDateLine", "Data date line", "")}
+      <h4>Bar labels</h4>
+      <div className="row">
+        <label>
+          Right of bar{" "}
+          <select value={bars.rightLabel} onChange={(e) => L.setBars({ rightLabel: e.target.value })}>
+            <option value="">(none)</option>
+            {fields.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Inside bar{" "}
+          <select value={bars.insideLabel} onChange={(e) => L.setBars({ insideLabel: e.target.value })}>
+            <option value="">(none)</option>
+            {fields.map((f) => (
+              <option key={f.id} value={f.id}>
+                {f.label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <h4>Rows</h4>
+      <label>
+        Row height{" "}
+        <select value={rowHeight} onChange={(e) => L.set({ rowHeight: Number(e.target.value) })}>
+          {[18, 20, 24, 28, 34].map((h) => (
+            <option key={h} value={h}>
+              {h}px
+            </option>
+          ))}
+        </select>
+      </label>
+    </Shell>
+  );
+}
+
+function TimescaleDialog() {
+  const unit = useLayout((s) => s.layout.timescale);
+  const L = useLayout.getState();
+  const opts: [TimescaleUnit, string][] = [
+    ["auto", "Fit to window"],
+    ["day", "Month / Day"],
+    ["week", "Month / Week"],
+    ["month", "Year / Month"],
+    ["quarter", "Year / Quarter"],
+    ["year", "Year / Half"],
+  ];
+  return (
+    <Shell title="Timescale" onClose={close}>
+      <p className="muted">Date interval shown on the two timescale rows.</p>
+      {opts.map(([v, l]) => (
+        <label key={v} className="p6-check">
+          <input type="radio" checked={unit === v} onChange={() => L.set({ timescale: v, zoom: 1 })} /> {l}
+        </label>
+      ))}
+    </Shell>
+  );
+}
+
+function LayoutsDialog() {
+  const saved = useLayout((s) => s.saved);
+  const cur = useLayout((s) => s.layout);
+  const L = useLayout.getState();
+  const [name, setName] = useState(cur.name);
+  const row = (l: typeof cur, mine: boolean) => (
+    <tr key={`${mine}${l.name}`} className={cur.name === l.name ? "on" : ""}>
+      <td>{l.name}</td>
+      <td className="muted">{mine ? "User" : "Stock"}</td>
+      <td className="nowrap">
+        <button
+          className="link"
+          onClick={() => {
+            L.open(l);
+            close();
+          }}
+        >
+          Open
+        </button>
+        {mine && (
+          <button className="link" onClick={() => L.remove(l.name)}>
+            Delete
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+  return (
+    <Shell title="Open Layout" onClose={close}>
+      <table className="p6-grid">
+        <tbody>
+          {STOCK_LAYOUTS.map((l) => row(l, false))}
+          {saved.map((l) => row(l, true))}
+        </tbody>
+      </table>
+      <h4>Save current layout as</h4>
+      <div className="row">
+        <input value={name} onChange={(e) => setName(e.target.value)} />
+        <button disabled={!name.trim()} onClick={() => L.saveAs(name.trim())}>
+          Save
+        </button>
+      </div>
+      <p className="muted small">A layout keeps the columns, filters, grouping and sorting, bars, timescale and panes.</p>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Global Change
+
+const CHANGE_OPS: [ChangeOp, string][] = [
+  ["set", "="],
+  ["add", "+"],
+  ["subtract", "−"],
+  ["multiply", "×"],
+  ["divide", "÷"],
+  ["append", "append"],
+  ["prepend", "prepend"],
+];
+
+function GlobalChangeDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const fields = useMemo(() => fieldsFor(schedule), [schedule]);
+  const editable = fields.filter((f) => f.set);
+  const [def, setDef] = useState<GlobalChangeDef>({ id: "gc", name: "Global Change", when: { id: "w", name: "", match: "all", rules: [] }, then: [{ field: "od", op: "add", value: "1" }], else: [] });
+  const [scope, setScope] = useState<"all" | "selected" | "shown">("shown");
+  const [preview, setPreview] = useState<ReturnType<typeof globalChange> | null>(null);
+  if (!schedule) return null;
+  const ids = scope === "all" ? undefined : scope === "selected" ? selectedInOrder() : tableOrder.ids;
+  const ruleTable = (key: "then" | "else", list: ChangeRule[]) => (
+    <table className="p6-grid">
+      <thead>
+        <tr>
+          <td>{key === "then" ? "Then" : "Else"}</td>
+          <td />
+          <td>Value</td>
+          <td />
+        </tr>
+      </thead>
+      <tbody>
+        {list.map((r, i) => (
+          <tr key={i}>
+            <td>
+              <select value={r.field} onChange={(e) => setDef({ ...def, [key]: list.map((x, k) => (k === i ? { ...x, field: e.target.value } : x)) })}>
+                {editable.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </td>
+            <td>
+              <select value={r.op} onChange={(e) => setDef({ ...def, [key]: list.map((x, k) => (k === i ? { ...x, op: e.target.value as ChangeOp } : x)) })}>
+                {CHANGE_OPS.map(([o, l]) => (
+                  <option key={o} value={o}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+            </td>
+            <td>
+              <input value={r.value} onChange={(e) => setDef({ ...def, [key]: list.map((x, k) => (k === i ? { ...x, value: e.target.value } : x)) })} placeholder="value, days or date" />
+            </td>
+            <td>
+              <button className="link" onClick={() => setDef({ ...def, [key]: list.filter((_, k) => k !== i) })}>
+                ✕
+              </button>
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
+  if (preview)
+    return (
+      <Shell
+        title={`Global Change Report: ${preview.changes.length} changes`}
+        wide
+        onClose={() => setPreview(null)}
+        foot={
+          <>
+            <span className="muted">Commit to apply, or Cancel to discard.</span>
+            <span className="spacer" />
+            <button
+              className="primary"
+              disabled={!preview.changes.length}
+              onClick={() => {
+                commit(preview.schedule, `Global Change (${preview.changes.length})`);
+                useStore.getState().setStatus(`Global Change applied: ${preview.changes.length} values changed. Press F9 to reschedule.`);
+                close();
+              }}
+            >
+              Commit Changes
+            </button>
+            <button onClick={() => setPreview(null)}>Cancel</button>
+          </>
+        }
+      >
+        <div className="p6-scroll">
+          <table className="p6-grid">
+            <thead>
+              <tr>
+                <td>Activity ID</td>
+                <td>Field</td>
+                <td>Old</td>
+                <td>New</td>
+              </tr>
+            </thead>
+            <tbody>
+              {preview.changes.slice(0, 2000).map((c, i) => (
+                <tr key={i}>
+                  <td>{c.code}</td>
+                  <td>{c.label}</td>
+                  <td>{c.before}</td>
+                  <td>
+                    <b>{c.after}</b>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {preview.changes.length > 2000 && <p className="muted">…and {preview.changes.length - 2000} more.</p>}
+        </div>
+      </Shell>
+    );
+  return (
+    <Shell
+      title="Global Change"
+      wide
+      onClose={close}
+      foot={
+        <>
+          <label>
+            Apply to{" "}
+            <select value={scope} onChange={(e) => setScope(e.target.value as typeof scope)}>
+              <option value="shown">activities shown ({tableOrder.ids.length})</option>
+              <option value="selected">selected activities ({useStore.getState().selectedActivities.size})</option>
+              <option value="all">all activities ({schedule.activities.length})</option>
+            </select>
+          </label>
+          <span className="spacer" />
+          <button className="primary" disabled={!def.then.length && !def.else?.length} onClick={() => setPreview(globalChange(schedule, def, ids))}>
+            Change…
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <h4>
+        If{" "}
+        <select value={def.when.match} onChange={(e) => setDef({ ...def, when: { ...def.when, match: e.target.value as "all" | "any" } })}>
+          <option value="all">all of the following</option>
+          <option value="any">any of the following</option>
+        </select>{" "}
+        are met <span className="muted small">(no rows = every activity)</span>
+      </h4>
+      <RuleRows rules={def.when.rules} onChange={(rules) => setDef({ ...def, when: { ...def.when, rules } })} />
+      <button onClick={() => setDef({ ...def, when: { ...def.when, rules: [...def.when.rules, { field: "critical", op: "isTrue" }] } })}>Add If row</button>
+      {ruleTable("then", def.then)}
+      <button onClick={() => setDef({ ...def, then: [...def.then, { field: "name", op: "append", value: "" }] })}>Add Then row</button>
+      {ruleTable("else", def.else ?? [])}
+      <button onClick={() => setDef({ ...def, else: [...(def.else ?? []), { field: "name", op: "append", value: "" }] })}>Add Else row</button>
+      <p className="muted small">Durations are in days; add or subtract days to dates; use “=” with a date such as 2026-03-31 or 31-Mar-26. The report shows every change before it is applied.</p>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Update Progress
+
+function UpdateProgressDialog({ onSchedule }: { onSchedule: () => void }) {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const dd = schedule?.dataDate ?? Date.now();
+  const nextWeek = dd + 7 * 86_400_000;
+  const [date, setDate] = useState(new Date(nextWeek).toISOString().slice(0, 10));
+  const [scope, setScope] = useState<"all" | "selected">("all");
+  if (!schedule) return null;
+  return (
+    <Shell
+      title="Update Progress"
+      onClose={close}
+      foot={
+        <>
+          <span className="spacer" />
+          <button
+            className="primary"
+            onClick={() => {
+              const t = Date.parse(`${date}T00:00:00Z`) + (((dd % 86_400_000) + 86_400_000) % 86_400_000);
+              const r = updateProgress(schedule, t, scope === "selected" ? selectedInOrder() : undefined);
+              commit(r.schedule, `Update Progress to ${fmtDate(t)}`);
+              useStore.getState().setStatus(`Progress updated to ${fmtDate(t)}: ${r.started} started, ${r.finished} finished, ${r.progressed} in progress. Rescheduling…`);
+              close();
+              onSchedule();
+            }}
+          >
+            Apply
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <p>Records progress as if work went to plan up to the new data date: activities planned to start get an actual start, those planned to finish get an actual finish, and remaining durations are cut to the work left. The project is then rescheduled.</p>
+      <div className="grid2">
+        <label>
+          Current data date <input value={fmtDate(dd)} disabled />
+        </label>
+        <label>
+          New data date <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+        </label>
+        <label className="span2">
+          Activities{" "}
+          <select value={scope} onChange={(e) => setScope(e.target.value as "all" | "selected")}>
+            <option value="all">All activities</option>
+            <option value="selected">Selected activities only</option>
+          </select>
+        </label>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Baselines
+
+function BaselinesDialog({ onAssignFile }: { onAssignFile: () => void }) {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const [name, setName] = useState("");
+  const [pick, setPick] = useState<string | null>(null);
+  if (!schedule) return null;
+  const list = schedule.baselines ?? [];
+  const sel = list.find((b) => b.id === pick) ?? null;
+  return (
+    <Shell
+      title={`Maintain Baselines – ${schedule.projectCode}`}
+      wide
+      onClose={close}
+      foot={
+        <>
+          <button onClick={onAssignFile}>Assign from file…</button>
+          <span className="spacer" />
+          <button onClick={close}>Close</button>
+        </>
+      }
+    >
+      <p className="muted">
+        Project baseline now: <b>{schedule.baselineInfo?.name ?? "as imported"}</b>
+        {schedule.baselineInfo ? ` (data date ${fmtDate(schedule.baselineInfo.dataDate)})` : ""}
+      </p>
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Baseline Name</td>
+            <td>Data Date</td>
+            <td>Stored</td>
+            <td>Activities</td>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((b) => (
+            <tr key={b.id} className={pick === b.id ? "on" : ""} onClick={() => setPick(b.id)}>
+              <td>
+                <input value={b.name} onChange={(e) => commit(renameBaseline(schedule, b.id, e.target.value), "Rename baseline")} />
+              </td>
+              <td>{fmtDate(b.dataDate)}</td>
+              <td>{new Date(b.createdAt).toLocaleString()}</td>
+              <td>{Object.keys(b.dates).length}</td>
+            </tr>
+          ))}
+          {!list.length && (
+            <tr>
+              <td colSpan={4} className="muted">
+                No stored baselines. Add one to keep a copy of the current plan.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+      <div className="row">
+        <input placeholder={`${schedule.projectCode} – Baseline ${list.length + 1}`} value={name} onChange={(e) => setName(e.target.value)} />
+        <button
+          onClick={() => {
+            const r = storeBaseline(schedule, name.trim() || `${schedule.projectCode} – Baseline ${list.length + 1}`);
+            commit(r.schedule, "Add baseline");
+            setName("");
+            setPick(r.baseline.id);
+          }}
+        >
+          Add (copy of current project)
+        </button>
+      </div>
+      <div className="row">
+        <button
+          disabled={!sel}
+          className="primary"
+          onClick={() => {
+            if (!sel) return;
+            const r = useStoredBaseline(schedule, sel.id);
+            commit(r.schedule, `Assign baseline ${sel.name}`);
+            useStore.getState().setStatus(`Project baseline is now ${sel.name}: ${r.matched} activities matched, ${r.missing} without baseline dates.`);
+          }}
+        >
+          Assign as Project Baseline
+        </button>
+        <button disabled={!sel} onClick={() => sel && window.confirm(`Overwrite ${sel.name} with the current plan?`) && commit(refreshBaseline(schedule, sel.id), "Update baseline")}>
+          Update
+        </button>
+        <button disabled={!sel} onClick={() => sel && window.confirm(`Delete ${sel.name}?`) && commit(deleteBaseline(schedule, sel.id), "Delete baseline")}>
+          Delete
+        </button>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Check Schedule
+
+function CheckScheduleDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const setSel = useStore((s) => s.setActivitySelection);
+  const r = useMemo(() => (schedule ? checkSchedule(schedule) : null), [schedule]);
+  const [open, setOpen] = useState<string | null>(null);
+  if (!schedule || !r) return null;
+  const byId = new Map(schedule.activities.map((a) => [a.id, a]));
+  const m = r.metrics.find((x) => x.id === open);
+  const passed = r.metrics.filter((x) => x.pass).length;
+  return (
+    <Shell title="Check Schedule" wide onClose={close}>
+      <p>
+        {r.checked.toLocaleString()} open activities checked against the 14-point assessment. <b>{passed}</b> of {r.metrics.length} metrics pass.
+      </p>
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Metric</td>
+            <td>Count / Index</td>
+            <td>%</td>
+            <td>Threshold</td>
+            <td>Result</td>
+          </tr>
+        </thead>
+        <tbody>
+          {r.metrics.map((x) => (
+            <tr key={x.id} className={open === x.id ? "on" : ""} onClick={() => setOpen(x.id)} title={x.description}>
+              <td>{x.name}</td>
+              <td>{x.percent === null ? x.value : x.value.toLocaleString()}</td>
+              <td>{x.percent === null ? "" : `${x.percent}%`}</td>
+              <td>{x.threshold}</td>
+              <td className={x.pass ? "good" : "bad"}>{x.pass ? "✔ Pass" : "✖ Fail"}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      {m && (
+        <div>
+          <h4>
+            {m.name}: {m.description}
+          </h4>
+          {m.activityIds.length ? (
+            <>
+              <button onClick={() => (setSel(new Set(m.activityIds), m.activityIds[0]), close())}>Select these {m.activityIds.length} activities</button>
+              <div className="p6-scroll short">
+                {[...new Set(m.activityIds)].slice(0, 300).map((id) => (
+                  <div key={id}>
+                    {byId.get(id)?.code} <span className="muted">{byId.get(id)?.name}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          ) : (
+            <p className="muted">No activities to list.</p>
+          )}
+        </div>
+      )}
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Renumber
+
+function RenumberDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const ids = selectedInOrder();
+  const firstCode = schedule?.activities.find((a) => a.id === ids[0])?.code ?? "A1000";
+  const m = /^(.*?)(\d+)$/.exec(firstCode);
+  const [prefix, setPrefix] = useState(m ? m[1] : "A");
+  const [start, setStart] = useState(m ? Number(m[2]) : 1000);
+  const [inc, setInc] = useState(10);
+  const [width, setWidth] = useState(m ? m[2].length : 0);
+  if (!schedule) return null;
+  const sample = Array.from({ length: Math.min(3, ids.length) }, (_, i) => `${prefix}${width ? String(start + i * inc).padStart(width, "0") : start + i * inc}`);
+  return (
+    <Shell
+      title="Renumber Activity IDs"
+      onClose={close}
+      foot={
+        <>
+          <span className="spacer" />
+          <button
+            className="primary"
+            disabled={!ids.length}
+            onClick={() => {
+              const r = renumber(schedule, ids, { prefix, start, increment: inc, width });
+              commit(r.schedule, "Renumber Activity IDs");
+              useStore.getState().setStatus(`Renumbered ${r.changed} activities.`);
+              close();
+            }}
+          >
+            OK
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <p>{ids.length ? `${ids.length} selected activities are renumbered in the order shown.` : "Select the activities to renumber first."}</p>
+      <div className="grid2">
+        <label>
+          Prefix <input value={prefix} onChange={(e) => setPrefix(e.target.value)} />
+        </label>
+        <label>
+          Start with <input type="number" value={start} onChange={(e) => setStart(Number(e.target.value) || 0)} />
+        </label>
+        <label>
+          Increment by <input type="number" min={1} value={inc} onChange={(e) => setInc(Math.max(1, Number(e.target.value) || 1))} />
+        </label>
+        <label>
+          Digits (0 = no padding) <input type="number" min={0} max={10} value={width} onChange={(e) => setWidth(Math.max(0, Number(e.target.value) || 0))} />
+        </label>
+      </div>
+      <p className="muted">Preview: {sample.join(", ")}…</p>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- Assign
+
+function AssignRelDialog({ kind }: { kind: "pred" | "succ" }) {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const selected = useStore((s) => s.selectedActivity);
+  const [q, setQ] = useState("");
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [type, setType] = useState<RelationshipType>("FS");
+  const [lag, setLag] = useState("0");
+  const act = schedule?.activities.find((a) => a.id === selected);
+  const hits = useMemo(() => {
+    if (!schedule) return [];
+    const t = q.trim().toLowerCase();
+    return schedule.activities.filter((a) => a.id !== selected && (!t || `${a.code} ${a.name}`.toLowerCase().includes(t))).slice(0, 400);
+  }, [schedule, q, selected]);
+  if (!schedule) return null;
+  if (!act)
+    return (
+      <Shell title={kind === "pred" ? "Assign Predecessors" : "Assign Successors"} onClose={close}>
+        <p>Select an activity first.</p>
+      </Shell>
+    );
+  const hpd = fieldCtx(schedule).hpd;
+  return (
+    <Shell
+      title={`Assign ${kind === "pred" ? "Predecessors" : "Successors"} – ${act.code}`}
+      wide
+      onClose={close}
+      foot={
+        <>
+          <label>
+            Type{" "}
+            <select value={type} onChange={(e) => setType(e.target.value as RelationshipType)}>
+              {["FS", "SS", "FF", "SF"].map((t) => (
+                <option key={t}>{t}</option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Lag (days) <input type="number" step={0.5} value={lag} onChange={(e) => setLag(e.target.value)} style={{ width: 70 }} />
+          </label>
+          <span className="spacer" />
+          <button
+            className="primary"
+            disabled={!picked.size}
+            onClick={() => {
+              const exist = new Set(schedule.relationships.map((r) => `${r.predecessorId}>${r.successorId}`));
+              const add = [...picked]
+                .map((id) => (kind === "pred" ? { p: id, s: act.id } : { p: act.id, s: id }))
+                .filter((x) => !exist.has(`${x.p}>${x.s}`))
+                .map((x) => ({ id: uid("rel"), predecessorId: x.p, successorId: x.s, type, lagHours: (Number(lag) || 0) * hpd }));
+              commit({ ...schedule, relationships: [...schedule.relationships, ...add] }, `Assign ${add.length} ${kind === "pred" ? "predecessors" : "successors"}`);
+              useStore.getState().setStatus(`Assigned ${add.length} ${kind === "pred" ? "predecessor" : "successor"}${add.length === 1 ? "" : "s"} to ${act.code}.`);
+              close();
+            }}
+          >
+            Assign ({picked.size})
+          </button>
+          <button onClick={close}>Close</button>
+        </>
+      }
+    >
+      <input autoFocus placeholder="Search Activity ID or name" value={q} onChange={(e) => setQ(e.target.value)} />
+      <div className="p6-scroll">
+        <table className="p6-grid">
+          <tbody>
+            {hits.map((a) => (
+              <tr key={a.id} className={picked.has(a.id) ? "on" : ""} onClick={() => setPicked((p) => (p.has(a.id) ? new Set([...p].filter((x) => x !== a.id)) : new Set([...p, a.id])))}>
+                <td>
+                  <input type="checkbox" readOnly checked={picked.has(a.id)} />
+                </td>
+                <td>{a.code}</td>
+                <td>{a.name}</td>
+                <td>{fmtDate(a.start)}</td>
+                <td>{fmtDate(a.finish)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </Shell>
+  );
+}
+
+function AssignResDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const ids = selectedInOrder();
+  const [picked, setPicked] = useState<string | null>(null);
+  if (!schedule) return null;
+  const res = schedule.resources ?? [];
+  return (
+    <Shell
+      title={`Assign Resources – ${ids.length} activit${ids.length === 1 ? "y" : "ies"}`}
+      onClose={close}
+      foot={
+        <>
+          <span className="spacer" />
+          <button
+            className="primary"
+            disabled={!picked || !ids.length}
+            onClick={() => {
+              const r = res.find((x) => x.id === picked)!;
+              const byId = new Map(schedule.activities.map((a) => [a.id, a]));
+              const add = ids
+                .filter((id) => !(schedule.assignments ?? []).some((x) => x.activityId === id && x.resourceId === r.id))
+                .map((id) => {
+                  const qty = r.type === "material" ? 1 : byId.get(id)?.originalDurationHours ?? 0;
+                  return { id: uid("asg"), activityId: id, resourceId: r.id, budgetQty: qty, actualQty: 0, remainingQty: qty, budgetCost: qty * r.pricePerUnit, actualCost: 0, remainingCost: qty * r.pricePerUnit };
+                });
+              commit({ ...schedule, assignments: [...(schedule.assignments ?? []), ...add] }, `Assign ${r.code}`);
+              useStore.getState().setStatus(`Assigned ${r.code} to ${add.length} activities.`);
+              close();
+            }}
+          >
+            Assign
+          </button>
+          <button onClick={close}>Close</button>
+        </>
+      }
+    >
+      {res.length ? (
+        <div className="p6-scroll">
+          <table className="p6-grid">
+            <thead>
+              <tr>
+                <td>Resource ID</td>
+                <td>Resource Name</td>
+                <td>Type</td>
+                <td>Price / Unit</td>
+              </tr>
+            </thead>
+            <tbody>
+              {res.map((r) => (
+                <tr key={r.id} className={picked === r.id ? "on" : ""} onClick={() => setPicked(r.id)}>
+                  <td>{r.code}</td>
+                  <td>{r.name}</td>
+                  <td>{r.type}</td>
+                  <td>
+                    {r.pricePerUnit}/{r.unit}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <p>No resources yet. Add them in the Resources window (Directory bar).</p>
+      )}
+    </Shell>
+  );
+}
+
+function AssignCodeDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const ids = selectedInOrder();
+  const types = useMemo(() => {
+    const m = new Map<string, Set<string>>();
+    for (const a of schedule?.activities ?? []) for (const k in a.codes) (m.get(k) ?? m.set(k, new Set()).get(k)!).add(a.codes[k]);
+    return m;
+  }, [schedule]);
+  const [type, setType] = useState([...types.keys()][0] ?? "");
+  const [value, setValue] = useState("");
+  if (!schedule) return null;
+  return (
+    <Shell
+      title={`Assign Activity Codes – ${ids.length} activit${ids.length === 1 ? "y" : "ies"}`}
+      onClose={close}
+      foot={
+        <>
+          <span className="spacer" />
+          <button
+            className="primary"
+            disabled={!type.trim() || !ids.length}
+            onClick={() => {
+              const set = new Set(ids);
+              const t = type.trim();
+              commit(
+                {
+                  ...schedule,
+                  activities: schedule.activities.map((a) => {
+                    if (!set.has(a.id)) return a;
+                    const codes = { ...a.codes };
+                    if (value.trim()) codes[t] = value.trim();
+                    else delete codes[t];
+                    return { ...a, codes };
+                  }),
+                },
+                `Assign code ${t}`,
+              );
+              close();
+            }}
+          >
+            Assign
+          </button>
+          <button onClick={close}>Close</button>
+        </>
+      }
+    >
+      <div className="grid2">
+        <label>
+          Activity Code type
+          <input list="p6-code-types" value={type} onChange={(e) => setType(e.target.value)} />
+          <datalist id="p6-code-types">
+            {[...types.keys()].map((k) => (
+              <option key={k} value={k} />
+            ))}
+          </datalist>
+        </label>
+        <label>
+          Code value (empty removes it)
+          <input list="p6-code-vals" value={value} onChange={(e) => setValue(e.target.value)} />
+          <datalist id="p6-code-vals">
+            {[...(types.get(type) ?? [])].sort().map((v) => (
+              <option key={v} value={v} />
+            ))}
+          </datalist>
+        </label>
+      </div>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- page setup / print
+
+export interface PageSetup {
+  orientation: "landscape" | "portrait";
+  size: "A4" | "A3" | "A1" | "Letter" | "Tabloid";
+  header: string;
+  footer: string;
+  showLegend: boolean;
+}
+const PAGE_KEY = "stratum.p6.page.v1";
+export function pageSetup(): PageSetup {
+  try {
+    return { orientation: "landscape", size: "A3", header: "{project}", footer: "Data date {datadate} · Page {page}", showLegend: true, ...JSON.parse(localStorage.getItem(PAGE_KEY) ?? "{}") };
+  } catch {
+    return { orientation: "landscape", size: "A3", header: "{project}", footer: "Data date {datadate} · Page {page}", showLegend: true };
+  }
+}
+
+/** Print the Activities window the way P6 prints the current layout: table and Gantt on landscape pages. */
+export function printLayout() {
+  const p = pageSetup();
+  const s = useStore.getState().schedule;
+  const style = document.createElement("style");
+  style.id = "p6-print-page";
+  style.textContent = `@page { size: ${p.size} ${p.orientation}; margin: 10mm; }`;
+  document.getElementById("p6-print-page")?.remove();
+  document.head.appendChild(style);
+  document.body.dataset.printHeader = (p.header || "").replace("{project}", s ? `${s.projectCode} – ${s.projectName}` : "").replace("{datadate}", fmtDate(s?.dataDate));
+  document.body.dataset.printFooter = (p.footer || "").replace("{project}", s ? `${s.projectCode} – ${s.projectName}` : "").replace("{datadate}", fmtDate(s?.dataDate)).replace("{page}", "");
+  document.body.classList.add("printing-p6");
+  // The table normally draws only the rows on screen; ask it to draw them all, then print.
+  window.dispatchEvent(new CustomEvent("stratum:print", { detail: true }));
+  setTimeout(() => {
+    window.print();
+    document.body.classList.remove("printing-p6");
+    window.dispatchEvent(new CustomEvent("stratum:print", { detail: false }));
+  }, 400);
+}
+
+function PageSetupDialog() {
+  const [p, setP] = useState(pageSetup());
+  const save = () => {
+    try {
+      localStorage.setItem(PAGE_KEY, JSON.stringify(p));
+    } catch {
+      /* ignore */
+    }
+  };
+  return (
+    <Shell
+      title="Page Setup"
+      onClose={close}
+      foot={
+        <>
+          <button
+            onClick={() => {
+              save();
+              close();
+              printLayout();
+            }}
+          >
+            Print…
+          </button>
+          <span className="spacer" />
+          <button
+            className="primary"
+            onClick={() => {
+              save();
+              close();
+            }}
+          >
+            OK
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <div className="grid2">
+        <label>
+          Orientation
+          <select value={p.orientation} onChange={(e) => setP({ ...p, orientation: e.target.value as PageSetup["orientation"] })}>
+            <option value="landscape">Landscape</option>
+            <option value="portrait">Portrait</option>
+          </select>
+        </label>
+        <label>
+          Paper size
+          <select value={p.size} onChange={(e) => setP({ ...p, size: e.target.value as PageSetup["size"] })}>
+            {["A4", "A3", "A1", "Letter", "Tabloid"].map((x) => (
+              <option key={x}>{x}</option>
+            ))}
+          </select>
+        </label>
+        <label className="span2">
+          Header <input value={p.header} onChange={(e) => setP({ ...p, header: e.target.value })} />
+        </label>
+        <label className="span2">
+          Footer <input value={p.footer} onChange={(e) => setP({ ...p, footer: e.target.value })} />
+        </label>
+      </div>
+      <p className="muted small">Use {"{project}"} and {"{datadate}"} in the header and footer. Printing uses the current layout; choose “Save as PDF” in the print dialog for a PDF.</p>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- project details, spelling, periods
+
+function ProjectDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  if (!schedule) return null;
+  const up = (patch: Partial<typeof schedule>) => commit({ ...schedule, ...patch }, "Project details");
+  const counts = {
+    total: schedule.activities.length,
+    ns: schedule.activities.filter((a) => a.status === "not-started").length,
+    ip: schedule.activities.filter((a) => a.status === "in-progress").length,
+    c: schedule.activities.filter((a) => a.status === "complete").length,
+  };
+  return (
+    <Shell title="Project Details" onClose={close}>
+      <div className="grid2">
+        <label>
+          Project ID <input value={schedule.projectCode} onChange={(e) => up({ projectCode: e.target.value })} />
+        </label>
+        <label>
+          Project Name <input value={schedule.projectName} onChange={(e) => up({ projectName: e.target.value })} />
+        </label>
+        <label>
+          Default calendar
+          <select value={schedule.defaultCalendarId ?? ""} onChange={(e) => up({ defaultCalendarId: e.target.value || null })}>
+            {(schedule.calendars ?? []).map((c) => (
+              <option key={c.id} value={c.id}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Data date <input value={fmtDate(schedule.dataDate)} disabled />
+        </label>
+      </div>
+      <table className="props">
+        <tbody>
+          <tr>
+            <td>Activities</td>
+            <td>
+              {counts.total.toLocaleString()} ({counts.ns} not started, {counts.ip} in progress, {counts.c} completed)
+            </td>
+          </tr>
+          <tr>
+            <td>Relationships</td>
+            <td>{schedule.relationships.length.toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td>WBS elements</td>
+            <td>{schedule.wbs.length.toLocaleString()}</td>
+          </tr>
+          <tr>
+            <td>Resources / assignments</td>
+            <td>
+              {(schedule.resources ?? []).length} / {(schedule.assignments ?? []).length}
+            </td>
+          </tr>
+          <tr>
+            <td>Stored baselines</td>
+            <td>{(schedule.baselines ?? []).length}</td>
+          </tr>
+          <tr>
+            <td>Source</td>
+            <td>{schedule.sourceFormat ?? "—"}</td>
+          </tr>
+        </tbody>
+      </table>
+    </Shell>
+  );
+}
+
+/** Spell check uses the browser's own dictionary on every activity name shown. */
+function SpellingDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  const [names, setNames] = useState<Record<string, string>>({});
+  if (!schedule) return null;
+  const ids = tableOrder.ids.slice(0, 500);
+  const byId = new Map(schedule.activities.map((a) => [a.id, a]));
+  const changed = Object.keys(names).filter((id) => names[id] !== byId.get(id)?.name);
+  return (
+    <Shell
+      title="Check Spelling"
+      wide
+      onClose={close}
+      foot={
+        <>
+          <span className="muted small">Misspelled words are underlined by your system dictionary. Correct them here.</span>
+          <span className="spacer" />
+          <button
+            className="primary"
+            disabled={!changed.length}
+            onClick={() => {
+              commit({ ...schedule, activities: schedule.activities.map((a) => (names[a.id] !== undefined ? { ...a, name: names[a.id] } : a)) }, "Spelling");
+              close();
+            }}
+          >
+            Apply {changed.length || ""}
+          </button>
+          <button onClick={close}>Cancel</button>
+        </>
+      }
+    >
+      <div className="p6-scroll">
+        {ids.map((id) => (
+          <div key={id} className="spell-row">
+            <span>{byId.get(id)?.code}</span>
+            <input spellCheck lang="en" value={names[id] ?? byId.get(id)?.name ?? ""} onChange={(e) => setNames({ ...names, [id]: e.target.value })} />
+          </div>
+        ))}
+      </div>
+      {tableOrder.ids.length > 500 && <p className="muted small">First 500 activities shown; filter the table to check others.</p>}
+    </Shell>
+  );
+}
+
+function PeriodsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const commit = useStore((s) => s.commit);
+  if (!schedule) return null;
+  const list = schedule.periods ?? [];
+  return (
+    <Shell
+      title="Store Period Performance"
+      onClose={close}
+      foot={
+        <>
+          <span className="spacer" />
+          <button
+            className="primary"
+            onClick={() => {
+              commit(storePeriodPerformance(schedule), "Store Period Performance");
+              useStore.getState().setStatus(`Stored period performance at ${fmtDate(schedule.dataDate)}.`);
+            }}
+          >
+            Store period at {fmtDate(schedule.dataDate)}
+          </button>
+          <button onClick={close}>Close</button>
+        </>
+      }
+    >
+      <p>Keeps this period's actuals (percent complete, actual cost and labour units for every activity) so past periods can be reported after the next update.</p>
+      <table className="p6-grid">
+        <thead>
+          <tr>
+            <td>Period</td>
+            <td>Data date</td>
+            <td>Activities</td>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((p) => (
+            <tr key={p.id}>
+              <td>{p.name}</td>
+              <td>{fmtDate(p.date)}</td>
+              <td>{Object.keys(p.actuals).length}</td>
+            </tr>
+          ))}
+          {!list.length && (
+            <tr>
+              <td colSpan={3} className="muted">
+                No periods stored yet.
+              </td>
+            </tr>
+          )}
+        </tbody>
+      </table>
+    </Shell>
+  );
+}
+
+function LevelDialog() {
+  return (
+    <Shell title="Level Resources" onClose={close}>
+      <p>Resource leveling is not available yet in Stratum. Schedule (F9) calculates dates from logic and calendars only. Use the Resource Usage profile in the lower pane to find overloads, then adjust logic or durations.</p>
+    </Shell>
+  );
+}
+
+// ---------------------------------------------------------------- host
+
+export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: () => void; onAssignFile: () => void; displays?: ReactNode }) {
+  const d = useP6((s) => s.dialog);
+  const map: Record<P6Dialog, () => ReactNode> = {
+    columns: () => <ColumnsDialog />,
+    filters: () => <FiltersDialog />,
+    groupSort: () => <GroupSortDialog />,
+    bars: () => <BarsDialog />,
+    timescale: () => <TimescaleDialog />,
+    layouts: () => <LayoutsDialog />,
+    globalChange: () => <GlobalChangeDialog />,
+    updateProgress: () => <UpdateProgressDialog onSchedule={onSchedule} />,
+    baselines: () => (
+      <BaselinesDialog
+        onAssignFile={() => {
+          close();
+          onAssignFile();
+        }}
+      />
+    ),
+    checkSchedule: () => <CheckScheduleDialog />,
+    renumber: () => <RenumberDialog />,
+    assignPred: () => <AssignRelDialog kind="pred" />,
+    assignSucc: () => <AssignRelDialog kind="succ" />,
+    assignRes: () => <AssignResDialog />,
+    assignCode: () => <AssignCodeDialog />,
+    pageSetup: () => <PageSetupDialog />,
+    projectInfo: () => <ProjectDialog />,
+    spelling: () => <SpellingDialog />,
+    level: () => <LevelDialog />,
+    periods: () => <PeriodsDialog />,
+    displays: () => displays ?? null,
+  };
+  return d ? <>{map[d]()}</> : null;
+}
