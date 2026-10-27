@@ -5,11 +5,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { networkLayout, traceLogic } from "../../core/network";
 import { monitorThresholds, THRESHOLD_PARAMETERS, uid } from "../../core/ops";
-import type { RegisterItem, RegisterKind, Resource, ResourceType, Schedule, WbsNode } from "../../core/types";
+import { allCurves, costAccountPath, resourcesForRole, staffRole } from "../../core/resources";
+import type { Assignment, RegisterItem, RegisterKind, Resource, ResourceType, Schedule, WbsNode } from "../../core/types";
 import { usageSheet } from "../../core/usage";
 import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
+import { openRates } from "./Dialogs4";
 
 const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
 
@@ -142,6 +144,7 @@ export function ResourcesWindow() {
   const used = new Map<string, number>();
   for (const x of s.assignments ?? []) used.set(x.resourceId, (used.get(x.resourceId) ?? 0) + 1);
   const set = (id: string, patch: Partial<Resource>) => commit({ ...s, resources: res.map((r) => (r.id === id ? { ...r, ...patch } : r)) }, `Resource ${id}`);
+  const roleCode = new Map((s.roles ?? []).map((r) => [r.id, r.code]));
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
@@ -159,6 +162,9 @@ export function ResourcesWindow() {
               <td>Unit</td>
               <td>Price / Unit</td>
               <td title="For levelling: how many units can work at once (crew size). Empty = no limit.">Max Units / h</td>
+              <td>Shift</td>
+              <td>Roles</td>
+              <td>Rates</td>
               <td>Assignments</td>
               <td />
             </tr>
@@ -187,6 +193,22 @@ export function ResourcesWindow() {
                 </td>
                 <td>
                   <input className="cell num" type="number" min={0} step={0.5} placeholder="no limit" value={r.maxUnitsPerHour ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} style={{ width: 80 }} />
+                </td>
+                <td>
+                  <select value={r.shiftId ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { shiftId: e.target.value || null })}>
+                    <option value="">–</option>
+                    {(s.shifts ?? []).map((x) => (
+                      <option key={x.id} value={x.id}>
+                        {x.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td title={(r.roleIds ?? []).map((id) => roleCode.get(id)).join(", ")}>{(r.roleIds ?? []).map((id) => roleCode.get(id)).filter(Boolean).join(", ") || <span className="muted">–</span>}</td>
+                <td>
+                  <button className="link" onClick={() => openRates(r.id)}>
+                    {r.rates?.length ? `${r.rates.length} rate${r.rates.length > 1 ? "s" : ""}` : "Add…"}
+                  </button>
                 </td>
                 <td className="num">{used.get(r.id) ?? 0}</td>
                 <td>
@@ -221,9 +243,13 @@ export function AssignmentsWindow() {
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
   const t = q.trim().toLowerCase();
   const list = (s.assignments ?? []).filter((x) => !t || `${acts.get(x.activityId)?.code} ${acts.get(x.activityId)?.name} ${res.get(x.resourceId)?.code} ${res.get(x.resourceId)?.name}`.toLowerCase().includes(t));
+  const roles = new Map((s.roles ?? []).map((r) => [r.id, r]));
+  const curves = allCurves(s);
+  const accts = s.costAccounts ?? [];
+  const patch = (id: string, p: Partial<Assignment>, label: string) => commit({ ...s, assignments: s.assignments!.map((y) => (y.id === id ? { ...y, ...p } : y)) }, label);
   const set = (id: string, k: "budgetQty" | "actualQty" | "remainingQty", v: number) => {
     const x = s.assignments!.find((y) => y.id === id)!;
-    const price = res.get(x.resourceId)?.pricePerUnit ?? 0;
+    const price = res.get(x.resourceId)?.pricePerUnit ?? (x.roleId ? roles.get(x.roleId)?.pricePerUnit : 0) ?? 0;
     const cost = { budgetQty: "budgetCost", actualQty: "actualCost", remainingQty: "remainingCost" }[k];
     commit({ ...s, assignments: s.assignments!.map((y) => (y.id === id ? { ...y, [k]: v, [cost]: v * price } : y)) }, `Assignment ${id}`);
   };
@@ -241,6 +267,9 @@ export function AssignmentsWindow() {
               <td>Activity ID</td>
               <td>Activity Name</td>
               <td>Resource ID</td>
+              <td>Role</td>
+              <td>Curve</td>
+              <td>Cost Account</td>
               <td>Budgeted Units</td>
               <td>Actual Units</td>
               <td>Remaining Units</td>
@@ -261,7 +290,50 @@ export function AssignmentsWindow() {
                     </button>
                   </td>
                   <td>{a?.name}</td>
-                  <td title={res.get(x.resourceId)?.name}>{res.get(x.resourceId)?.code}</td>
+                  <td title={res.get(x.resourceId)?.name ?? "Unstaffed role"}>
+                    {x.roleId ? (
+                      <select value={x.resourceId} onChange={(e) => (e.target.value ? commit(staffRole(s, x.id, e.target.value), "Staff role") : patch(x.id, { resourceId: "" }, "Unstaff role"))}>
+                        <option value="">(unstaffed)</option>
+                        {(resourcesForRole(s, x.roleId).length ? resourcesForRole(s, x.roleId) : [...res.values()]).map((r) => (
+                          <option key={r.id} value={r.id}>
+                            {r.code}
+                          </option>
+                        ))}
+                      </select>
+                    ) : (
+                      res.get(x.resourceId)?.code
+                    )}
+                  </td>
+                  <td>
+                    <select value={x.roleId ?? ""} onChange={(e) => patch(x.id, { roleId: e.target.value || null }, `Assignment role ${x.id}`)} disabled={!x.resourceId && !!x.roleId}>
+                      <option value="">–</option>
+                      {[...roles.values()].map((r) => (
+                        <option key={r.id} value={r.id}>
+                          {r.code}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={x.curveId ?? ""} onChange={(e) => patch(x.id, { curveId: e.target.value || null }, `Assignment curve ${x.id}`)}>
+                      <option value="">Linear</option>
+                      {curves.filter((c) => c.id !== "std-linear").map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select value={x.costAccountId ?? ""} onChange={(e) => patch(x.id, { costAccountId: e.target.value || null }, `Assignment account ${x.id}`)}>
+                      <option value="">–</option>
+                      {accts.map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {costAccountPath(s, c.id)} {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
                   {(["budgetQty", "actualQty", "remainingQty"] as const).map((k) => (
                     <td key={k}>
                       <input className="cell num" type="number" value={Math.round(x[k] * 100) / 100} onChange={(e) => set(x.id, k, Math.max(0, Number(e.target.value) || 0))} style={{ width: 80 }} />

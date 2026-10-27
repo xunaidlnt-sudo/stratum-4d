@@ -2,6 +2,7 @@
 // evenly over the working span of each assignment (actuals up to the data
 // date, remaining after it), as P6's usage spreadsheets show them.
 
+import { allCurves, curveCumulative, curveShare } from "./resources";
 import type { Schedule } from "./types";
 
 const DAY = 86_400_000;
@@ -26,20 +27,23 @@ export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; ste
   const dd = s.dataDate ?? Date.now();
   const acts = new Map(s.activities.map((a) => [a.id, a]));
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
-  type Piece = { key: string; qty: number; a: number; b: number };
+  const roles = new Map((s.roles ?? []).map((r) => [r.id, r]));
+  type Piece = { key: string; qty: number; a: number; b: number; F: (u: number) => number };
+  const curves = new Map(allCurves(s).map((c) => [c.id, c]));
   const pieces: Piece[] = [];
   let lo = Infinity;
   let hi = -Infinity;
   for (const x of s.assignments ?? []) {
     const a = acts.get(x.activityId);
     if (!a || (opts.activityIds && !opts.activityIds.has(a.id))) continue;
-    const key = opts.by === "resource" ? x.resourceId : a.id;
+    const key = opts.by === "resource" ? x.resourceId || `role:${x.roleId ?? ""}` : a.id;
     const act = opts.measure === "cost" ? x.actualCost : x.actualQty;
     const rem = opts.measure === "cost" ? x.remainingCost : x.remainingQty;
-    if (a.actualStart !== null && act > 0) pieces.push({ key, qty: act, a: a.actualStart, b: Math.max(a.actualStart + DAY, a.actualFinish ?? dd) });
+    const F = curveCumulative(x.curveId ? curves.get(x.curveId) : null);
+    if (a.actualStart !== null && act > 0) pieces.push({ key, qty: act, a: a.actualStart, b: Math.max(a.actualStart + DAY, a.actualFinish ?? dd), F });
     if (a.status !== "complete" && rem > 0 && a.finish !== null) {
       const st = a.actualStart !== null ? Math.max(dd, a.start ?? dd) : a.start ?? dd;
-      pieces.push({ key, qty: rem, a: st, b: Math.max(st + DAY, a.finish) });
+      pieces.push({ key, qty: rem, a: st, b: Math.max(st + DAY, a.finish), F });
     }
   }
   for (const p of pieces) {
@@ -67,7 +71,6 @@ export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; ste
   const rowMap = new Map<string, number[]>();
   for (const p of pieces) {
     const vals = rowMap.get(p.key) ?? rowMap.set(p.key, new Array(periods.length).fill(0)).get(p.key)!;
-    const span = p.b - p.a;
     // Binary search the first period, then walk.
     let i = 0;
     let j = periods.length - 1;
@@ -77,11 +80,12 @@ export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; ste
       else j = m;
     }
     for (; i < periods.length && periods[i].start < p.b; i++) {
-      const ov = Math.min(p.b, periods[i].end) - Math.max(p.a, periods[i].start);
-      if (ov > 0) vals[i] += (p.qty * ov) / span;
+      vals[i] += curveShare(p.qty, p.a, p.b, periods[i].start, periods[i].end, p.F);
     }
   }
   const rows: UsageRow[] = [...rowMap].map(([key, values]) => {
+    const role = key.startsWith("role:") ? roles.get(key.slice(5)) : undefined;
+    if (role) return { id: key, label: role.code, sub: `${role.name} (unstaffed role${opts.measure === "cost" ? ", cost" : ""})`, values, total: values.reduce((x, y) => x + y, 0) };
     const r = res.get(key);
     const a = acts.get(key);
     return {

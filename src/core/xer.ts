@@ -12,11 +12,15 @@ import type {
   Assignment,
   Calendar,
   ConstraintType,
+  CostAccount,
   Relationship,
   RelationshipType,
   Resource,
+  ResourceCurve,
   ResourceType,
+  Role,
   Schedule,
+  Shift,
   WbsNode,
 } from "./types";
 
@@ -254,32 +258,78 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     calendars[0]?.id ??
     null;
 
-  // Resources and their assignments.
-  const price = new Map<string, number>();
-  for (const r of tables.RSRCRATE ?? []) if (!price.has(r.rsrc_id)) price.set(r.rsrc_id, num(r.cost_per_qty) ?? 0);
+  // Resources and their assignments, with rates over time, roles, shifts, curves and cost accounts.
+  const rateRows = [...(tables.RSRCRATE ?? [])].sort((a, b) => (parseXerDate(a.start_date) ?? 0) - (parseXerDate(b.start_date) ?? 0));
+  const ratesOf = new Map<string, Record<string, string>[]>();
+  for (const r of rateRows) (ratesOf.get(r.rsrc_id) ?? ratesOf.set(r.rsrc_id, []).get(r.rsrc_id)!).push(r);
   const unitName = new Map((tables.UMEASURE ?? []).map((u) => [u.unit_id, u.unit_abbrev || u.unit_name]));
-  const resources: Resource[] = (tables.RSRC ?? []).map((r) => ({
-    id: r.rsrc_id,
-    code: r.rsrc_short_name || r.rsrc_id,
-    name: r.rsrc_name || r.rsrc_short_name || r.rsrc_id,
-    type: RSRC_TYPE[r.rsrc_type] ?? "labor",
-    unit: unitName.get(r.unit_id) || (RSRC_TYPE[r.rsrc_type] === "material" ? "unit" : "h"),
-    pricePerUnit: price.get(r.rsrc_id) ?? num(r.cost_qty_type) ?? 0,
+  const roleLinks = new Map<string, string[]>();
+  for (const x of tables.RSRCROLE ?? []) (roleLinks.get(x.rsrc_id) ?? roleLinks.set(x.rsrc_id, []).get(x.rsrc_id)!).push(x.role_id);
+  const resources: Resource[] = (tables.RSRC ?? []).map((r) => {
+    const rows = ratesOf.get(r.rsrc_id) ?? [];
+    const levels = r.level_flag === "Y";
+    const dated = rows.filter((x) => !x.shift_period_id && parseXerDate(x.start_date) !== null);
+    const res: Resource = {
+      id: r.rsrc_id,
+      code: r.rsrc_short_name || r.rsrc_id,
+      name: r.rsrc_name || r.rsrc_short_name || r.rsrc_id,
+      type: RSRC_TYPE[r.rsrc_type] ?? "labor",
+      unit: unitName.get(r.unit_id) || (RSRC_TYPE[r.rsrc_type] === "material" ? "unit" : "h"),
+      pricePerUnit: num(rows[0]?.cost_per_qty) ?? 0,
+    };
+    if (dated.length > 1)
+      res.rates = dated.map((x) => ({ from: parseXerDate(x.start_date)!, pricePerUnit: num(x.cost_per_qty) ?? 0, ...(levels && num(x.max_qty_per_hr) ? { maxUnitsPerHour: num(x.max_qty_per_hr)! } : {}) }));
+    if (levels && num(dated[0]?.max_qty_per_hr)) res.maxUnitsPerHour = num(dated[0].max_qty_per_hr)!;
+    if (r.shift_id) res.shiftId = r.shift_id;
+    const roleIds = [...new Set([...(roleLinks.get(r.rsrc_id) ?? []), ...(r.role_id ? [r.role_id] : [])])];
+    if (roleIds.length) res.roleIds = roleIds;
+    return res;
+  });
+  const rolePrice = new Map<string, number>();
+  for (const x of tables.ROLERATE ?? []) if (!rolePrice.has(x.role_id)) rolePrice.set(x.role_id, num(x.cost_per_qty) ?? 0);
+  const roles: Role[] = (tables.ROLES ?? []).map((x) => ({ id: x.role_id, code: x.role_short_name || x.role_id, name: x.role_name || x.role_short_name || x.role_id, pricePerUnit: rolePrice.get(x.role_id) ?? 0 }));
+  const shifts: Shift[] = (tables.SHIFT ?? []).map((x) => ({
+    id: x.shift_id,
+    name: x.shift_name || x.shift_id,
+    periods: (tables.SHIFTPER ?? [])
+      .filter((p) => p.shift_id === x.shift_id)
+      .map((p) => {
+        const rate = rateRows.find((r) => r.shift_period_id === p.shift_period_id);
+        return { start: num(p.shift_start_hr_num) ?? 0, maxUnits: num(rate?.max_qty_per_hr) ?? 1 };
+      })
+      .sort((a, b) => a.start - b.start),
   }));
+  const curves: ResourceCurve[] = (tables.RSRCCURVDATA ?? []).map((x) => ({
+    id: x.curv_id,
+    name: x.curv_name || x.curv_id,
+    values: Array.from({ length: 21 }, (_, i) => num(x[`pct_usage_${i}`]) ?? 0),
+  }));
+  const costAccounts: CostAccount[] = (tables.ACCOUNT ?? []).map((x) => ({ id: x.acct_id, parentId: x.parent_acct_id || null, code: x.acct_short_name || x.acct_id, name: x.acct_name || x.acct_short_name || x.acct_id }));
+  const acctIds = new Set(costAccounts.map((a) => a.id));
+  for (const a of costAccounts) if (a.parentId && !acctIds.has(a.parentId)) a.parentId = null;
+  const roleIdSet = new Set(roles.map((r) => r.id));
+  const curveIds = new Set(curves.map((c) => c.id));
   const actIds = new Set(activities.map((a) => a.id));
   const assignments: Assignment[] = (tables.TASKRSRC ?? [])
     .filter((x) => actIds.has(x.task_id))
-    .map((x) => ({
-      id: x.taskrsrc_id,
-      activityId: x.task_id,
-      resourceId: x.rsrc_id,
-      budgetQty: num(x.target_qty) ?? 0,
-      actualQty: (num(x.act_reg_qty) ?? 0) + (num(x.act_ot_qty) ?? 0),
-      remainingQty: num(x.remain_qty) ?? 0,
-      budgetCost: num(x.target_cost) ?? 0,
-      actualCost: (num(x.act_reg_cost) ?? 0) + (num(x.act_ot_cost) ?? 0),
-      remainingCost: num(x.remain_cost) ?? 0,
-    }));
+    .map((x) => {
+      const asg: Assignment = {
+        id: x.taskrsrc_id,
+        activityId: x.task_id,
+        resourceId: x.rsrc_id ?? "",
+        budgetQty: num(x.target_qty) ?? 0,
+        actualQty: (num(x.act_reg_qty) ?? 0) + (num(x.act_ot_qty) ?? 0),
+        remainingQty: num(x.remain_qty) ?? 0,
+        budgetCost: num(x.target_cost) ?? 0,
+        actualCost: (num(x.act_reg_cost) ?? 0) + (num(x.act_ot_cost) ?? 0),
+        remainingCost: num(x.remain_cost) ?? 0,
+      };
+      if (x.role_id && roleIdSet.has(x.role_id)) asg.roleId = x.role_id;
+      if (x.curv_id && curveIds.has(x.curv_id)) asg.curveId = x.curv_id;
+      if (x.acct_id && acctIds.has(x.acct_id)) asg.costAccountId = x.acct_id;
+      return asg;
+    })
+    .filter((x) => x.resourceId || x.roleId);
 
   const ids = new Set(activities.map((a) => a.id));
   const relationships: Relationship[] = (tables.TASKPRED ?? [])
@@ -304,6 +354,10 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     defaultCalendarId: defaultCal,
     resources,
     assignments,
+    ...(roles.length ? { roles } : {}),
+    ...(shifts.length ? { shifts } : {}),
+    ...(curves.length ? { curves } : {}),
+    ...(costAccounts.length ? { costAccounts } : {}),
     sourceXer: tables,
     sourceFormat: "xer",
   };

@@ -40,7 +40,13 @@ export type P6Dialog =
   | "claimDigger"
   | "preferences"
   | "scheduleLog"
-  | "excelImport";
+  | "excelImport"
+  | "roles"
+  | "assignRole"
+  | "shifts"
+  | "resourceRates"
+  | "curves"
+  | "costAccounts";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

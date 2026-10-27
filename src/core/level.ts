@@ -5,11 +5,12 @@
 //
 // Usage is counted per calendar day: an assignment's remaining units are
 // spread evenly over the activity's remaining working hours, and a
-// resource's capacity on a day is its max units per hour times the hours
-// worked that day.
+// resource's capacity on a day is its max units per hour in force that day
+// (rates over time) times the hours worked, or its shift's limits by period.
 
 import { addWorkHours, nextWorkStart, standardCalendar, workHoursBetween } from "./calendar";
-import type { Activity, Calendar, LevelingOptions, Relationship, Schedule } from "./types";
+import { maxUnitsAt, shiftCapacity } from "./resources";
+import type { Activity, Calendar, LevelingOptions, Relationship, Resource, Schedule } from "./types";
 
 const DAY = 86_400_000;
 
@@ -35,10 +36,14 @@ export function levelResources(input: Schedule, options: Partial<LevelingOptions
 
   // Resources with a limit take part.
   const limits = new Map<string, number>();
+  const resById = new Map<string, Resource>();
+  const shifts = new Map((s.shifts ?? []).map((x) => [x.id, x]));
   for (const r of s.resources ?? []) {
-    if (r.type === "material" || !r.maxUnitsPerHour || r.maxUnitsPerHour <= 0) continue;
+    const hasLimit = (r.maxUnitsPerHour ?? 0) > 0 || (r.rates ?? []).some((x) => (x.maxUnitsPerHour ?? 0) > 0) || !!(r.shiftId && shifts.has(r.shiftId));
+    if (r.type === "material" || !hasLimit) continue;
     if (o.resourceIds && !o.resourceIds.includes(r.id)) continue;
-    limits.set(r.id, r.maxUnitsPerHour);
+    limits.set(r.id, r.maxUnitsPerHour ?? 0);
+    resById.set(r.id, r);
   }
   const byId = new Map(s.activities.map((a) => [a.id, a]));
   const projectFinish0 = s.activities.reduce((m, a) => Math.max(m, a.finish ?? -Infinity), -Infinity);
@@ -57,7 +62,18 @@ export function levelResources(input: Schedule, options: Partial<LevelingOptions
 
   // usage[resource][day] = units used that day; cap[resource][day] computed from the default calendar.
   const usage = new Map<string, Map<number, number>>([...limits.keys()].map((k) => [k, new Map()]));
-  const capOn = (rid: string, day: number) => limits.get(rid)! * workHoursBetween(def, day, day + DAY);
+  // Capacity on a day: the shift's units by period if the resource has one, else the max units in force that day.
+  const capCache = new Map<string, number>();
+  const capOn = (rid: string, day: number) => {
+    const k = `${rid}|${day}`;
+    const hit = capCache.get(k);
+    if (hit !== undefined) return hit;
+    const r = resById.get(rid)!;
+    const sh = r.shiftId ? shifts.get(r.shiftId) : undefined;
+    const v = sh ? shiftCapacity(sh, def, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(def, day, day + DAY);
+    capCache.set(k, v);
+    return v;
+  };
   const spread = (a: Activity, start: number, finish: number, fn: (day: number, hours: number) => boolean | void) => {
     const cal = calOf(a);
     for (let day = Math.floor(start / DAY) * DAY; day < finish; day += DAY) {
@@ -196,8 +212,10 @@ export function overloads(s: Schedule): { resourceId: string; peak: number; capa
   const def = (s.defaultCalendarId && cals.get(s.defaultCalendarId)) || s.calendars?.[0] || standardCalendar();
   const byId = new Map(s.activities.map((a) => [a.id, a]));
   const out: { resourceId: string; peak: number; capacity: number; days: number }[] = [];
+  const shifts = new Map((s.shifts ?? []).map((x) => [x.id, x]));
   for (const r of s.resources ?? []) {
-    if (!r.maxUnitsPerHour || r.type === "material") continue;
+    const sh = r.shiftId ? shifts.get(r.shiftId) : undefined;
+    if (r.type === "material" || !(sh || r.maxUnitsPerHour || (r.rates ?? []).some((x) => x.maxUnitsPerHour))) continue;
     const use = new Map<number, number>();
     for (const x of s.assignments ?? []) {
       if (x.resourceId !== r.id) continue;
@@ -216,7 +234,7 @@ export function overloads(s: Schedule): { resourceId: string; peak: number; capa
     let days = 0;
     let capacity = 0;
     for (const [day, u] of use) {
-      const cap = r.maxUnitsPerHour * workHoursBetween(def, day, day + DAY);
+      const cap = sh ? shiftCapacity(sh, def, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(def, day, day + DAY);
       capacity = Math.max(capacity, cap);
       if (u > cap + 1e-6) days++;
       peak = Math.max(peak, u);

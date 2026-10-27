@@ -5,6 +5,7 @@
 // untouched, so the caller can keep the old one for undo.
 
 import { addWorkHours, nextWorkStart, standardCalendar, workHoursBetween } from "./calendar";
+import { allCurves, costOverTime, curveCumulative } from "./resources";
 import { fieldCtx, fieldsFor, filterMatches, type FieldCtx, type FieldDef, type FilterDef } from "./fields";
 import type { Activity, Assignment, Calendar, Relationship, RelationshipType, Schedule, StoredBaseline } from "./types";
 
@@ -387,12 +388,30 @@ export function renameBaseline(s: Schedule, id: string, name: string): Schedule 
 
 /** Recalculate assignment costs from units and resource prices (P6 Recalculate Assignment Costs). */
 export function recalcAssignmentCosts(s: Schedule): { schedule: Schedule; changed: number } {
-  const price = new Map((s.resources ?? []).map((r) => [r.id, r.pricePerUnit]));
+  // Price each assignment by its resource (or role, when unstaffed), at the rates in force over the
+  // activity's dates and spread by its resource curve (P6 Recalculate Assignment Costs).
+  const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
+  const roles = new Map((s.roles ?? []).map((r) => [r.id, r]));
+  const acts = new Map(s.activities.map((a) => [a.id, a]));
+  const curves = new Map(allCurves(s).map((c) => [c.id, c]));
+  const dd = s.dataDate ?? Date.now();
   let changed = 0;
   const assignments = (s.assignments ?? []).map((x) => {
-    const p = price.get(x.resourceId);
-    if (p === undefined) return x;
-    const next = { ...x, budgetCost: x.budgetQty * p, actualCost: x.actualQty * p, remainingCost: x.remainingQty * p };
+    const r = res.get(x.resourceId) ?? (x.roleId ? roles.get(x.roleId) : undefined);
+    const a = acts.get(x.activityId);
+    if (!r || !a) return x;
+    const F = curveCumulative(x.curveId ? curves.get(x.curveId) : null);
+    const s0 = a.baselineStart ?? a.start ?? dd;
+    const f0 = a.baselineFinish ?? a.finish ?? s0;
+    const as = a.actualStart ?? s0;
+    const remFrom = a.status === "in-progress" ? Math.max(dd, a.start ?? dd) : a.start ?? s0;
+    const round = (v: number) => Math.round(v * 100) / 100;
+    const next = {
+      ...x,
+      budgetCost: round(costOverTime(r, x.budgetQty, s0, f0, F)),
+      actualCost: round(costOverTime(r, x.actualQty, as, Math.max(as, a.actualFinish ?? dd), F)),
+      remainingCost: round(costOverTime(r, x.remainingQty, remFrom, Math.max(remFrom, a.finish ?? remFrom), F)),
+    };
     if (next.budgetCost !== x.budgetCost || next.actualCost !== x.actualCost || next.remainingCost !== x.remainingCost) changed++;
     return next;
   });

@@ -27,6 +27,7 @@ import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
+import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
 import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
 
@@ -1697,6 +1698,12 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     preferences: () => <PreferencesDialog />,
     scheduleLog: () => <ScheduleLogDialog />,
     excelImport: () => <ExcelImportDialog />,
+    roles: () => <RolesDialog />,
+    assignRole: () => <AssignRoleDialog />,
+    shifts: () => <ShiftsDialog />,
+    resourceRates: () => <ResourceRatesDialog />,
+    curves: () => <CurvesDialog />,
+    costAccounts: () => <CostAccountsDialog />,
     periods: () => <PeriodsDialog />,
     displays: () => displays ?? null,
   };

@@ -113,6 +113,12 @@ export interface Resource {
   pricePerUnit: number;
   /** Max units per working hour (labour/equipment), for levelling; default 1 per resource unit. */
   maxUnitsPerHour?: number;
+  /** Price and max units that change over time (P6 resource rates); entries apply from their date. */
+  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number }[];
+  /** Shift that sets max units by hour of day (P6 resource shifts). */
+  shiftId?: string | null;
+  /** Roles this resource can fill. */
+  roleIds?: string[];
 }
 
 export interface Assignment {
@@ -125,6 +131,12 @@ export interface Assignment {
   budgetCost: number;
   actualCost: number;
   remainingCost: number;
+  /** Role of the assignment; with an empty resourceId the assignment is unstaffed (P6 role assignment). */
+  roleId?: string | null;
+  /** Resource curve that spreads the units over the activity (P6 resource curves). */
+  curveId?: string | null;
+  /** Cost account the cost is booked to. */
+  costAccountId?: string | null;
 }
 
 /** A saved set of model elements, e.g. "Tower crane 1" or "Level 2 formwork". */
@@ -209,6 +221,15 @@ export interface Schedule {
   codeTypes?: CodeType[];
   /** User-defined field definitions (P6 User Defined Fields). */
   udfDefs?: UdfDef[];
+  /** Roles (P6 Roles dictionary). */
+  roles?: Role[];
+  /** Resource shifts. */
+  shifts?: Shift[];
+  /** Resource curves (standard ones are built in). */
+  curves?: ResourceCurve[];
+  /** Cost account hierarchy and the project default. */
+  costAccounts?: CostAccount[];
+  defaultCostAccountId?: string | null;
   /** Stored baselines used as the 2nd and 3rd comparison baselines (P6 primary/secondary/tertiary). */
   compareBaselines?: { bl2?: string | null; bl3?: string | null };
   /** Activity step templates. */
@@ -221,6 +242,36 @@ export interface Schedule {
   periods?: PeriodSnapshot[];
   /** Project registers: issues, risks, work products & documents, expenses, thresholds. */
   registers?: Partial<Record<RegisterKind, RegisterItem[]>>;
+}
+
+export interface Role {
+  id: string;
+  code: string;
+  name: string;
+  pricePerUnit: number;
+  /** Role limit for planning, units per hour. */
+  maxUnitsPerHour?: number;
+}
+
+export interface Shift {
+  id: string;
+  name: string;
+  /** Periods of the day from their start hour, each with its max units per hour. */
+  periods: { start: number; maxUnits: number }[];
+}
+
+export interface ResourceCurve {
+  id: string;
+  name: string;
+  /** 21 points at 0%, 5% … 100% of the duration; the units fall in proportion to the area under them. */
+  values: number[];
+}
+
+export interface CostAccount {
+  id: string;
+  parentId: string | null;
+  code: string;
+  name: string;
 }
 
 export interface ScheduleOptions {
