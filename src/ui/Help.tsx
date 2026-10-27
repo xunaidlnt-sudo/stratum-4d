@@ -2,8 +2,8 @@ export function Help({ onClose, onDemo }: { onClose: () => void; onDemo: () => v
   return (
     <div className="help-backdrop" onClick={onClose}>
       <div className="help" role="dialog" aria-label="Getting started" onClick={(e) => e.stopPropagation()}>
-        <img src="./stratum-logo.png" alt="Stratum 4D" className="help-logo logo-light" />
-        <img src="./stratum-logo-dark.png" alt="" aria-hidden className="help-logo logo-dark" />
+        <img src="./stratum-lockup.png" alt="Stratum 4D by Miqyas Labs" className="help-logo logo-light" />
+        <img src="./stratum-lockup-dark.png" alt="" aria-hidden className="help-logo logo-dark" />
         <h2>Getting started</h2>
         <p className="muted">Four steps from a P6 export and an IFC model to a 4D sequence.</p>
         <ol>
@@ -52,8 +52,12 @@ export function Help({ onClose, onDemo }: { onClose: () => void; onDemo: () => v
             <tr><td><kbd>?</kbd></td><td>This help</td></tr>
           </tbody>
         </table>
-        <p className="credit">
-          Stratum 4D was developed by <b>Junaid Quamar</b>, Senior Planning Engineer. 
+        <p className="credit brand-credit">
+          <img src="./miqyas-labs.png" alt="Miqyas Labs" className="logo-light" />
+          <img src="./miqyas-labs-dark.png" alt="" aria-hidden className="logo-dark" />
+          <span>
+            Stratum 4D by <b>Miqyas Labs</b>, developed by <b>Junaid Quamar</b>, Senior Planning Engineer.{" "}
+          </span>
           <a href="https://www.linkedin.com/in/junaidquamar/" target="_blank" rel="noreferrer">
             LinkedIn
           </a>

@@ -238,7 +238,10 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
   };
   const create = (id: string) => {
     const t = BUILTIN_TEMPLATES.find((x) => x.id === id);
-    if (t) return createFrom(adaptToFields(t.make(currentId), dimensions(open).map((d) => d.value)));
+    if (t) {
+      const d = t.make(currentId);
+      return createFrom(t.id.startsWith("eppm") ? adaptToFields(d, dimensions(open).map((x) => x.value)) : d);
+    }
     const user = list?.find((d) => d.id === id);
     if (user) return createFrom({ ...cloneDashboard(user, user.name.replace(/ \(template\)$/, "")), projectId: currentId ?? user.projectId });
   };
@@ -285,7 +288,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
   return (
     <div className="dash-root">
       <header className="reports-topbar">
-        <img className="logo logo-light" src="./stratum-logo.png" alt="Stratum 4D" />
+        <img className="logo logo-light" src="./stratum-logo.png" alt="Stratum 4D by Miqyas Labs" />
         <img className="logo logo-dark" src="./stratum-logo-dark.png" alt="" />
         <b className="reports-brand">Reports</b>
         <span className="muted reports-sub">{open ? `${open.projectCode} – ${open.projectName}` : "No project open"}</span>
@@ -650,7 +653,7 @@ function DashCanvas({
         )}
       </div>
       <div className="print-only report-foot">
-        {dash.page?.footer ? `${dash.page.footer} · ` : ""}Stratum 4D · developed by Junaid Quamar
+        {dash.page?.footer ? `${dash.page.footer} · ` : ""}Stratum 4D by Miqyas Labs · developed by Junaid Quamar
       </div>
     </div>
   );

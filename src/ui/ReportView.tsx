@@ -72,7 +72,7 @@ export function ReportView({ dashboardId, projectId, backend }: { dashboardId: s
         })}
       </div>
       <div className="report-foot">
-        {dash.page?.footer ? `${dash.page.footer} · ` : ""}Generated {new Date().toLocaleString()} · Stratum 4D · developed by Junaid Quamar
+        {dash.page?.footer ? `${dash.page.footer} · ` : ""}Generated {new Date().toLocaleString()} · Stratum 4D by Miqyas Labs · developed by Junaid Quamar
       </div>
     </div>
   );

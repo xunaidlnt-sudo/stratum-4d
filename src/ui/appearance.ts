@@ -6,6 +6,7 @@ import "@fontsource-variable/ibm-plex-sans";
 import "@fontsource-variable/source-sans-3";
 import "@fontsource-variable/nunito-sans";
 import "@fontsource-variable/jetbrains-mono";
+import "@fontsource-variable/montserrat";
 import { useEffect } from "react";
 import type { AppConfig } from "../backend/config";
 import { useConfig } from "../backend/config";
@@ -28,6 +29,7 @@ export const FONTS: FontChoice[] = [
     stack: '"Inter Variable", system-ui, sans-serif',
     features: '"cv11" 1, "ss01" 1, "cv05" 1',
   },
+  { id: "montserrat", label: "Montserrat", note: "The Miqyas Labs brand typeface; wide and confident, best at 13 px and up", stack: '"Montserrat Variable", system-ui, sans-serif', features: '"kern" 1' },
   { id: "plex", label: "IBM Plex Sans", note: "Engineering feel, very legible in dense tables", stack: '"IBM Plex Sans Variable", system-ui, sans-serif', features: '"kern" 1' },
   { id: "source", label: "Source Sans 3", note: "Compact and calm, close to classic enterprise tools", stack: '"Source Sans 3 Variable", system-ui, sans-serif', features: '"kern" 1' },
   { id: "nunito", label: "Nunito Sans", note: "Rounded and friendly", stack: '"Nunito Sans Variable", system-ui, sans-serif', features: '"kern" 1' },

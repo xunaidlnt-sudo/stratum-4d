@@ -1,8 +1,8 @@
-<p align="center"><img src="brand/stratum-logo.png" alt="Stratum 4D" width="420"></p>
+<p align="center"><img src="brand/stratum-lockup.png" alt="Stratum 4D by Miqyas Labs" width="520"></p>
 
-# Stratum 4D
+# Stratum 4D by Miqyas Labs
 
-**Developed by [Junaid Quamar](https://www.linkedin.com/in/junaidquamar/), Senior Planning Engineer.**
+**Plan · Simulate · Analyse · Deliver.** A product of [Miqyas Labs](brand/README.md), *Engineering Intelligence*, developed by [Junaid Quamar](https://www.linkedin.com/in/junaidquamar/), Senior Planning Engineer.
 
 Stratum links a Primavera P6 schedule to an IFC building model and plays back the construction sequence over time. It runs in the browser, as a desktop app for Windows, macOS and Linux, or on a team server.
 

@@ -890,7 +890,6 @@ function Workspace() {
           {btn.run}
           {btn.exportMenu}
           <span className="sep" />
-          {btn.dashboards}
           {btn.fit}
           {btn.record}
           {toolbarRight}

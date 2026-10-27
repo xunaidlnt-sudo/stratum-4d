@@ -1,4 +1,6 @@
-/* Stratum 4D stylesheet.
+/* Stratum 4D by Miqyas Labs: stylesheet.
+   Brand palette: Deep Navy #0B2545, Warm Gold #D4A574, Steel Blue #355B7D,
+   Light Stone #EBECEF, Stratum Red #E10600. Brand type: Montserrat.
    Colours, fonts and sizes are tokens. The light and dark themes swap the
    neutral tokens; each layout (P6, MS Project, 4D) sets its own accent,
    top bar and Gantt colours. Report pages always print light. */
@@ -7,15 +9,21 @@
   --font: "Inter Variable", system-ui, sans-serif;
   --font-features: "cv11" 1, "ss01" 1, "cv05" 1;
   --font-size: 13px;
+  --font-display: "Montserrat Variable", var(--font);
+  --brand-navy: #0B2545;
+  --brand-gold: #D4A574;
+  --brand-steel: #355B7D;
+  --brand-stone: #EBECEF;
+  --brand-red: #E10600;
   --mono: "JetBrains Mono Variable", ui-monospace, monospace;
   --radius: 8px;
   --radius-sm: 6px;
   --ctl-h: 30px;
-  --accent: #2563eb;
-  --accent-hover: #1d4fd8;
-  --accent-soft: rgba(37, 99, 235, 0.12);
+  --accent: #355B7D;
+  --accent-hover: #0B2545;
+  --accent-soft: rgba(53, 91, 125, 0.13);
   --on-accent: #ffffff;
-  --focus: 0 0 0 3px rgba(37, 99, 235, 0.32);
+  --focus: 0 0 0 3px rgba(53, 91, 125, 0.32);
   --chrome-bg: var(--panel);
   --chrome-text: var(--text);
   --chrome-muted: var(--muted);
@@ -28,8 +36,8 @@
   --bar-done: #7b8492;
   --bar-baseline: #e0a526;
   --now: #2e9d4f;
-  --datadate: #2563eb;
-  --report-navy: #0b2a8a;
+  --datadate: #355B7D;
+  --report-navy: #0B2545;
 
   --bg: #f3f4f6;
   --panel: #ffffff;
@@ -158,13 +166,13 @@ html[data-mode="msp"] {
 html[data-mode="msp"][data-theme="dark"] {
   --msp-green: #23552a; --cl-chrome: #2a2e34; --cl-chrome-2: #30353c; --cl-line: #444b55; --cl-text: #e6e9ee; --msp-summary: #d0d4da; --msp-sel: #2b4a33; --g-head: #30353c;
 }
-/* 4D: graphite workspace with the Stratum orange. */
+/* 4D: deep-navy workspace with Stratum Red, the brand's "progress and milestone" colour. */
 html[data-mode="4d"] {
-  --accent: #f0532e; --accent-hover: #d9431f; --accent-soft: rgba(240, 83, 46, 0.14); --focus: 0 0 0 3px rgba(240, 83, 46, 0.32);
+  --accent: #E10600; --accent-hover: #B80500; --accent-soft: rgba(225, 6, 0, 0.14); --focus: 0 0 0 3px rgba(225, 6, 0, 0.30);
   --bar: #4d8eff; --bar-progress: rgba(0, 0, 0, 0.32); --bar-critical: #ff5a3c; --datadate: #4d8eff;
   --radius: 10px;
 }
-html[data-mode="4d"][data-theme="dark"] { --chrome-bg: #111418; --chrome-text: #e6e9ee; --chrome-muted: #8f99a8; --chrome-hover: #232931; --chrome-line: #262c34; --chrome-pill: #1c2026; --bg: #111418; }
+html[data-mode="4d"][data-theme="dark"] { --chrome-bg: #0B1A30; --chrome-text: #EBECEF; --chrome-muted: #93a3b8; --chrome-hover: #16294a; --chrome-line: #1b3050; --chrome-pill: #10223d; --bg: #0a1628; --accent: #ff2a1f; --accent-hover: #E10600; }
 
 /* ---------- Base ---------- */
 * { box-sizing: border-box; }
@@ -220,7 +228,7 @@ hr { border: none; border-top: 1px solid var(--line); margin: 4px 0; }
 }
 .app > .toolbar { box-shadow: var(--shadow-sm); position: relative; z-index: 5; }
 .brand { margin-right: 8px; display: flex; align-items: center; }
-.brand img { height: 24px; width: auto; display: block; }
+.brand img { height: 26px; width: auto; display: block; }
 .brand img.logo-dark { display: none; }
 .logo-dark { display: none; }
 html[data-theme="dark"] .logo-light { display: none; }
@@ -255,7 +263,8 @@ html[data-theme="dark"] .brand .logo-dark { display: block; }
 html[data-mode="p6"] .mode-switch button.on, html[data-mode="msp"] .ribbon-tabs .mode-switch button.on { background: #ffffff; color: #1b2330; }
 @media (max-width: 1680px) { .toolbar .tb.collapse > span, .toolbar .tb.collapse > kbd { display: none; } .toolbar .tb.collapse { padding: 0 8px; } }
 @media (max-width: 1480px) { .toolbar .autosaved { display: none; } }
-@media (max-width: 1100px) { .mode-switch span, .toolbar .tb:not(.icon-only) > span { display: none; } .toolbar .tb { padding: 0 7px; } }
+@media (max-width: 1100px) { .mode-switch span { display: none; } }
+@media (max-width: 1360px) { .toolbar .tb:not(.icon-only) > span { display: none; } .toolbar .tb { padding: 0 7px; } }
 
 /* Drop-down menus */
 .menu { position: relative; }
@@ -457,7 +466,7 @@ html[data-mode="p6"] .p6-details > .tabs button.active { background: var(--panel
 .ribbon { background: var(--panel); border-bottom: 1px solid var(--line); box-shadow: var(--shadow-sm); position: relative; z-index: 5; }
 .ribbon-tabs { display: flex; align-items: center; gap: 2px; padding: 5px 10px 0; background: var(--chrome-bg); color: var(--chrome-text); }
 .ribbon-tabs .brand { margin: 0 12px 5px 2px; }
-.ribbon-tabs .brand img { height: 20px; }
+.ribbon-tabs .brand img { height: 26px; }
 .ribbon-tabs > button { min-height: 30px; background: transparent; border: none; color: var(--chrome-text); border-radius: 4px 4px 0 0; padding: 0 16px; font-weight: 500; opacity: 0.92; }
 .ribbon-tabs > button.active { background: var(--panel); color: var(--accent); opacity: 1; font-weight: 600; }
 .ribbon-tabs > button:hover:not(.active) { background: var(--chrome-hover); }
@@ -494,13 +503,13 @@ html[data-mode="msp"] .msp-form > .tabs button.active { box-shadow: inset 0 -3px
 .help { background: var(--panel); color: var(--text); border: 1px solid var(--line); border-radius: 14px; max-width: 640px; width: 100%; max-height: 90vh; overflow: auto; padding: 20px 24px; box-shadow: var(--shadow-lg); animation: rise 0.18s ease-out; }
 @keyframes fade { from { opacity: 0; } }
 @keyframes rise { from { opacity: 0; transform: translateY(8px) scale(0.99); } }
-.help h2 { margin: 0 0 8px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; }
+.help h2 { margin: 0 0 8px; font-size: 19px; font-weight: 700; letter-spacing: -0.01em; font-family: var(--font-display); }
 .help h3 { margin: 16px 0 6px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
 .help ol { padding-left: 20px; margin: 0; }
 .help li { margin: 6px 0; }
 .help table { border-collapse: collapse; width: 100%; }
 .help td { padding: 4px 6px; border-bottom: 1px solid var(--line-soft); }
-.help-logo { height: 30px; width: auto; display: block; margin-bottom: 12px; }
+.help-logo { height: 64px; width: auto; display: block; margin-bottom: 14px; }
 
 .help.wizard { max-width: 800px; }
 .help.settings { max-width: 880px; padding: 16px 20px 20px; }
@@ -706,7 +715,7 @@ html[data-theme="dark"] .dash-canvas.theme-report { border-radius: var(--radius)
 .classic { flex: 1; min-height: 0; display: flex; flex-direction: column; color: var(--cl-text); background: var(--cl-chrome); font-size: calc(var(--font-size) - 1px); }
 .classic button { min-height: 0; }
 .cl-titlebar { display: flex; align-items: center; gap: 10px; padding: 4px 10px; background: var(--cl-chrome); border-bottom: 1px solid var(--cl-line); min-height: 34px; }
-.cl-logo { height: 18px; width: auto; }
+.cl-logo { height: 24px; width: auto; margin: -2px 0; }
 .cl-title { font-size: 12px; color: var(--cl-text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cl-title.center { flex: 1; text-align: center; }
 .classic .mode-switch { background: var(--cl-chrome-2); margin: 0; }
@@ -912,7 +921,7 @@ html[data-theme="dark"] .gantt-p6 .gantt-row.selected, html[data-theme="dark"] .
 .mode-sep { width: 1px; align-self: stretch; margin: 4px 3px; background: currentColor; opacity: 0.18; }
 .dash-root { display: flex !important; flex-direction: column; grid-template-columns: none; }
 .reports-topbar { display: flex; align-items: center; gap: 10px; padding: 6px 12px; min-height: 46px; background: var(--chrome, var(--panel)); color: var(--chrome-text, var(--text)); border-bottom: 1px solid var(--line); flex: none; }
-.reports-topbar .logo { height: 24px; width: auto; }
+.reports-topbar .logo { height: 32px; width: auto; }
 .reports-brand { font-size: 15px; letter-spacing: -0.01em; }
 .reports-sub { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 .reports-topbar .tb.icon-only { color: inherit; }
@@ -1236,3 +1245,12 @@ html[data-theme="dark"] .ctable .ct-est, .theme-exec .ctable .ct-est { color: #f
 .range2 input[type="range"]::-moz-range-thumb { pointer-events: auto; width: 14px; height: 14px; border-radius: 50%; background: var(--panel); border: 2px solid var(--text-2); cursor: ew-resize; }
 .range2 input[type="range"]::-webkit-slider-runnable-track { background: transparent; }
 .range2-text { position: absolute; top: 18px; left: 0; font-size: 11px; display: flex; gap: 8px; }
+
+/* ---------- Brand type (Montserrat) for headings and brand text ---------- */
+h1, h2, .dash-bar h2, .reports-brand, .page-head-text b, .tr-cat-head h2, .tr-body h3, .settings-head h2, .wizard h2, .mode-card b, .tr-lesson-card .tr-lc-top b, .widget-title, .kpi-value, .fig-value, .gauge-value, .donut-total { font-family: var(--font-display); }
+.widget-title { letter-spacing: -0.005em; }
+.brand-credit { font-size: 11.5px; color: var(--muted); display: flex; align-items: center; gap: 8px; }
+.brand-credit img { height: 22px; width: auto; }
+.help .tagline { font-family: var(--font-display); font-weight: 600; font-size: 10.5px; letter-spacing: 0.32em; color: var(--muted); margin: -6px 0 12px; }
+html[data-theme="dark"] .dash-canvas:not(.theme-report):not(.theme-exec) :is(.page-head-text b, .widget.kind-kpi .kpi-value:not(.good):not(.bad), .fig-value:not(.good):not(.bad), .widget.kind-cards .widget-title) { color: var(--text); }
+@media (max-width: 1600px) { .toolbar .training-btn span { display: none; } .toolbar .training-btn { padding: 0 7px; } }
