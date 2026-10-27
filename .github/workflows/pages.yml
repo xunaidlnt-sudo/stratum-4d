@@ -1,21 +1,21 @@
 name: Web app (GitHub Pages)
 
+# Builds the web app with the sign-in and publishes it to the gh-pages branch,
+# which GitHub Pages serves at https://<owner>.github.io/stratum-4d/.
 on:
   push:
     branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: read
-  pages: write
-  id-token: write
+  contents: write
 
 concurrency:
   group: pages
   cancel-in-progress: true
 
 jobs:
-  build:
+  publish:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -28,20 +28,11 @@ jobs:
         env:
           # SHA-256 of "user:password". Change it to change the sign-in.
           VITE_LOGIN_HASH: 47178b2cffdab4e520ea04dc0a2c8c0e0761b01558e2602c19b78f346dc83ef1
-        run: npx vite build
-      - uses: actions/configure-pages@v5
+        run: npx vite build && touch dist/.nojekyll
+      - uses: peaceiris/actions-gh-pages@v4
         with:
-          enablement: true
-      - uses: actions/upload-pages-artifact@v3
-        with:
-          path: dist
-
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@v4
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: dist
+          publish_branch: gh-pages
+          force_orphan: true
+          commit_message: Publish web app
