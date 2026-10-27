@@ -260,8 +260,10 @@ export interface Schedule {
   spendingPlan?: SpendingPlanRow[];
   /** Probability × impact scoring matrix used to score risks. */
   riskMatrix?: RiskMatrix;
-  /** EPS path of the project, top first (e.g. ["Company", "Substations"]). */
+  /** EPS path of the project, top first. Each node is "ID | Name" or just a name (e.g. ["NEWEPS | L&T Projects - TAQA"]). */
   eps?: string[];
+  /** P6 strategic priority (1 highest – 10000, default 500). */
+  strategicPriority?: number;
   /** Projects open together: one entry per project in this combined view. */
   projects?: ProjectPart[];
   /** Relationships to activities of other projects, kept while the project is open alone. */

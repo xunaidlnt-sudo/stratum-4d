@@ -1487,6 +1487,13 @@ td.neg { color: #b42318; }
 .p6g-curtain span { position: sticky; top: 0; display: inline-block; font-size: 11px; font-weight: 600; color: #000; opacity: 1; padding: 2px 4px; }
 .p6g-text { position: absolute; z-index: 3; font-size: 11px; line-height: 1.2; padding: 1px 4px; background: var(--surface, #fff); border: 1px solid; border-radius: 3px; white-space: nowrap; pointer-events: none; transform: translateX(2px); }
 
-/* EPS rows in the Projects window */
-.p6-eps-row td { background: var(--g-head, var(--surface-2)); font-weight: 600; }
-.p6-eps-row button.link { color: inherit; font-weight: 600; }
+/* Projects window (P6 layout): EPS bands, project folders */
+.p6-projects tbody tr { cursor: default; }
+.p6-eps-row td { background: #1f4e8c; color: #fff; font-weight: 700; font-size: 13px; }
+.p6-eps-row.on td { background: #0b2545; }
+.p6-eps-row td.num { color: #fff; }
+.p6-eps-toggle { min-height: 0 !important; width: 15px; height: 15px; padding: 0 !important; font-size: 11px; line-height: 13px; border: 1px solid #fff !important; background: transparent !important; color: #fff !important; border-radius: 2px; vertical-align: middle; justify-content: center; }
+.p6-eps-icon { color: #f2c94c; font-size: 11px; }
+.p6-folder { display: inline-block; width: 15px; height: 11px; margin-right: 4px; vertical-align: -1px; background: #e8c66a; border: 1px solid #b58e2e; border-radius: 1px 3px 1px 1px; }
+.p6-projects input.cell.num { width: 70px; }
+.p6-unsaved td { background: rgba(214, 160, 30, 0.12); }

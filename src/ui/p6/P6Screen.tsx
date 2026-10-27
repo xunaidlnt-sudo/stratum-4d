@@ -670,7 +670,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       case "assignments":
         return <AssignmentsWindow />;
       case "projects":
-        return a.openOne ? <EnterpriseProjectsWindow onOpenOne={a.openOne} onImport={a.projects} /> : <ProjectsWindow onOpen={a.projects} />;
+        return a.openOne ? <EnterpriseProjectsWindow onOpenOne={a.openOne} onImport={a.projects} onImportToDb={a.importToDb} onSave={a.saveDb} /> : <ProjectsWindow onOpen={a.projects} />;
       case "documents":
       case "expenses":
       case "thresholds":

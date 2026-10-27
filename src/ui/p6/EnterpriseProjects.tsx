@@ -4,7 +4,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useConfig } from "../../backend/config";
 import type { ProjectSummary } from "../../backend/types";
-import { combineSchedules, epsTree, isCombined, mergeReflection, parseEps, reflect, reflectionChanges, splitSchedule } from "../../core/multiproject";
+import { combineSchedules, epsNode, epsTree, isCombined, mergeReflection, reflect, reflectionChanges, splitSchedule } from "../../core/multiproject";
 import { uid } from "../../core/ops";
 import type { StratumProject } from "../../core/project";
 import type { Schedule } from "../../core/types";
@@ -55,12 +55,33 @@ function openCombined(schedule: Schedule) {
   st.setCurrentProject(null, null);
 }
 
-export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (id: string) => Promise<void>; onImport: () => void }) {
+type Row = ProjectSummary & { eps: string[]; reflectionOf: string | null; activities: number; priority: number; baseline: string; baselineDate: number | null };
+
+// EPS nodes with no project yet live on this device (P6 keeps them in the EPS table).
+const EPS_KEY = "stratum.eps.v1";
+const loadEmptyEps = (): string[][] => {
+  try {
+    return JSON.parse(localStorage.getItem(EPS_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+};
+const saveEmptyEps = (v: string[][]) => {
+  try {
+    localStorage.setItem(EPS_KEY, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+};
+
+export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { onOpenOne: (id: string) => Promise<void>; onImport?: () => void; onImportToDb?: (eps: string[]) => Promise<void>; onSave?: () => Promise<void> }) {
   const backend = useConfig((c) => c.backend);
   const schedule = useStore((s) => s.schedule);
   const currentId = useStore((s) => s.currentProjectId);
-  const [list, setList] = useState<(ProjectSummary & { eps?: string[]; reflectionOf?: string | null })[] | null>(null);
-  const [checked, setChecked] = useState<Set<string>>(new Set());
+  const [list, setList] = useState<Row[] | null>(null);
+  const [sel, setSel] = useState<string[]>([]);
+  const [selEps, setSelEps] = useState<string | null>(null);
+  const [emptyEps, setEmptyEps] = useState<string[][]>(loadEmptyEps);
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
@@ -68,13 +89,20 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
   const load = async () => {
     try {
       const rows = await backend.listProjects();
-      // The EPS path lives in each project; read it once per saved version.
+      // Details live in each project; read them once per saved version.
       const full = await Promise.all(
         rows.map(async (r) => {
           const hit = epsCache.get(`${r.id}@${r.version}`);
           if (hit) return { ...r, ...hit };
           const s = (await backend.getProject(r.id).catch(() => null))?.project.schedule;
-          const info = { eps: s?.eps ?? [], reflectionOf: s?.reflectionOf?.dbId ?? null };
+          const info = {
+            eps: s?.eps ?? [],
+            reflectionOf: s?.reflectionOf?.dbId ?? null,
+            activities: s?.activities.length ?? 0,
+            priority: s?.strategicPriority ?? 500,
+            baseline: s?.baselineInfo?.name ?? "<Current Project>",
+            baselineDate: s?.baselineInfo?.dataDate ?? s?.dataDate ?? null,
+          };
           epsCache.set(`${r.id}@${r.version}`, info);
           return { ...r, ...info };
         }),
@@ -89,9 +117,34 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [backend, currentId, schedule?.projects?.map((p) => p.version).join()]);
 
-  const rows = useMemo(() => epsTree(list ?? []), [list]);
   const byId = new Map((list ?? []).map((p) => [p.id, p]));
+  const rows = useMemo(() => {
+    const items: { id: string; code: string; name: string; eps?: string[] }[] = [...(list ?? [])];
+    emptyEps.forEach((path, i) => items.push({ id: `__eps${i}`, code: "", name: "", eps: path }));
+    return epsTree(items).filter((r) => !(r.kind === "project" && r.projectId!.startsWith("__eps")));
+  }, [list, emptyEps]);
+  const epsPaths = useMemo(() => {
+    // Every EPS node as a path, for the Move to EPS list.
+    const out: { key: string; path: string[]; label: string }[] = [];
+    const stack: string[] = [];
+    const segOf = new Map<string, string>();
+    for (const it of [...(list ?? []).map((p) => p.eps), ...emptyEps]) {
+      const acc: string[] = [];
+      for (const seg of it) {
+        acc.push(epsNode(seg).id);
+        if (!segOf.has(acc.join("/"))) segOf.set(acc.join("/"), seg);
+      }
+    }
+    for (const r of rows) {
+      if (r.kind !== "eps") continue;
+      stack.length = r.depth;
+      stack.push(segOf.get(r.key) ?? r.id);
+      out.push({ key: r.key, path: [...stack], label: `${"\u00a0\u00a0".repeat(r.depth)}${r.id}${r.name !== r.id ? ` – ${r.name}` : ""}` });
+    }
+    return out;
+  }, [rows, list, emptyEps]);
   const openIds = new Set(isCombined(schedule) ? schedule!.projects!.map((p) => p.dbId ?? "") : currentId ? [currentId] : []);
+  const unsaved = !!schedule && !currentId && !isCombined(schedule);
   const run = async (fn: () => Promise<string | void>) => {
     setBusy(true);
     setMsg("");
@@ -106,14 +159,13 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
   };
   const openSelected = () =>
     run(async () => {
-      const ids = [...checked];
-      if (ids.length === 1) {
-        await onOpenOne(ids[0]);
+      if (sel.length === 1) {
+        await onOpenOne(sel[0]);
         useP6.getState().show("activities");
         return;
       }
       const parts = [];
-      for (const id of ids) {
+      for (const id of sel) {
         const r = await backend.getProject(id);
         if (r?.project.schedule) parts.push({ dbId: id, version: r.version, schedule: r.project.schedule });
       }
@@ -121,43 +173,47 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
       openCombined(c);
       useStore.getState().setStatus(`Opened ${parts.length} projects together: ${c.projectCode}. Press F9 to schedule them as one network; Commit saves each project back.`);
       useP6.getState().show("activities");
-      return `Opened ${parts.length} projects.`;
     });
-  const setEps = () =>
-    run(async () => {
-      const ids = [...checked];
-      const first = byId.get(ids[0]);
-      const text = window.prompt(`EPS for ${ids.length} project(s), top level first, separated by "/":`, (first?.eps ?? []).join(" / "));
-      if (text === null) return;
-      const eps = parseEps(text);
-      for (const id of ids) {
-        const r = await backend.getProject(id);
-        if (!r?.project.schedule) continue;
-        const v = await backend.saveProject(id, { ...r.project, schedule: { ...r.project.schedule, eps } }, r.version);
-        if (id === currentId) {
-          const st = useStore.getState();
-          if (st.schedule) useStore.setState({ schedule: { ...st.schedule, eps } });
-          st.setCurrentProject(id, v);
-        }
+  const saveField = async (ids: string[], patch: (s: Schedule) => Schedule) => {
+    for (const id of ids) {
+      const r = await backend.getProject(id);
+      if (!r?.project.schedule) continue;
+      const next = patch(r.project.schedule);
+      const v = await backend.saveProject(id, { ...r.project, schedule: next }, r.version);
+      if (id === currentId) {
+        const st = useStore.getState();
+        if (st.schedule) useStore.setState({ schedule: patch(st.schedule) });
+        st.setCurrentProject(id, v);
       }
-      await load();
-      return `EPS set to ${eps.join(" / ") || "(top level)"}.`;
+    }
+    await load();
+  };
+  const moveTo = (path: string[]) =>
+    run(async () => {
+      await saveField(sel, (s) => ({ ...s, eps: path }));
+      return `Moved ${sel.length} project(s) to ${path.map((x) => epsNode(x).id).join(" / ") || "the top level"}.`;
     });
+  const addEps = () => {
+    const parent = epsPaths.find((e) => e.key === selEps)?.path ?? [];
+    const t = window.prompt(`New EPS node${parent.length ? ` under ${parent.map((x) => epsNode(x).id).join(" / ")}` : ""}.\nType the EPS ID and name, e.g. NEWEPS | L&T Projects - TAQA`, "");
+    if (!t?.trim()) return;
+    const next = [...emptyEps, [...parent, t.trim()]];
+    setEmptyEps(next);
+    saveEmptyEps(next);
+  };
   const createReflection = () =>
     run(async () => {
-      const id = [...checked][0];
+      const id = sel[0];
       const r = await backend.getProject(id);
       if (!r?.project.schedule) throw new Error("Project not found.");
       const s = reflect(r.project.schedule, id);
-      const newId = uid("prj");
-      await backend.saveProject(newId, { ...r.project, schedule: s });
+      await backend.saveProject(uid("prj"), { ...r.project, schedule: s });
       await load();
-      return `Created reflection ${s.projectCode}. Open it, make your changes, then use Merge Reflection to bring them back to ${r.project.schedule.projectCode}.`;
+      return `Created reflection ${s.projectCode}. Open it, make your changes, then Merge Reflection brings them back to ${r.project.schedule.projectCode}.`;
     });
   const mergeBack = () =>
     run(async () => {
-      const st = useStore.getState();
-      const ref = st.schedule;
+      const ref = useStore.getState().schedule;
       if (!ref?.reflectionOf) throw new Error("Open a reflection first.");
       const src = await backend.getProject(ref.reflectionOf.dbId);
       if (!src?.project.schedule) throw new Error(`The source project ${ref.reflectionOf.code} is no longer in the database.`);
@@ -169,18 +225,53 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
       await load();
       return `Merged into ${ref.reflectionOf.code}: ${summary}.`;
     });
+  const del = () =>
+    run(async () => {
+      if (!window.confirm(`Delete ${sel.map((id) => byId.get(id)?.code).join(", ")} from the database? This cannot be undone.`)) return;
+      for (const id of sel) await backend.deleteProject(id);
+      setSel([]);
+      await load();
+    });
 
-  const n = checked.size;
+  const visibleProjects = rows.filter((r) => r.kind === "project").map((r) => r.projectId!);
+  const click = (id: string, e: React.MouseEvent) => {
+    setSelEps(null);
+    if (e.ctrlKey || e.metaKey) setSel((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+    else if (e.shiftKey && sel.length) {
+      const a = visibleProjects.indexOf(sel[sel.length - 1]);
+      const b = visibleProjects.indexOf(id);
+      setSel(visibleProjects.slice(Math.min(a, b), Math.max(a, b) + 1));
+    } else setSel([id]);
+  };
   const hidden = (key: string) => [...collapsed].some((c) => key !== c && (key.startsWith(`${c}/`) || key.startsWith(`${c}#`)));
+  const n = sel.length;
+  const total = (ids: string[]) => ids.reduce((t, id) => t + (byId.get(id)?.activities ?? 0), 0);
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
         <button className="primary" disabled={!n || busy} onClick={openSelected}>
           {n > 1 ? `Open ${n} projects together` : "Open"}
         </button>
-        <button disabled={!n || busy} onClick={setEps}>
-          Set EPS…
+        {onImportToDb && (
+          <button disabled={busy} onClick={() => run(() => onImportToDb(epsPaths.find((e) => e.key === selEps)?.path ?? []).then(load))} title="Import an XER or MS Project XML straight into the database">
+            Import XER…
+          </button>
+        )}
+        <button onClick={addEps} title="Add an EPS node (under the selected EPS)">
+          Add EPS…
         </button>
+        <label className="p6-drop" title="Move the selected projects to an EPS node">
+          Move to
+          <select value="" disabled={!n || busy} onChange={(e) => e.target.value !== "" && void moveTo(e.target.value === "__top" ? [] : epsPaths.find((x) => x.key === e.target.value)!.path)}>
+            <option value="">EPS…</option>
+            <option value="__top">(top level)</option>
+            {epsPaths.map((e) => (
+              <option key={e.key} value={e.key}>
+                {e.label}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="tsep" />
         <button disabled={n !== 1 || busy} onClick={createReflection} title="Copy the project to try changes without touching it">
           Create Reflection
@@ -188,34 +279,57 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
         <button disabled={!schedule?.reflectionOf || busy} onClick={mergeBack} title="Bring the open reflection's changes back into its source project">
           Merge Reflection
         </button>
-        <span className="tsep" />
-        <button onClick={onImport}>Import / Save…</button>
+        <button disabled={!n || busy} onClick={del}>
+          Delete
+        </button>
         <span className="spacer" />
         <span className="muted small">{msg || backend.label}</span>
       </div>
       <div className="p6-win-body">
-        <table className="p6-grid sticky">
+        <table className="p6-grid sticky p6-projects">
           <thead>
             <tr>
-              <td style={{ width: 28 }} />
-              <td>EPS / Project</td>
-              <td>Data Date</td>
-              <td>Saved</td>
-              <td>Version</td>
-              <td>Status</td>
+              <td style={{ width: 220 }}>Project ID</td>
+              <td>Project Name</td>
+              <td style={{ width: 110 }}>Total Activities</td>
+              <td style={{ width: 120 }}>Strategic Priority</td>
+              <td style={{ width: 170 }}>Project Baseline</td>
+              <td style={{ width: 130 }}>Baseline Data Date</td>
+              <td style={{ width: 90 }}>Status</td>
             </tr>
           </thead>
           <tbody>
+            {unsaved && (
+              <tr className="p6-unsaved">
+                <td>
+                  <span className="p6-folder" aria-hidden /> {schedule!.projectCode}
+                </td>
+                <td>{schedule!.projectName}</td>
+                <td className="num">{schedule!.activities.length.toLocaleString()}</td>
+                <td className="num">{schedule!.strategicPriority ?? 500}</td>
+                <td>{schedule!.baselineInfo?.name ?? "<Current Project>"}</td>
+                <td>{fmtDate(schedule!.baselineInfo?.dataDate ?? schedule!.dataDate)}</td>
+                <td>
+                  {onSave ? (
+                    <button className="link" disabled={busy} onClick={() => run(async () => (await onSave(), await load(), "Saved to the database."))}>
+                      Open, not saved – save
+                    </button>
+                  ) : (
+                    "Open, not saved"
+                  )}
+                </td>
+              </tr>
+            )}
             {list === null ? (
               <tr>
-                <td colSpan={6} className="muted">
+                <td colSpan={7} className="muted">
                   Loading…
                 </td>
               </tr>
-            ) : !list.length ? (
+            ) : !rows.length && !unsaved ? (
               <tr>
-                <td colSpan={6} className="muted">
-                  No projects in the database yet. Open or import a schedule, then Commit (Ctrl+S) to save it here.
+                <td colSpan={7} className="muted">
+                  No projects in the database yet. Use Import XER… to add one.
                 </td>
               </tr>
             ) : (
@@ -224,34 +338,45 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
                 .map((r) => {
                   if (r.kind === "eps")
                     return (
-                      <tr key={r.key} className="p6-eps-row">
-                        <td />
-                        <td style={{ paddingLeft: 6 + r.depth * 16 }}>
-                          <button className="link" onClick={() => setCollapsed((c) => (c.has(r.key) ? new Set([...c].filter((x) => x !== r.key)) : new Set([...c, r.key])))}>
-                            {collapsed.has(r.key) ? "▸" : "▾"} {r.name}
-                          </button>
+                      <tr key={r.key} className={`p6-eps-row ${selEps === r.key ? "on" : ""}`} onClick={() => (setSelEps(r.key), setSel([]))}>
+                        <td style={{ paddingLeft: 4 + r.depth * 16 }}>
+                          <button className="p6-eps-toggle" aria-label={collapsed.has(r.key) ? "Expand" : "Collapse"} onClick={(e) => (e.stopPropagation(), setCollapsed((c) => (c.has(r.key) ? new Set([...c].filter((x) => x !== r.key)) : new Set([...c, r.key]))))}>
+                            {collapsed.has(r.key) ? "+" : "−"}
+                          </button>{" "}
+                          <span className="p6-eps-icon" aria-hidden>◆</span> {r.id}
                         </td>
-                        <td colSpan={4} />
+                        <td>{r.name}</td>
+                        <td className="num">{total(r.projectIds).toLocaleString()}</td>
+                        <td />
+                        <td />
+                        <td />
+                        <td />
                       </tr>
                     );
                   const p = byId.get(r.projectId!)!;
                   return (
-                    <tr key={r.key} className={openIds.has(p.id) ? "on" : ""} onDoubleClick={() => void run(async () => (await onOpenOne(p.id), useP6.getState().show("activities")))}>
-                      <td>
-                        <input
-                          type="checkbox"
-                          aria-label={`Select ${p.code}`}
-                          checked={checked.has(p.id)}
-                          onChange={(e) => setChecked((c) => (e.target.checked ? new Set([...c, p.id]) : new Set([...c].filter((x) => x !== p.id))))}
-                        />
+                    <tr key={r.key} className={sel.includes(p.id) ? "on" : ""} onClick={(e) => click(p.id, e)} onDoubleClick={() => void run(async () => (await onOpenOne(p.id), useP6.getState().show("activities")))}>
+                      <td style={{ paddingLeft: 22 + r.depth * 16 }}>
+                        <span className="p6-folder" aria-hidden /> {p.code}
                       </td>
-                      <td style={{ paddingLeft: 6 + r.depth * 16 }}>
-                        <b>{p.code}</b> {p.name}
+                      <td>
+                        {p.name}
                         {p.reflectionOf && <span className="muted small"> (reflection of {byId.get(p.reflectionOf)?.code ?? "deleted project"})</span>}
                       </td>
-                      <td>{fmtDate(p.dataDate)}</td>
-                      <td>{new Date(p.updatedAt).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</td>
-                      <td className="num">{p.version}</td>
+                      <td className="num">{p.activities.toLocaleString()}</td>
+                      <td className="num" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          className="cell num"
+                          defaultValue={p.priority}
+                          aria-label={`Strategic priority of ${p.code}`}
+                          onBlur={(e) => {
+                            const v = Math.min(10000, Math.max(1, Math.round(Number(e.target.value) || 500)));
+                            if (v !== p.priority) void run(() => saveField([p.id], (s) => ({ ...s, strategicPriority: v })));
+                          }}
+                        />
+                      </td>
+                      <td>{p.baseline}</td>
+                      <td>{fmtDate(p.baselineDate)}</td>
                       <td>{openIds.has(p.id) ? "Open" : ""}</td>
                     </tr>
                   );
@@ -260,11 +385,11 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImport }: { onOpenOne: (
           </tbody>
         </table>
         <p className="muted small" style={{ padding: 8 }}>
-          Tick projects and open them together to schedule them as one network, link activities across projects and see them in one Gantt chart, each project as a band. Double-click opens one project.
+          Click a project, Ctrl+click or Shift+click for several, then Open: several projects open together as one network, each project a band. Double-click opens one. Select an EPS row before Add EPS… or Import XER… to put the new node or project under it.
         </p>
       </div>
     </div>
   );
 }
 
-const epsCache = new Map<string, { eps: string[]; reflectionOf: string | null }>();
+const epsCache = new Map<string, Omit<Row, keyof ProjectSummary>>();

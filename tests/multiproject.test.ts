@@ -61,7 +61,11 @@ describe("EPS", () => {
       { id: "2", code: "N-19342", name: "Other", eps: ["Company", "Substations"] },
       { id: "3", code: "X", name: "Loose" },
     ]);
-    expect(rows.map((r) => `${r.depth}:${r.kind}:${r.name.split(" ")[0]}`)).toEqual(["0:eps:Company", "1:eps:Substations", "2:project:N-19342", "2:project:N-20016", "0:project:X"]);
+    expect(rows.map((r) => `${r.depth}:${r.kind}:${r.id}`)).toEqual(["0:eps:Company", "1:eps:Substations", "2:project:N-19342", "2:project:N-20016", "0:project:X"]);
+    expect(rows[1].projectIds.sort()).toEqual(["1", "2"]);
+    const coded = epsTree([{ id: "1", code: "LE25M362", name: "NEW 220/33kV ICAD N SUBSTATION", eps: parseEps("NEWEPS | L&T Projects - TAQA") }]);
+    expect(coded[0]).toMatchObject({ kind: "eps", id: "NEWEPS", name: "L&T Projects - TAQA" });
+    expect(parseEps("A / 220/33kV works > B")).toEqual(["A", "220/33kV works", "B"]);
   });
 });
 

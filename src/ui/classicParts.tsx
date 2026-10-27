@@ -11,6 +11,10 @@ export interface ClassicActions {
   projects: () => void;
   /** Open one project from the database. */
   openOne?: (id: string) => Promise<void>;
+  /** Import an XER / XML straight into the database (P6 Import), under an EPS. */
+  importToDb?: (eps: string[]) => Promise<void>;
+  /** Save the open project to the database. */
+  saveDb?: () => Promise<void>;
   save: () => void;
   saveAsNew: () => void;
   importSchedule: () => void;

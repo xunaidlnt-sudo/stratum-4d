@@ -370,6 +370,7 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     projectId: projId,
     projectCode: project.proj_short_name ?? projId,
     projectName: projectName(tables, projId) ?? project.proj_short_name ?? projId,
+    ...(num(project.priority_num) ? { strategicPriority: num(project.priority_num)! } : {}),
     dataDate: parseXerDate(project.last_recalc_date) ?? parseXerDate(project.next_data_date),
     activities,
     wbs,

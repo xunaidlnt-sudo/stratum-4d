@@ -156,40 +156,61 @@ export function projectCodeOf(s: Schedule, a: Activity): string {
 export interface EpsRow {
   /** Path key, e.g. "Company/Substations". */
   key: string;
+  /** EPS ID and name ("NEWEPS | L&T Projects" gives id NEWEPS, name L&T Projects; a plain name is both). */
+  id: string;
   name: string;
   depth: number;
   kind: "eps" | "project";
   projectId?: string;
+  /** For EPS rows: every project below. */
+  projectIds: string[];
+}
+
+/** Split an EPS node "ID | Name" into its ID and name. */
+export function epsNode(segment: string): { id: string; name: string } {
+  const i = segment.indexOf("|");
+  if (i < 0) return { id: segment.trim(), name: segment.trim() };
+  return { id: segment.slice(0, i).trim(), name: segment.slice(i + 1).trim() || segment.slice(0, i).trim() };
 }
 
 /** EPS tree from each project's EPS path. Projects without one sit at the top. */
 export function epsTree(items: { id: string; code: string; name: string; eps?: string[] }[]): EpsRow[] {
-  type Node = { name: string; kids: Map<string, Node>; projects: typeof items };
-  const root: Node = { name: "", kids: new Map(), projects: [] };
+  type Node = { seg: string; kids: Map<string, Node>; projects: typeof items };
+  const root: Node = { seg: "", kids: new Map(), projects: [] };
   for (const it of items) {
     let n = root;
     for (const part of (it.eps ?? []).map((x) => x.trim()).filter(Boolean)) {
-      if (!n.kids.has(part)) n.kids.set(part, { name: part, kids: new Map(), projects: [] });
-      n = n.kids.get(part)!;
+      const k = epsNode(part).id.toLowerCase();
+      if (!n.kids.has(k)) n.kids.set(k, { seg: part, kids: new Map(), projects: [] });
+      n = n.kids.get(k)!;
     }
     n.projects.push(it);
   }
   const out: EpsRow[] = [];
-  const walk = (n: Node, depth: number, path: string) => {
-    for (const k of [...n.kids.values()].sort((a, b) => a.name.localeCompare(b.name))) {
-      const key = path ? `${path}/${k.name}` : k.name;
-      out.push({ key, name: k.name, depth, kind: "eps" });
-      walk(k, depth + 1, key);
+  const walk = (n: Node, depth: number, path: string): string[] => {
+    const ids: string[] = [];
+    for (const k of [...n.kids.values()].sort((a, b) => epsNode(a.seg).id.localeCompare(epsNode(b.seg).id))) {
+      const node = epsNode(k.seg);
+      const key = path ? `${path}/${node.id}` : node.id;
+      const row: EpsRow = { key, id: node.id, name: node.name, depth, kind: "eps", projectIds: [] };
+      out.push(row);
+      row.projectIds = walk(k, depth + 1, key);
+      ids.push(...row.projectIds);
     }
-    for (const p of [...n.projects].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))) out.push({ key: `${path}#${p.id}`, name: `${p.code} – ${p.name}`, depth, kind: "project", projectId: p.id });
+    for (const p of [...n.projects].sort((a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }))) {
+      out.push({ key: `${path}#${p.id}`, id: p.code, name: p.name, depth, kind: "project", projectId: p.id, projectIds: [p.id] });
+      ids.push(p.id);
+    }
+    return ids;
   };
   walk(root, 0, "");
   return out;
 }
 
+/** EPS path from text: nodes separated by " / " or ">" (a slash inside a name, as in 220/33kV, is kept). */
 export const parseEps = (text: string) =>
   text
-    .split(/[/\\>]/)
+    .split(/\s+\/\s+|\s*>\s*/)
     .map((x) => x.trim())
     .filter(Boolean);
 

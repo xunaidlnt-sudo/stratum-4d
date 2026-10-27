@@ -898,6 +898,20 @@ function Workspace() {
   const classicActions: ClassicActions = {
     projects: () => setProjectsTab("database"),
     openOne: openFromDb,
+    importToDb: async (eps: string[]) => {
+      const f = await pickFile(".xer,.xml");
+      if (!f) return;
+      const s = readScheduleFile(f.name, new Uint8Array(await f.arrayBuffer()));
+      if (!s) return;
+      store.setSchedule({ ...s, eps });
+      store.setLinks([]);
+      store.setPaths([]);
+      store.setLastUpdate(null);
+      store.setScheduleReport(null);
+      store.setCurrentProject(null, null);
+      await saveToDb(true);
+    },
+    saveDb: () => saveToDb(false),
     save: () => void saveToDb(false).catch((e) => window.alert(e.message)),
     saveAsNew: () => void saveToDb(true).catch((e) => window.alert(e.message)),
     importSchedule,
