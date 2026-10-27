@@ -177,6 +177,10 @@ export interface WbsNode {
   code: string;
   name: string;
   seq: number;
+  /** Responsible manager (OBS element). */
+  obsId?: string | null;
+  /** Original budget of this WBS element (P6 budget log). */
+  originalBudget?: number;
 }
 
 export interface Relationship {
@@ -242,6 +246,70 @@ export interface Schedule {
   periods?: PeriodSnapshot[];
   /** Project registers: issues, risks, work products & documents, expenses, thresholds. */
   registers?: Partial<Record<RegisterKind, RegisterItem[]>>;
+  /** Organisational breakdown structure (responsible managers). */
+  obs?: ObsNode[];
+  /** Project-level responsible manager and original budget. */
+  obsId?: string | null;
+  originalBudget?: number;
+  /** Budget change log, funding sources and their assignments, monthly spending plan. */
+  budgetChanges?: BudgetChange[];
+  fundingSources?: FundingSource[];
+  funding?: FundingAssignment[];
+  spendingPlan?: SpendingPlanRow[];
+  /** Probability × impact scoring matrix used to score risks. */
+  riskMatrix?: RiskMatrix;
+}
+
+export interface ObsNode {
+  id: string;
+  parentId: string | null;
+  name: string;
+  description?: string;
+}
+
+/** wbsId null = the project itself. */
+export interface BudgetChange {
+  id: string;
+  wbsId: string | null;
+  date: number;
+  amount: number;
+  reason: string;
+  responsible: string;
+  status: "pending" | "approved" | "not-approved";
+}
+
+export interface FundingSource {
+  id: string;
+  parentId: string | null;
+  name: string;
+  description?: string;
+}
+
+export interface FundingAssignment {
+  id: string;
+  wbsId: string | null;
+  sourceId: string;
+  amount: number;
+  fiscalYear?: string;
+}
+
+export interface SpendingPlanRow {
+  wbsId: string | null;
+  /** Month as YYYY-MM. */
+  month: string;
+  spending: number;
+  benefit?: number;
+}
+
+export interface RiskMatrix {
+  /** Labels from lowest to highest, with the threshold (probability %, or schedule days / cost) each starts at. */
+  probability: { label: string; from: number }[];
+  impact: { label: string; scheduleDays: number; cost: number }[];
+  /** scores[p][i] */
+  scores: number[][];
+  /** Score at or above which a risk is high / medium. */
+  high: number;
+  medium: number;
 }
 
 export interface Role {

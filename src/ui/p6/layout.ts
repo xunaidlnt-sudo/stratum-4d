@@ -49,6 +49,10 @@ export interface BarOptions {
   custom?: BarDef[];
   /** Show the bar legend in the Gantt chart. */
   legend?: boolean;
+  /** P6 curtains: shaded date ranges over the bar chart. */
+  curtains?: { id: string; start: number; finish: number; color: string; label?: string; show: boolean }[];
+  /** P6 text attachments: notes pinned to a date and (optionally) an activity row. */
+  texts?: { id: string; date: number; activityId: string | null; text: string; color: string; show: boolean }[];
 }
 
 export type TimescaleUnit = "auto" | "day" | "week" | "month" | "quarter" | "year";

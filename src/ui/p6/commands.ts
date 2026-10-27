@@ -46,7 +46,10 @@ export type P6Dialog =
   | "shifts"
   | "resourceRates"
   | "curves"
-  | "costAccounts";
+  | "costAccounts"
+  | "obs"
+  | "budgets"
+  | "riskMatrix";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

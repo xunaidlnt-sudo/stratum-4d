@@ -10,9 +10,13 @@ import type {
   ActivityStatus,
   ActivityType,
   Assignment,
+  BudgetChange,
   Calendar,
   ConstraintType,
   CostAccount,
+  FundingAssignment,
+  FundingSource,
+  ObsNode,
   Relationship,
   RelationshipType,
   Resource,
@@ -21,6 +25,7 @@ import type {
   Role,
   Schedule,
   Shift,
+  SpendingPlanRow,
   WbsNode,
 } from "./types";
 
@@ -184,6 +189,8 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       code: w.wbs_short_name ?? "",
       name: w.wbs_name ?? "",
       seq: num(w.seq_num) ?? 0,
+      ...(w.obs_id ? { obsId: w.obs_id } : {}),
+      ...(num(w.orig_cost) ? { originalBudget: num(w.orig_cost)! } : {}),
     }));
 
   const activities: Activity[] = (tables.TASK ?? [])
@@ -342,6 +349,23 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       lagHours: num(r.lag_hr_cnt) ?? 0,
     }));
 
+  // OBS, budget log, funding and spending plan.
+  const wbsIdOf = (id: string | undefined) => (!id || id === rootWbs?.wbs_id ? null : id);
+  const obs: ObsNode[] = (tables.OBS ?? []).map((o) => ({ id: o.obs_id, parentId: o.parent_obs_id || null, name: o.obs_name || o.obs_id, ...(o.obs_descr && o.obs_descr !== o.obs_name ? { description: o.obs_descr } : {}) }));
+  const obsIds = new Set(obs.map((o) => o.id));
+  for (const o of obs) if (o.parentId && !obsIds.has(o.parentId)) o.parentId = null;
+  const CHANGE_STATUS: Record<string, BudgetChange["status"]> = { CS_Appr: "approved", CS_Pend: "pending", CS_Rejected: "not-approved", CS_NotAppr: "not-approved" };
+  const budgetChanges: BudgetChange[] = (tables.BUDGCHNG ?? [])
+    .filter((c) => !c.proj_id || c.proj_id === projId)
+    .map((c) => ({ id: c.budg_chng_id, wbsId: wbsIdOf(c.wbs_id), date: parseXerDate(c.chng_date) ?? 0, amount: num(c.cost) ?? 0, reason: c.chng_short_name || c.chng_descr || "", responsible: c.chng_by_name || "", status: CHANGE_STATUS[c.status_code] ?? "pending" }));
+  const fundingSources: FundingSource[] = (tables.FUNDSRC ?? []).map((f) => ({ id: f.fund_id, parentId: f.parent_fund_id || null, name: f.fund_name || f.fund_id, ...(f.fund_descr ? { description: f.fund_descr } : {}) }));
+  const funding: FundingAssignment[] = (tables.PROJFUND ?? [])
+    .filter((f) => !f.proj_id || f.proj_id === projId)
+    .map((f) => ({ id: f.proj_fund_id, wbsId: null, sourceId: f.fund_id, amount: num(f.fund_cost) ?? 0 }));
+  const spendingPlan: SpendingPlanRow[] = (tables.WBSBUDG ?? [])
+    .filter((b) => (!b.proj_id || b.proj_id === projId) && parseXerDate(b.start_date) !== null)
+    .map((b) => ({ wbsId: wbsIdOf(b.wbs_id), month: new Date(parseXerDate(b.start_date)!).toISOString().slice(0, 7), spending: num(b.spend_cost) ?? 0, ...(num(b.benefit_cost) ? { benefit: num(b.benefit_cost)! } : {}) }));
+
   return {
     projectId: projId,
     projectCode: project.proj_short_name ?? projId,
@@ -358,6 +382,13 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     ...(shifts.length ? { shifts } : {}),
     ...(curves.length ? { curves } : {}),
     ...(costAccounts.length ? { costAccounts } : {}),
+    ...(obs.length ? { obs } : {}),
+    ...(rootWbs?.obs_id ? { obsId: rootWbs.obs_id } : {}),
+    ...(num(rootWbs?.orig_cost) ? { originalBudget: num(rootWbs?.orig_cost)! } : {}),
+    ...(budgetChanges.length ? { budgetChanges } : {}),
+    ...(fundingSources.length ? { fundingSources } : {}),
+    ...(funding.length ? { funding } : {}),
+    ...(spendingPlan.length ? { spendingPlan } : {}),
     sourceXer: tables,
     sourceFormat: "xer",
   };

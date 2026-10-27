@@ -12,6 +12,8 @@ import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
 import { openRates } from "./Dialogs4";
+import { openBudgets } from "./Dialogs5";
+import { budgetSummary, obsPath, obsTree, riskMatrixOf, riskScore, wbsObs } from "../../core/budget";
 
 const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
 
@@ -38,8 +40,11 @@ export function WbsWindow() {
     visit(null, 0, "");
     return out;
   }, [schedule]);
+  const budgets = useMemo(() => new Map(schedule && schedule.wbs.length <= 2000 ? schedule.wbs.map((w) => [w.id, budgetSummary(schedule, w.id)]) : []), [schedule]);
   if (!schedule) return <div className="empty">No project open.</div>;
   const s = schedule;
+  const obsRows = obsTree(s);
+  const obsName = new Map(obsRows.map((o) => [o.node.id, o.node.name]));
   const cur = s.wbs.find((w) => w.id === sel) ?? null;
   const siblings = (w: WbsNode) => s.wbs.filter((x) => x.parentId === w.parentId).sort((a, b) => a.seq - b.seq);
   const setWbs = (wbs: WbsNode[], label: string) => commit({ ...s, wbs }, label);
@@ -103,6 +108,8 @@ export function WbsWindow() {
         <button onClick={indent} disabled={!cur} title="Move right (indent)">
           ▶
         </button>
+        <span className="tsep" />
+        <button onClick={() => openBudgets(cur?.id ?? null)}>Budgets…</button>
         <span className="spacer" />
         <span className="muted">{s.wbs.length} WBS elements</span>
       </div>
@@ -112,6 +119,10 @@ export function WbsWindow() {
             <tr>
               <td>WBS Code</td>
               <td>WBS Name</td>
+              <td>Responsible Manager</td>
+              <td>Original Budget</td>
+              <td>Current Budget</td>
+              <td>Planned Cost</td>
               <td>Activities</td>
             </tr>
           </thead>
@@ -124,6 +135,22 @@ export function WbsWindow() {
                 <td>
                   <input className="cell" value={w.name} onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, name: e.target.value } : x)), `WBS name ${w.id}`)} />
                 </td>
+                <td>
+                  <select value={w.obsId ?? ""} onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, obsId: e.target.value || null } : x)), `WBS OBS ${w.id}`)} title={w.obsId ? obsPath(s, w.obsId) : `Inherited: ${obsPath(s, wbsObs(s, w.id)) || "none"}`}>
+                    <option value="">{w.obsId ? "–" : `(${obsName.get(wbsObs(s, w.id) ?? "") ?? "–"})`}</option>
+                    {obsRows.map(({ node, depth: d }) => (
+                      <option key={node.id} value={node.id}>
+                        {"\u00a0".repeat(d * 2)}
+                        {node.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <input className="cell num" type="number" min={0} value={w.originalBudget ?? ""} placeholder="0" onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, originalBudget: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0) } : x)), `WBS budget ${w.id}`)} style={{ width: 100 }} />
+                </td>
+                <td className="num">{fmtNum(budgets.get(w.id)?.current ?? 0)}</td>
+                <td className="num">{fmtNum(budgets.get(w.id)?.plannedCost ?? 0)}</td>
                 <td className="num">{n}</td>
               </tr>
             ))}
@@ -425,10 +452,12 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
   const acts = new Map(s.activities.map((a) => [a.id, a]));
   const put = (list: RegisterItem[], label: string) => commit({ ...s, registers: { ...(s.registers ?? {}), [kind]: list } }, label);
   const usesActivity = kind !== "thresholds";
+  const matrix = riskMatrixOf(s);
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
         <button onClick={() => put([...items, { id: uid(kind), activityId: usesActivity ? selected : null, values: {} }], `Add ${def.title}`)}>Add</button>
+        {kind === "risks" && <button onClick={() => useP6.getState().open("riskMatrix")}>Risk Matrix…</button>}
         <span className="muted small">{usesActivity ? "New rows link to the selected activity." : `Parameters: ${Object.keys(THRESHOLD_PARAMETERS).join(", ")} (days or %).`}</span>
         {kind === "thresholds" && (
           <button
@@ -453,6 +482,12 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
               {def.cols.map((c) => (
                 <td key={c}>{c}</td>
               ))}
+              {kind === "risks" && (
+                <>
+                  <td title="Probability × impact from the risk scoring matrix">Score</td>
+                  <td>Level</td>
+                </>
+              )}
               {usesActivity && <td>Activity</td>}
               <td />
             </tr>
@@ -465,6 +500,16 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                     <input className="cell" value={it.values[c] ?? ""} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)} />
                   </td>
                 ))}
+                {kind === "risks" &&
+                  (() => {
+                    const sc = riskScore(it, matrix);
+                    return (
+                      <>
+                        <td className="num">{sc.score ?? ""}</td>
+                        <td>{sc.band ? <span className={`risk-band ${sc.band}`}>{sc.band === "high" ? "High" : sc.band === "medium" ? "Medium" : "Low"}</span> : <span className="muted small">not scored</span>}</td>
+                      </>
+                    );
+                  })()}
                 {usesActivity && (
                   <td>
                     {it.activityId && acts.get(it.activityId) ? (

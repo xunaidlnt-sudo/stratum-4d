@@ -106,6 +106,7 @@ import {
 import { ContextMenuHost } from "./ContextMenu";
 import { P6Dialogs, printLayout } from "./Dialogs";
 import { exportLayoutXlsx } from "./Dialogs3";
+import { openBudgets } from "./Dialogs5";
 import { loginEnabled, signOut } from "../LoginGate";
 import { STOCK_LAYOUTS, useLayout, type LowerTab, type LowerView } from "./layout";
 import { AssignmentsWindow, NetworkView, ProjectsWindow, RegisterWindow, ResourcesWindow, TraceLogicView, UsageSpreadsheet, WbsWindow } from "./Windows";
@@ -579,6 +580,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Assign Baselines… (from XER / XML)", onClick: a.assignBaseline, disabled: none },
         "sep",
         { label: "Project Details…", onClick: () => P.open("projectInfo"), disabled: none },
+        { label: "Budgets…", onClick: () => openBudgets(null), disabled: none },
         ...(a.pushP6 ? [{ label: "Send Progress to P6", onClick: a.pushP6 }] : []),
         "sep",
         { label: "Reports and Dashboards", onClick: a.dashboards },
@@ -594,6 +596,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Resource Shifts…", onClick: () => P.open("shifts"), disabled: none },
         { label: "Resource Curves…", onClick: () => P.open("curves"), disabled: none },
         { label: "Cost Accounts…", onClick: () => P.open("costAccounts"), disabled: none },
+        { label: "OBS…", onClick: () => P.open("obs"), disabled: none },
+        { label: "Risk Scoring Matrix…", onClick: () => P.open("riskMatrix"), disabled: none },
         { label: "Calendars…", onClick: () => P.open("calendars"), disabled: none },
         { label: "Activity Codes…", onClick: () => P.open("activityCodes"), disabled: none },
         { label: "User Defined Fields…", onClick: () => P.open("udfs"), disabled: none },

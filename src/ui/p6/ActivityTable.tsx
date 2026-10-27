@@ -852,6 +852,20 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
             </div>
             {relLines}
             {progressLine}
+            {(bars.curtains ?? []).filter((c) => c.show && c.finish > c.start).map((c) => (
+              <div key={c.id} className="p6g-curtain" style={{ left: x(c.start), width: Math.max(2, x(c.finish) - x(c.start)), top: HEAD, height: bodyH, background: c.color }} title={`${c.label || "Curtain"}: ${fmtDay(c.start)} – ${fmtDay(c.finish)}`}>
+                {c.label && <span>{c.label}</span>}
+              </div>
+            ))}
+            {(bars.texts ?? []).filter((t) => t.show && t.text).map((t) => {
+              const i = t.activityId ? rowIndex.get(t.activityId) : undefined;
+              if (t.activityId && i === undefined) return null;
+              return (
+                <div key={t.id} className="p6g-text" style={{ left: x(t.date), top: HEAD + (i ?? 0) * ROW + 1, color: t.color, borderColor: t.color }} title={`${fmtDay(t.date)}: ${t.text}`}>
+                  {t.text}
+                </div>
+              );
+            })}
             {dragGhost}
             {bars.dataDateLine && dd !== null && <div className="p6g-dd" style={{ left: x(dd), top: HEAD, height: bodyH }} title={`Data date ${fmtDay(dd)}`} />}
           </div>

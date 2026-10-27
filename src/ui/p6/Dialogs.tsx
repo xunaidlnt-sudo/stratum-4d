@@ -27,6 +27,7 @@ import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
+import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
 import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
@@ -490,6 +491,7 @@ function BarsDialog() {
       {tick("dataDateLine", "Data date line", "")}
       {tick("progressLine", "Progress line", "joins each activity's progress point to the data date")}
       {tick("legend", "Legend", "a key to the bar colours in the chart")}
+      <CurtainsAndTexts />
       <h4>Custom bars</h4>
       <table className="p6-grid">
         <thead>
@@ -1704,6 +1706,9 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     resourceRates: () => <ResourceRatesDialog />,
     curves: () => <CurvesDialog />,
     costAccounts: () => <CostAccountsDialog />,
+    obs: () => <ObsDialog />,
+    budgets: () => <BudgetsDialog />,
+    riskMatrix: () => <RiskMatrixDialog />,
     periods: () => <PeriodsDialog />,
     displays: () => displays ?? null,
   };

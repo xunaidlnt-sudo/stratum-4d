@@ -1466,3 +1466,23 @@ input.bad { border-color: var(--p6-critical, #d92d20) !important; }
 .login-card label { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
 .login-card input { padding: 8px 10px; }
 .login-err { color: #b42318; margin: 0; font-size: 13px; }
+
+/* Risk matrix, spending chart */
+.risk-matrix td { text-align: center; min-width: 46px; }
+.risk-cell input { text-align: center; background: transparent; width: 46px; }
+.risk-cell.high { background: rgba(196, 50, 40, 0.22); }
+.risk-cell.medium { background: rgba(214, 160, 30, 0.24); }
+.risk-cell.low { background: rgba(60, 140, 80, 0.18); }
+.risk-band { padding: 1px 6px; border-radius: 8px; font-size: 11px; font-weight: 600; }
+.risk-band.high { background: rgba(196, 50, 40, 0.18); color: #9b1c12; }
+.risk-band.medium { background: rgba(214, 160, 30, 0.22); color: #7a5300; }
+.risk-band.low { background: rgba(60, 140, 80, 0.16); color: #1f6033; }
+.spend-chart { border: 1px solid var(--line, #ddd); border-radius: 6px; padding: 6px 8px; }
+.spend-legend { display: flex; flex-wrap: wrap; gap: 14px; font-size: 12px; margin-bottom: 4px; }
+.spend-legend i { display: inline-block; width: 14px; height: 3px; vertical-align: middle; margin-right: 4px; }
+td.neg { color: #b42318; }
+
+/* Gantt curtains and text attachments */
+.p6g-curtain { position: absolute; opacity: 0.18; pointer-events: none; z-index: 1; }
+.p6g-curtain span { position: sticky; top: 0; display: inline-block; font-size: 11px; font-weight: 600; color: #000; opacity: 1; padding: 2px 4px; }
+.p6g-text { position: absolute; z-index: 3; font-size: 11px; line-height: 1.2; padding: 1px 4px; background: var(--surface, #fff); border: 1px solid; border-radius: 3px; white-space: nowrap; pointer-events: none; transform: translateX(2px); }
