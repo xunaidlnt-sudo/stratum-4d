@@ -106,6 +106,7 @@ import {
 import { ContextMenuHost } from "./ContextMenu";
 import { P6Dialogs, printLayout } from "./Dialogs";
 import { exportLayoutXlsx } from "./Dialogs3";
+import { loginEnabled, signOut } from "../LoginGate";
 import { STOCK_LAYOUTS, useLayout, type LowerTab, type LowerView } from "./layout";
 import { AssignmentsWindow, NetworkView, ProjectsWindow, RegisterWindow, ResourcesWindow, TraceLogicView, UsageSpreadsheet, WbsWindow } from "./Windows";
 
@@ -498,6 +499,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Save Project File", onClick: a.saveFile, disabled: none },
         "sep",
         { label: "Sample: 220 kV GIS Substation (UAE)", onClick: () => a.sample("gis") },
+        ...(loginEnabled ? ["sep" as const, { label: "Sign Out", onClick: signOut }] : []),
         { label: "Sample: RC Building", onClick: () => a.sample("rc") },
       ],
     ],
