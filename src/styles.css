@@ -1497,3 +1497,8 @@ td.neg { color: #b42318; }
 .p6-folder { display: inline-block; width: 15px; height: 11px; margin-right: 4px; vertical-align: -1px; background: #e8c66a; border: 1px solid #b58e2e; border-radius: 1px 3px 1px 1px; }
 .p6-projects input.cell.num { width: 70px; }
 .p6-unsaved td { background: rgba(214, 160, 30, 0.12); }
+
+/* P6-style dialog sections */
+.p6-fieldset { border: 1px solid var(--line, #d0d4da); border-radius: 4px; padding: 6px 10px 8px; margin: 0 0 10px; }
+.p6-fieldset legend { font-weight: 600; padding: 0 4px; }
+.p6-band-sample { display: inline-block; min-width: 70px; padding: 1px 6px; font-weight: 700; }

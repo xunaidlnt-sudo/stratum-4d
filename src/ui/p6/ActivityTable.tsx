@@ -14,7 +14,7 @@ import { uid } from "../../core/ops";
 import { addActivity, collapseAll, copySelected, cutSelected, deleteSelected, dissolveSelected, expandAll, fillDownSelected, linkSelected, paste, selectAll, setCell, tableOrder, unlinkSelected, useP6 } from "./commands";
 import { useCtx, type CtxItem } from "./ContextMenu";
 import { usePrefs } from "./prefs";
-import { allFilters, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
+import { allFilters, DEFAULT_GROUP_OPTIONS, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
 
 const HEAD = 36;
 
@@ -184,6 +184,11 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
     return layout.filters.map((id) => all.find((f) => f.id === id)).filter((f): f is NonNullable<typeof f> => !!f);
   }, [layout.filters, custom]);
 
+  const go = layout.groupOptions ?? DEFAULT_GROUP_OPTIONS;
+  const bandStyle = (depth: number): CSSProperties | undefined => {
+    const b = go.bandStyles?.[Math.min(depth, (go.bandStyles?.length ?? 1) - 1)];
+    return b ? { background: b.bg, color: b.fg, fontSize: b.size } : undefined;
+  };
   const { rows, shown } = useMemo(() => {
     if (!schedule || !ctx) return { rows: [] as P6Row[], shown: 0 };
     const r = buildP6Rows(schedule, fieldMap, ctx, {
@@ -196,11 +201,18 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
       collapsed,
       quick: QUICK[quickKind] ? STANDARD_FILTERS.find((f) => f.id === QUICK[quickKind]) : null,
       wbsPathLabels: layout.wbsPathLabels,
+      thenBy: go.thenBy,
+      wbsToLevel: go.wbsToLevel,
+      summariesOnly: go.summariesOnly,
+      grandTotal: go.grandTotal,
+      hideEmpty: go.hideEmpty,
+      sortBandsAlpha: go.sortBandsAlpha,
+      label: go.label,
     });
     if (!trace) return r;
     const kept = r.rows.filter((x) => x.kind === "activity" && trace.has(x.id));
     return { rows: kept.map((x) => ({ ...x, depth: 0 })), shown: kept.length };
-  }, [schedule, ctx, fieldMap, layout.groupBy, layout.sort, filterDefs, layout.filterMatch, layout.filterMode, findText, quickKind, collapsed, trace, layout.wbsPathLabels]);
+  }, [schedule, ctx, fieldMap, layout.groupBy, layout.sort, filterDefs, layout.filterMatch, layout.filterMode, findText, quickKind, collapsed, trace, layout.wbsPathLabels, go]);
 
   const rowIndex = useMemo(() => {
     const m = new Map<string, number>();
@@ -563,8 +575,8 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
       const nameW = cols.findIndex((c) => c.f.id === "name");
       const span = cols.slice(0, Math.max(1, nameW + 1)).reduce((s, c) => s + c.width, 0);
       return (
-        <div key={`b${r.id}`} className={`p6t-row band band${depth} gantt-row wbs`} style={{ top, height: ROW, width: COLS }} onClick={() => toggleWbs(r.id)} title={`${r.label} · ${r.count} activities`}>
-          <div className="p6t-td" style={{ width: span, paddingLeft: 4 + r.depth * 12 }}>
+        <div key={`b${r.id}`} className={`p6t-row band band${depth} gantt-row wbs`} style={{ top, height: ROW, width: COLS, ...bandStyle(r.depth) }} onClick={() => toggleWbs(r.id)} title={`${r.label} · ${r.count} activities`}>
+          <div className="p6t-td" style={{ width: span, paddingLeft: 4 + (go.indent ? r.depth * 12 : 0) }}>
             <span className="p6t-tw">{collapsed.has(r.id) ? "+" : "−"}</span> {r.label}
           </div>
           {cols.slice(Math.max(1, nameW + 1)).map((c) => (
@@ -662,9 +674,10 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
   const ganttRows = visible.map((r, k) => {
     const top = (first + k) * ROW;
     if (r.kind === "band") {
-      if (!bars.summaryBars || r.start === null || r.finish === null) return <div key={`gb${r.id}`} className={`p6g-row band band${Math.min(r.depth, 5)}`} style={{ top, height: ROW, width: gw }} />;
+      const bs = bandStyle(r.depth);
+      if (!bars.summaryBars || r.start === null || r.finish === null) return <div key={`gb${r.id}`} className={`p6g-row band band${Math.min(r.depth, 5)}`} style={{ top, height: ROW, width: gw, background: bs?.background }} />;
       return (
-        <div key={`gb${r.id}`} className={`p6g-row band band${Math.min(r.depth, 5)}`} style={{ top, height: ROW, width: gw }} onClick={() => toggleWbs(r.id)}>
+        <div key={`gb${r.id}`} className={`p6g-row band band${Math.min(r.depth, 5)}`} style={{ top, height: ROW, width: gw, background: bs?.background }} onClick={() => toggleWbs(r.id)}>
           <div className="p6g-sum" style={{ left: x(r.start), width: Math.max(2, x(r.finish) - x(r.start)) }} />
         </div>
       );

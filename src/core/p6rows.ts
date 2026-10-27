@@ -20,6 +20,20 @@ export interface RowOptions {
   wbsPathLabels?: boolean;
   /** A quick filter applied on top of the layout's filters (AND). */
   quick?: FilterDef | null;
+  /** Further group-by fields after the first (P6 Group By rows 2..n). */
+  thenBy?: string[];
+  /** Show WBS bands down to this level only (0 = all); deeper activities sit in the last band shown. */
+  wbsToLevel?: number;
+  /** Bands only, no activity rows (P6 "Show Summaries Only"). */
+  summariesOnly?: boolean;
+  /** A grand total band at the top (P6 "Show Grand Totals"). */
+  grandTotal?: boolean;
+  /** Drop bands with no activities even when nothing is filtered (P6 "Hide if empty"). */
+  hideEmpty?: boolean;
+  /** Sort WBS bands by code instead of their WBS order (P6 "Sort bands alphabetically"). */
+  sortBandsAlpha?: boolean;
+  /** Band label parts (P6 Show: Title, ID / Code, Name / Description). Default code + name. */
+  label?: { title?: boolean; code?: boolean; name?: boolean };
 }
 
 function comparator(sort: RowOptions["sort"], fields: Map<string, FieldDef>, c: FieldCtx) {
@@ -81,62 +95,100 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
     return { start: Number.isFinite(st) ? st : null, finish: Number.isFinite(fi) ? fi : null };
   };
 
-  if (o.groupBy === "none") {
-    keep.sort((x, y) => cmp(x.a, y.a));
-    for (const k of keep) rows.push({ kind: "activity", id: k.a.id, depth: 0, activity: k.a, dim: k.dim });
-    return { rows, shown };
-  }
+  const showCode = o.label?.code ?? true;
+  const showName = o.label?.name ?? true;
+  const bandText = (title: string, code: string, name: string) => [o.label?.title ? `${title}:` : "", showCode ? code : "", showName && name !== code ? name : showCode ? "" : name].filter(Boolean).join(" ").trim() || code || name;
 
-  if (o.groupBy !== "wbs") {
-    const f = fields.get(o.groupBy);
+  // Nested grouping of a list of activities by fields[0], then fields[1]…; returns [start, finish, count].
+  const groupItems = (items: { a: Activity; dim: boolean }[], fieldIds: string[], depth: number, prefix: string): [number, number, number] => {
+    let st = Infinity;
+    let fi = -Infinity;
+    if (!fieldIds.length) {
+      items.sort((x, y) => cmp(x.a, y.a));
+      for (const k of items) {
+        rows.push({ kind: "activity", id: k.a.id, depth, activity: k.a, dim: k.dim });
+        if (k.a.start !== null && k.a.start < st) st = k.a.start;
+        if (k.a.finish !== null && k.a.finish > fi) fi = k.a.finish;
+      }
+      return [st, fi, items.length];
+    }
+    const f = fields.get(fieldIds[0]);
     const groups = new Map<string, { a: Activity; dim: boolean }[]>();
-    for (const k of keep) {
+    for (const k of items) {
       const key = f ? fieldText(f, k.a, c) || "(none)" : "(none)";
       (groups.get(key) ?? groups.set(key, []).get(key)!).push(k);
     }
     const keys = [...groups.keys()].sort((x, y) => (x === "(none)" ? 1 : y === "(none)" ? -1 : x.localeCompare(y, undefined, { numeric: true })));
+    let n = 0;
     for (const key of keys) {
-      const items = groups.get(key)!;
-      const id = `g:${o.groupBy}:${key}`;
-      rows.push({ kind: "band", id, depth: 0, label: key, ...roll(items), count: items.length, wbsId: null });
-      if (o.collapsed.has(id)) continue;
-      items.sort((x, y) => cmp(x.a, y.a));
-      for (const k of items) rows.push({ kind: "activity", id: k.a.id, depth: 1, activity: k.a, dim: k.dim });
+      const id = `${prefix}g:${fieldIds[0]}:${key}`;
+      const idx = rows.length;
+      rows.push({ kind: "band", id, depth, label: bandText(f?.label ?? fieldIds[0], key, ""), start: null, finish: null, count: 0, wbsId: null });
+      const before = rows.length;
+      const [s2, f2, n2] = groupItems(groups.get(key)!, fieldIds.slice(1), depth + 1, `${id}/`);
+      const band = rows[idx] as Extract<P6Row, { kind: "band" }>;
+      band.start = Number.isFinite(s2) ? s2 : null;
+      band.finish = Number.isFinite(f2) ? f2 : null;
+      band.count = n2;
+      if (o.collapsed.has(id)) rows.length = before;
+      if (s2 < st) st = s2;
+      if (f2 > fi) fi = f2;
+      n += n2;
     }
-    return { rows, shown };
+    return [st, fi, n];
+  };
+
+  const finish = () => {
+    if (o.grandTotal && keep.length) rows.unshift({ kind: "band", id: "grand-total", depth: 0, label: "Grand Total", ...roll(keep), count: shown, wbsId: null });
+    return { rows: o.summariesOnly ? rows.filter((r) => r.kind === "band") : rows, shown };
+  };
+
+  if (o.groupBy === "none") {
+    groupItems(keep, o.thenBy ?? [], 0, "");
+    return finish();
+  }
+
+  if (o.groupBy !== "wbs") {
+    groupItems(keep, [o.groupBy, ...(o.thenBy ?? [])], 0, "");
+    return finish();
   }
 
   // Group by WBS: P6 keeps the WBS tree, hides branches with nothing shown and sorts activities inside each node.
   const kids = new Map<string | null, typeof s.wbs>();
   for (const w of s.wbs) (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
-  for (const list of kids.values()) list.sort((a, b) => a.seq - b.seq || a.code.localeCompare(b.code, undefined, { numeric: true }));
+  for (const list of kids.values()) list.sort(o.sortBandsAlpha ? (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }) : (a, b) => a.seq - b.seq || a.code.localeCompare(b.code, undefined, { numeric: true }));
   const wbsIds = new Set(s.wbs.map((w) => w.id));
   const acts = new Map<string | null, { a: Activity; dim: boolean }[]>();
   for (const k of keep) {
     const w = k.a.wbsId && wbsIds.has(k.a.wbsId) ? k.a.wbsId : null;
     (acts.get(w) ?? acts.set(w, []).get(w)!).push(k);
   }
-  for (const list of acts.values()) list.sort((x, y) => cmp(x.a, y.a));
   const filtered = o.filterMode === "replace" && (text !== "" || o.filters.length > 0 || !!o.quick);
+  const dropEmpty = filtered || !!o.hideEmpty;
+  const toLevel = o.wbsToLevel && o.wbsToLevel > 0 ? o.wbsToLevel : Infinity;
+  const subtreeActs = (id: string): { a: Activity; dim: boolean }[] => [...(acts.get(id) ?? []), ...(kids.get(id) ?? []).flatMap((w) => subtreeActs(w.id))];
+  const then = o.thenBy ?? [];
 
   // Returns [start, finish, count] for the subtree, emitting rows as it goes.
   const visit = (parent: string | null, depth: number): [number, number, number] => {
     let st = Infinity;
     let fi = -Infinity;
     let n = 0;
-    for (const k of acts.get(parent) ?? []) {
-      rows.push({ kind: "activity", id: k.a.id, depth, activity: k.a, dim: k.dim });
-      if (k.a.start !== null && k.a.start < st) st = k.a.start;
-      if (k.a.finish !== null && k.a.finish > fi) fi = k.a.finish;
-      n++;
+    const own = parent !== null && depth >= toLevel ? subtreeActs(parent) : acts.get(parent) ?? [];
+    if (own.length) {
+      const [s1, f1, n1] = groupItems([...own], then, depth, `${parent ?? "root"}|`);
+      st = s1;
+      fi = f1;
+      n = n1;
     }
+    if (parent !== null && depth >= toLevel) return [st, fi, n];
     for (const w of kids.get(parent) ?? []) {
       const idx = rows.length;
-      rows.push({ kind: "band", id: w.id, depth, label: `${o.wbsPathLabels ? c.wbsPath(w.id) : w.code} ${w.name}`.trim(), start: null, finish: null, count: 0, wbsId: w.id });
+      rows.push({ kind: "band", id: w.id, depth, label: bandText("WBS", o.wbsPathLabels ? c.wbsPath(w.id) : w.code, w.name), start: null, finish: null, count: 0, wbsId: w.id });
       const before = rows.length;
       const [s2, f2, n2] = visit(w.id, depth + 1);
-      if (filtered && n2 === 0) {
-        rows.length = idx; // nothing below passes the filter: drop the band
+      if (dropEmpty && n2 === 0) {
+        rows.length = idx; // nothing below: drop the band
         continue;
       }
       const band = rows[idx] as Extract<P6Row, { kind: "band" }>;
@@ -151,5 +203,5 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
     return [st, fi, n];
   };
   visit(null, 0);
-  return { rows, shown };
+  return finish();
 }

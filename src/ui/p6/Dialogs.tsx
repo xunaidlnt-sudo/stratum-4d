@@ -32,7 +32,7 @@ import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialo
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
 import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
-import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
+import { allFilters, DEFAULT_GROUP_OPTIONS, DEFAULT_LAYOUT, P6_CLASSIC_BANDS, SOFT_BANDS, STOCK_LAYOUTS, useLayout, type BandStyle, type GroupOptions, type TimescaleUnit } from "./layout";
 
 export function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
   return (
@@ -384,8 +384,52 @@ function GroupSortDialog() {
   const [groupBy, setGroupBy] = useState(layout.groupBy);
   const [totals, setTotals] = useState(layout.groupTotals);
   const [sort, setSort] = useState(layout.sort);
+  const [go, setGo] = useState<GroupOptions>({ ...DEFAULT_GROUP_OPTIONS, ...(layout.groupOptions ?? {}) });
+  const put = (p: Partial<GroupOptions>) => setGo((g) => ({ ...g, ...p }));
   const groupable = fields.filter((f) => f.type === "text" || f.type === "enum" || f.type === "bool" || f.group === "Activity Codes");
-  const apply = () => L.set({ groupBy, groupTotals: totals, sort });
+  const fieldOptions = (skip: string) =>
+    groupable
+      .filter((f) => f.id !== "wbs" && f.id !== skip)
+      .map((f) => (
+        <option key={f.id} value={f.id}>
+          {f.group === "Activity Codes" ? `Activity Code: ${f.label}` : f.label}
+        </option>
+      ));
+  // Group By rows: the first field, then up to four more.
+  const levels = [groupBy, ...go.thenBy];
+  const setLevel = (i: number, v: string) => {
+    if (i === 0) return setGroupBy(v);
+    const t = [...go.thenBy];
+    if (v === "") t.splice(i - 1);
+    else t[i - 1] = v;
+    put({ thenBy: t });
+  };
+  const wbsDepth = useMemo(() => {
+    if (!schedule) return 1;
+    const m = new Map(schedule.wbs.map((w) => [w.id, w]));
+    let d = 1;
+    for (const w of schedule.wbs) {
+      let k = 1;
+      for (let p = w.parentId ? m.get(w.parentId) : undefined; p && k < 50; p = p.parentId ? m.get(p.parentId) : undefined) k++;
+      d = Math.max(d, k);
+    }
+    return d;
+  }, [schedule]);
+  const bandCount = Math.min(15, Math.max(levels.length + (groupBy === "wbs" ? wbsDepth - 1 : 0), 3));
+  const styles = go.bandStyles ?? SOFT_BANDS;
+  const styleAt = (i: number) => styles[Math.min(i, styles.length - 1)];
+  const setStyle = (i: number, p: Partial<BandStyle>) => {
+    const base = Array.from({ length: Math.max(bandCount, styles.length) }, (_, k) => ({ ...styleAt(k) }));
+    base[i] = { ...base[i], ...p };
+    put({ bandStyles: base });
+  };
+  const levelName = (i: number) => {
+    if (groupBy === "wbs" && i < wbsDepth && (go.wbsToLevel === 0 || i < go.wbsToLevel)) return `WBS level ${i + 1}`;
+    const extra = groupBy === "wbs" ? i - Math.min(wbsDepth, go.wbsToLevel || wbsDepth) : i - 1;
+    const id = groupBy === "wbs" ? go.thenBy[extra] : i === 0 ? groupBy : go.thenBy[i - 1];
+    return id ? fields.find((f) => f.id === id)?.label ?? id : `Level ${i + 1}`;
+  };
+  const apply = () => L.set({ groupBy, groupTotals: totals, sort, groupOptions: go });
   return (
     <Shell
       title="Group and Sort"
@@ -393,7 +437,7 @@ function GroupSortDialog() {
       onClose={close}
       foot={
         <>
-          <button onClick={() => (setGroupBy("wbs"), setSort([{ field: "start" }]))}>Default</button>
+          <button onClick={() => (setGroupBy("wbs"), setSort([{ field: "start" }]), setTotals(true), setGo(DEFAULT_GROUP_OPTIONS))}>Default</button>
           <span className="spacer" />
           <button onClick={apply}>Apply</button>
           <button
@@ -409,60 +453,172 @@ function GroupSortDialog() {
         </>
       }
     >
-      <h4>Group By</h4>
-      <div className="row">
-        <select value={groupBy} onChange={(e) => setGroupBy(e.target.value)}>
-          <option value="wbs">WBS</option>
-          <option value="none">(no grouping)</option>
-          {groupable
-            .filter((f) => f.id !== "wbs")
-            .map((f) => (
-              <option key={f.id} value={f.id}>
-                {f.group === "Activity Codes" ? `Activity Code: ${f.label}` : f.label}
-              </option>
-            ))}
-        </select>
-        <label>
-          <input type="checkbox" checked={totals} onChange={(e) => setTotals(e.target.checked)} /> Show group totals
+      <fieldset className="p6-fieldset">
+        <legend>Display Options</legend>
+        <label className="p6-check">
+          <input type="checkbox" checked={totals} onChange={(e) => setTotals(e.target.checked)} /> Show Group Totals
         </label>
-      </div>
-      <h4>Sort By</h4>
-      <table className="p6-grid">
-        <thead>
-          <tr>
-            <td>Field</td>
-            <td>Order</td>
-            <td />
-          </tr>
-        </thead>
-        <tbody>
-          {sort.map((s, i) => (
-            <tr key={i}>
-              <td>
-                <select value={s.field} onChange={(e) => setSort(sort.map((x, k) => (k === i ? { ...x, field: e.target.value } : x)))}>
-                  {fields.map((f) => (
-                    <option key={f.id} value={f.id}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              </td>
-              <td>
-                <select value={s.desc ? "d" : "a"} onChange={(e) => setSort(sort.map((x, k) => (k === i ? { ...x, desc: e.target.value === "d" } : x)))}>
-                  <option value="a">Ascending</option>
-                  <option value="d">Descending</option>
-                </select>
-              </td>
-              <td>
-                <button className="link" onClick={() => setSort(sort.filter((_, k) => k !== i))}>
-                  ✕
-                </button>
-              </td>
+        <div style={{ paddingLeft: 22 }}>
+          <label className="p6-check">
+            <input type="checkbox" checked={go.grandTotal} onChange={(e) => put({ grandTotal: e.target.checked })} /> Show Grand Totals
+          </label>
+          <label className="p6-check">
+            <input type="checkbox" checked={go.summariesOnly} onChange={(e) => put({ summariesOnly: e.target.checked })} /> Show Summaries Only
+          </label>
+        </div>
+      </fieldset>
+      <fieldset className="p6-fieldset">
+        <legend>Group By</legend>
+        <table className="p6-grid">
+          <thead>
+            <tr>
+              <td>Group By</td>
+              <td>Indent</td>
+              <td>To Level</td>
             </tr>
+          </thead>
+          <tbody>
+            {[...levels, ""].slice(0, 5).map((v, i) => (
+              <tr key={i}>
+                <td>
+                  <select value={v} onChange={(e) => setLevel(i, e.target.value)}>
+                    {i === 0 ? (
+                      <>
+                        <option value="wbs">WBS</option>
+                        <option value="none">&lt;None&gt;</option>
+                      </>
+                    ) : (
+                      <option value="">&lt;None&gt;</option>
+                    )}
+                    {fieldOptions("")}
+                  </select>
+                </td>
+                <td>{i === 0 && <input type="checkbox" checked={go.indent} onChange={(e) => put({ indent: e.target.checked })} aria-label="Indent bands" />}</td>
+                <td>
+                  {i === 0 && groupBy === "wbs" && (
+                    <select value={go.wbsToLevel} onChange={(e) => put({ wbsToLevel: Number(e.target.value) })} aria-label="WBS to level">
+                      <option value={0}>All</option>
+                      {Array.from({ length: wbsDepth }, (_, k) => (
+                        <option key={k} value={k + 1}>
+                          {k + 1}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h4>Font &amp; Color</h4>
+        <div className="row" style={{ gap: 6, marginBottom: 4 }}>
+          <button onClick={() => put({ bandStyles: P6_CLASSIC_BANDS })}>P6 classic colours</button>
+          <button onClick={() => put({ bandStyles: null })}>Stratum colours</button>
+        </div>
+        <table className="p6-grid">
+          <thead>
+            <tr>
+              <td>Level</td>
+              <td>Sample</td>
+              <td>Size</td>
+              <td>Background</td>
+              <td>Text</td>
+            </tr>
+          </thead>
+          <tbody>
+            {Array.from({ length: bandCount }, (_, i) => {
+              const st = styleAt(i);
+              return (
+                <tr key={i}>
+                  <td>{levelName(i)}</td>
+                  <td>
+                    <span className="p6-band-sample" style={{ background: st.bg, color: st.fg, fontSize: st.size }}>
+                      {st.size} Aa
+                    </span>
+                  </td>
+                  <td>
+                    <select value={st.size} onChange={(e) => setStyle(i, { size: Number(e.target.value) })} aria-label={`Font size level ${i + 1}`}>
+                      {[10, 11, 12, 13, 14, 15, 16, 18].map((n) => (
+                        <option key={n} value={n}>
+                          {n}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input type="color" value={st.bg} onChange={(e) => setStyle(i, { bg: e.target.value })} aria-label={`Background level ${i + 1}`} />
+                  </td>
+                  <td>
+                    <input type="color" value={st.fg} onChange={(e) => setStyle(i, { fg: e.target.value })} aria-label={`Text colour level ${i + 1}`} />
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </fieldset>
+      <fieldset className="p6-fieldset">
+        <legend>Group By Options</legend>
+        <label className="p6-check">
+          <input type="checkbox" checked={go.hideEmpty} onChange={(e) => put({ hideEmpty: e.target.checked })} /> Hide if empty
+        </label>
+        <label className="p6-check">
+          <input type="checkbox" checked={go.sortBandsAlpha} onChange={(e) => put({ sortBandsAlpha: e.target.checked })} /> Sort bands alphabetically
+        </label>
+        <div className="row" style={{ gap: 14 }}>
+          <span>Show:</span>
+          {(
+            [
+              ["title", "Title"],
+              ["code", "ID / Code"],
+              ["name", "Name / Description"],
+            ] as const
+          ).map(([k, l]) => (
+            <label key={k} className="p6-check">
+              <input type="checkbox" checked={go.label[k]} onChange={(e) => put({ label: { ...go.label, [k]: e.target.checked } })} /> {l}
+            </label>
           ))}
-        </tbody>
-      </table>
-      <button onClick={() => setSort([...sort, { field: "code" }])}>Add sort level</button>
+        </div>
+      </fieldset>
+      <fieldset className="p6-fieldset">
+        <legend>Sort</legend>
+        <table className="p6-grid">
+          <thead>
+            <tr>
+              <td>Field</td>
+              <td>Order</td>
+              <td />
+            </tr>
+          </thead>
+          <tbody>
+            {sort.map((x, i) => (
+              <tr key={i}>
+                <td>
+                  <select value={x.field} onChange={(e) => setSort(sort.map((y, k) => (k === i ? { ...y, field: e.target.value } : y)))}>
+                    {fields.map((f) => (
+                      <option key={f.id} value={f.id}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select value={x.desc ? "d" : "a"} onChange={(e) => setSort(sort.map((y, k) => (k === i ? { ...y, desc: e.target.value === "d" } : y)))}>
+                    <option value="a">Ascending</option>
+                    <option value="d">Descending</option>
+                  </select>
+                </td>
+                <td>
+                  <button className="link" onClick={() => setSort(sort.filter((_, k) => k !== i))}>
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button onClick={() => setSort([...sort, { field: "code" }])}>Add sort level</button>
+      </fieldset>
     </Shell>
   );
 }

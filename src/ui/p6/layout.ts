@@ -55,6 +55,59 @@ export interface BarOptions {
   texts?: { id: string; date: number; activityId: string | null; text: string; color: string; show: boolean }[];
 }
 
+export interface BandStyle {
+  bg: string;
+  fg: string;
+  /** Font size in px. */
+  size: number;
+}
+
+export interface GroupOptions {
+  /** Group by these fields after the first, in order. */
+  thenBy: string[];
+  /** WBS bands down to this level (0 = all). */
+  wbsToLevel: number;
+  grandTotal: boolean;
+  summariesOnly: boolean;
+  hideEmpty: boolean;
+  sortBandsAlpha: boolean;
+  indent: boolean;
+  label: { title: boolean; code: boolean; name: boolean };
+  /** Font & colour per band level; null uses the theme's band colours. */
+  bandStyles: BandStyle[] | null;
+}
+
+export const DEFAULT_GROUP_OPTIONS: GroupOptions = { thenBy: [], wbsToLevel: 0, grandTotal: false, summariesOnly: false, hideEmpty: false, sortBandsAlpha: false, indent: true, label: { title: false, code: true, name: true }, bandStyles: null };
+
+/** P6 Professional's default band colours, level 1 first. */
+export const P6_CLASSIC_BANDS: BandStyle[] = [
+  { bg: "#0000ff", fg: "#ffff00", size: 15 },
+  { bg: "#80ff80", fg: "#000000", size: 14 },
+  { bg: "#ffff00", fg: "#0000ff", size: 12 },
+  { bg: "#0000ff", fg: "#ffffff", size: 11 },
+  { bg: "#ff0000", fg: "#ffffff", size: 11 },
+  { bg: "#80ffff", fg: "#000000", size: 11 },
+  { bg: "#ff80ff", fg: "#000000", size: 11 },
+  { bg: "#ffff80", fg: "#000000", size: 11 },
+  { bg: "#000000", fg: "#ffffff", size: 11 },
+  { bg: "#c0c0c0", fg: "#ffffff", size: 11 },
+  { bg: "#008000", fg: "#ffffff", size: 11 },
+  { bg: "#000080", fg: "#ffffff", size: 11 },
+  { bg: "#804000", fg: "#ffffff", size: 11 },
+  { bg: "#800080", fg: "#ffffff", size: 11 },
+  { bg: "#ff8040", fg: "#ffffff", size: 11 },
+];
+
+/** Stratum's softer default, editable the same way. */
+export const SOFT_BANDS: BandStyle[] = [
+  { bg: "#fff8b8", fg: "#1d2433", size: 12 },
+  { bg: "#d8f0cf", fg: "#1d2433", size: 12 },
+  { bg: "#d7e8fb", fg: "#1d2433", size: 12 },
+  { bg: "#f1ddf6", fg: "#1d2433", size: 12 },
+  { bg: "#ffe2c7", fg: "#1d2433", size: 12 },
+  { bg: "#e4e7eb", fg: "#1d2433", size: 12 },
+];
+
 export type TimescaleUnit = "auto" | "day" | "week" | "month" | "quarter" | "year";
 export type GroupBy = "wbs" | "none" | string;
 export type LowerTab = "general" | "status" | "resources" | "predecessors" | "successors" | "relationships" | "codes" | "steps" | "notebook" | "udf" | "feedback" | "summary";
@@ -66,6 +119,8 @@ export interface P6Layout {
   groupBy: GroupBy;
   /** Show group totals (dates rolled up) on band rows. */
   groupTotals: boolean;
+  /** P6 Group and Sort options beyond the first group-by field. */
+  groupOptions?: GroupOptions;
   sort: SortSpec[];
   /** Active filter ids (standard or custom). Empty = all activities. */
   filters: string[];
