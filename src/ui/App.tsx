@@ -24,6 +24,8 @@ import { SettingsDialog } from "./SettingsDialog";
 import { SetupWizard } from "./SetupWizard";
 import { useTerms } from "./terms";
 import { useAppearance } from "./appearance";
+import { DisplaysButton, DisplaysDialog, useDisplays } from "./display/Displays";
+import { startSync } from "./display/sync";
 import { ModeSwitch, ThemeButton } from "./ModeSwitch";
 import { MspScreen, P6Screen, type ClassicActions } from "./ClassicLayouts";
 import {
@@ -118,6 +120,11 @@ function Workspace() {
   const mode = config.mode;
   const t = useTerms();
   const theme = useAppearance();
+  // Share the open project with display windows on other monitors.
+  useEffect(() => {
+    const h = startSync({ host: true });
+    return () => h?.stop();
+  }, []);
   const [settingsTab, setSettingsTab] = useState<null | "interface" | "data" | "p6" | "email" | "users">(null);
   const [projectsTab, setProjectsTab] = useState<null | "database" | "p6">(null);
   /** Model objects as loaded (before splitting into segments). */
@@ -810,6 +817,7 @@ function Workspace() {
       </span>
       {savedAt && <span className="muted autosaved">Autosaved {savedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>}
       <ModeSwitch />
+      <DisplaysButton className="tb icon-label" />
       <TrainingButton className="tb" />
       <ThemeButton />
       {btn.settings}
@@ -934,7 +942,14 @@ function Workspace() {
           </section>
         </main>
       )}
-      {mode === "p6" && <P6Screen a={classicActions} banners={bannersNode} status={status} />}
+      {mode === "p6" && (
+        <P6Screen
+          a={classicActions}
+          banners={bannersNode}
+          status={status}
+          displays={{ menu: [{ label: "Displays: Open a View on Another Monitor…", onClick: () => useDisplays.getState().show(true) }] }}
+        />
+      )}
       {mode === "msp" && <MspScreen a={classicActions} banners={bannersNode} status={status} />}
       {mode === "4d" && (
       <footer>
@@ -948,6 +963,7 @@ function Workspace() {
         </div>
       </footer>
       )}
+      <DisplaysDialog />
       {store.view === "dashboards" && (
         <div className="overlay-view">
           <DashboardsView onClose={() => store.setView("workspace")} />

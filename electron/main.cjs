@@ -18,13 +18,15 @@ protocol.registerSchemesAsPrivileged([
 const OPENABLE = /\.(xer|ifc)$/i;
 const pending = [];
 let rendererReady = false;
+/** The main app window; display windows (views popped out to other monitors) are its children. */
+let mainWindow = null;
 
 function filesFromArgv(argv) {
   return argv.slice(1).filter((a) => OPENABLE.test(a) && fs.existsSync(a));
 }
 
 function deliver(filePath) {
-  const win = BrowserWindow.getAllWindows()[0];
+  const win = mainWindow;
   if (!win || !rendererReady) {
     pending.push(filePath);
     return;
@@ -53,7 +55,7 @@ if (!app.requestSingleInstanceLock()) {
   app.quit();
 } else {
   app.on("second-instance", (_event, argv) => {
-    const win = BrowserWindow.getAllWindows()[0];
+    const win = mainWindow;
     if (win) {
       if (win.isMinimized()) win.restore();
       win.focus();
@@ -92,13 +94,39 @@ function createWindow() {
   });
   win.once("ready-to-show", () => win.show());
   win.loadURL(`${SCHEME}://stratum/index.html`);
+  mainWindow = win;
   // A reload re-registers the listener; hold files until it does.
   win.webContents.on("did-start-loading", () => (rendererReady = false));
 
-  // External links open in the user's browser, never inside the app.
+  // External links open in the user's browser, never inside the app. The app's
+  // own display pages (index.html#display=...) open as extra windows that can
+  // be moved to other monitors; they stay in sync with this one.
   win.webContents.setWindowOpenHandler(({ url }) => {
+    if (url.startsWith(`${SCHEME}://stratum/index.html#display=`)) {
+      return {
+        action: "allow",
+        overrideBrowserWindowOptions: {
+          minWidth: 480,
+          minHeight: 320,
+          autoHideMenuBar: true,
+          backgroundColor: "#f5f6f8",
+          icon: path.join(__dirname, "..", "build", "icon.png"),
+          webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: true, preload: path.join(__dirname, "preload.cjs") },
+        },
+      };
+    }
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: "deny" };
+  });
+  win.webContents.on("did-create-window", (child) => {
+    child.webContents.setWindowOpenHandler(() => ({ action: "deny" }));
+    child.webContents.on("will-navigate", (e, url) => {
+      if (!url.startsWith(`${SCHEME}://`)) e.preventDefault();
+    });
+  });
+  win.on("closed", () => {
+    for (const w of BrowserWindow.getAllWindows()) if (w !== win && !w.isDestroyed()) w.close();
+    if (mainWindow === win) mainWindow = null;
   });
   win.webContents.on("will-navigate", (e, url) => {
     if (!url.startsWith(`${SCHEME}://`)) {
@@ -169,7 +197,7 @@ app.whenReady().then(async () => {
   createWindow();
   filesFromArgv(process.argv).forEach(deliver);
   app.on("activate", () => {
-    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+    if (!mainWindow) createWindow();
   });
 });
 

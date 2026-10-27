@@ -1417,3 +1417,16 @@ html[data-theme="dark"] .p6t-row.selected, html[data-theme="dark"] .p6g-row.sele
 .p6-rail button, .p6-rail button svg { flex: none; }
 .classic .p6-rail-right button { min-height: 40px; padding: 3px 2px; gap: 2px; }
 .classic .p6-rail-right button span { font-size: 10px; }
+
+/* ---------- multi-display ---------- */
+.display-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 6px; }
+.display-grid button { flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; white-space: normal; min-height: 54px; padding: 6px 8px; border: 1px solid var(--cl-line, var(--line)); background: var(--panel); border-radius: 3px; }
+.display-grid button span { font-size: 11px; color: var(--muted); font-weight: 400; line-height: 1.25; }
+.display-grid button.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.display-queue { position: fixed; right: 16px; bottom: 40px; z-index: 60; display: flex; align-items: center; gap: 8px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; box-shadow: var(--shadow-lg); padding: 8px 12px; font-size: 12.5px; }
+.display-win { height: 100vh; }
+.display-win .cl-titlebar .tb { min-height: 26px; font-size: 12px; }
+.display-body { flex: 1; min-height: 0; display: flex; flex-direction: column; background: var(--panel); }
+.display-body > * { flex: 1; min-height: 0; }
+.display-details { overflow: auto; padding: 4px 10px; }
+.display-body .overlay-view, .display-body > .dash { position: static; }

@@ -39,6 +39,10 @@ Status: **Done** (in Stratum now), **Partial** (some of it works), **Planned** (
 | Model-based scheduling (create and edit tasks in the tool) | [1] | **Done** | Add/delete activities; edit durations, logic, constraints, progress, calendars, resources |
 | CPM scheduling engine (logic, calendars, constraints, float) | [1] | **Done** | FS/SS/FF/SF with lags on working calendars, holidays, 9 constraint types, retained logic from the data date, total and free float, LOE and WBS summaries, loop detection |
 | Resource levelling | — | **Planned** | |
+| P6-style activity table and layouts | — | **Done** | 40+ fields plus codes and UDFs as columns; Group & Sort, filters (standard and user), in-place edit, multi-select, saved layouts |
+| Global Change, Update Progress, baselines, Check Schedule | — | **Done** | If/Then/Else with change report; progress to a new data date; stored baselines; DCMA 14-point check |
+| Activity Network and Trace Logic | — | **Done** | Canvas network for large schedules; trace N levels each way |
+| Multi-monitor display windows | — | **Done** | Any view in its own synced window, placed per monitor, saved as display setups |
 | Export schedule back to P6 | — | **Done** | XER update keeps every untouched table; also CSV. Verify with P6's import preview |
 
 ## Resources, cost and progress

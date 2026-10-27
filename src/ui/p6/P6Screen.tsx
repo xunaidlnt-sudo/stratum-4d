@@ -392,7 +392,7 @@ function LowerPane() {
 
 // ---------------------------------------------------------------- screen
 
-export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; banners: ReactNode; status: ReactNode; displays?: { menu: MenuItem[]; dialog: ReactNode } }) {
+export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; banners: ReactNode; status: ReactNode; displays?: { menu: MenuItem[]; dialog?: ReactNode } }) {
   const schedule = useStore((s) => s.schedule);
   const filter = useStore((s) => s.ganttFilter);
   const setFilter = useStore((s) => s.setGanttFilter);
@@ -659,6 +659,11 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         <span className="cl-title">{schedule ? `${WINDOW_LABEL[win]} : ${schedule.projectCode} – ${schedule.projectName}` : WINDOW_LABEL[win]}</span>
         <span className="spacer" />
         <ModeSwitch />
+        {displays && (
+          <button className="tb cl-train" onClick={() => (displays.menu[0] as { onClick: () => void }).onClick()} title="Displays: open views in their own windows, one per monitor">
+            <MonitorUp size={14} aria-hidden /> Displays
+          </button>
+        )}
         <TrainingButton className="tb cl-train" />
         <ThemeButton />
       </div>
@@ -702,7 +707,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         <IconBtn Icon={NotebookPen} title="Notebook" onClick={() => setLayout({ lower: "details", lowerTab: "notebook" })} disabled={none} />
         <IconBtn Icon={SlidersHorizontal} title="Project details" onClick={() => P.open("projectInfo")} disabled={none} />
         <span className="tsep" />
-        {displays && <IconBtn Icon={MonitorUp} title="Displays: open views on other monitors" onClick={() => P.open("displays")} />}
+        {displays && <IconBtn Icon={MonitorUp} title="Displays: open views on other monitors" onClick={() => displays.menu[0] && (displays.menu[0] as { onClick: () => void }).onClick()} />}
         <IconBtn Icon={LayoutDashboard} title="Reports and dashboards" onClick={a.dashboards} />
         <IconBtn Icon={ChartLine} title="Resource Usage Spreadsheet" onClick={() => setLayout({ lower: "resourceUsage" })} disabled={none} />
         <IconBtn Icon={Search} title="Find (Ctrl+F)" onClick={find} disabled={none} />

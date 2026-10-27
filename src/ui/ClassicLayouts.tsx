@@ -32,6 +32,7 @@ import { ResourcePanel } from "./Analysis";
 import { Gantt, ganttCommand } from "./Gantt";
 import { ModeSwitch, ThemeButton } from "./ModeSwitch";
 import { TrainingButton } from "./training/Training";
+import { DisplaysButton } from "./display/Displays";
 import { DataDateInput, EmptySample, useClassicKeys, type ClassicActions } from "./classicParts";
 export { P6Screen } from "./p6/P6Screen";
 export type { ClassicActions } from "./classicParts";
@@ -291,6 +292,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         <span className="cl-title center">{schedule ? `${schedule.projectCode} – Stratum 4D` : "Stratum 4D"}</span>
         <span className="msp-context">Gantt Chart Tools</span>
         <ModeSwitch />
+        <DisplaysButton className="tb cl-train" />
         <TrainingButton className="tb cl-train" />
         <ThemeButton />
       </div>

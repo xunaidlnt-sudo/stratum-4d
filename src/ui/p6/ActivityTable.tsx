@@ -504,6 +504,8 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
         className={`p6t-row act gantt-row ${sel ? "selected" : ""} ${a.id === selected ? "focus" : ""} ${r.dim ? "dim" : ""} ${spot ? "spot" : ""}`}
         style={{ top, height: ROW, width: COLS }}
         onMouseDown={(e) => e.button !== 1 && pick(a.id, e)}
+        // A click with no mouse press before it (keyboard, assistive tech, training "Show me") still selects.
+        onClick={(e) => e.detail === 0 && pick(a.id, e)}
         onContextMenu={(e) => rowMenu(a, e)}
       >
         {cols.map((c, i) => {

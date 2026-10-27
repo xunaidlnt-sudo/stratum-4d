@@ -147,7 +147,24 @@ export const STOCK_LAYOUTS: P6Layout[] = [
   },
 ];
 
-const KEY = "stratum.p6.layout.v1";
+/** Display windows (#display=<view>&id=<id>) keep their own layout. */
+const DISPLAY = typeof location !== "undefined" ? /[#&]display=([^&]+)&id=([^&]+)/.exec(location.hash) : null;
+const KEY = DISPLAY ? `stratum.p6.layout.v1.d.${DISPLAY[2]}` : "stratum.p6.layout.v1";
+
+/** Starting layout for a display window showing one view. */
+export function displayDefault(view: string | undefined): P6Layout {
+  const upd = STOCK_LAYOUTS.find((l) => l.name === "Update Progress")!;
+  switch (view) {
+    case "table":
+      return { ...DEFAULT_LAYOUT, showGantt: false, lower: "none" };
+    case "gantt":
+      return { ...DEFAULT_LAYOUT, showTable: false, lower: "none", bars: { ...DEFAULT_LAYOUT.bars, relationships: true } };
+    case "progress":
+      return { ...upd, showGantt: false, lower: "none", name: "Update Progress" };
+    default:
+      return { ...DEFAULT_LAYOUT, lower: "none" };
+  }
+}
 const KEY_SAVED = "stratum.p6.layouts.v1";
 const KEY_FILTERS = "stratum.p6.filters.v1";
 
@@ -184,7 +201,7 @@ interface LayoutState {
 }
 
 export const useLayout = create<LayoutState>((set, get) => ({
-  layout: complete(read<Partial<P6Layout>>(KEY, DEFAULT_LAYOUT)),
+  layout: complete(read<Partial<P6Layout>>(KEY, DISPLAY ? displayDefault(decodeURIComponent(DISPLAY[1])) : DEFAULT_LAYOUT)),
   saved: read<P6Layout[]>(KEY_SAVED, []).map(complete),
   customFilters: read<FilterDef[]>(KEY_FILTERS, []),
   set: (patch) => {

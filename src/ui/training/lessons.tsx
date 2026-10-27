@@ -14,7 +14,8 @@ const d = (c: Ctx, h: number | null | undefined) => (h == null ? "–" : `${Math
 const tab = (label: string) => () => byText(".p6-tabs button", label, true);
 const tabOn = (label: string) => !!tab(label)()?.classList.contains("active");
 const rail = (label: string) => () => byText(".p6-rail button", label, true);
-const lowerHead = () => $(".p6-lowerhead")?.textContent ?? "";
+/** What the P6 lower pane shows (the list at its top left). */
+const lowerView = () => ($(".p6-lowersel") as HTMLSelectElement | null)?.value ?? "";
 const pick = async (code: string) => {
   setValue(".p6-find", code);
   await wait(300);
@@ -674,10 +675,10 @@ export const LESSONS: Lesson[] = [
     steps: [
       {
         title: "Open the Activity Usage Profile",
-        target: () => rail("Activity Usage")(),
-        task: "Click Activity Usage on the Directory bar.",
-        done: () => lowerHead().includes("Activity Usage"),
-        showMe: () => void click(rail("Activity Usage")),
+        target: ".p6-lowersel",
+        task: "In the list at the top left of the lower pane, choose Activity Usage Profile.",
+        done: () => lowerView() === "activityProfile",
+        showMe: () => void setValue(".p6-lowersel", "activityProfile"),
         body: () => <p>The lower pane switches to cost over time. The example project is cost-loaded in AED: every activity has resources with rates.</p>,
       },
       {
@@ -720,10 +721,10 @@ export const LESSONS: Lesson[] = [
       },
       {
         title: "Resource usage",
-        target: () => rail("Resources")(),
-        task: "Click Resources on the Directory bar.",
-        done: () => lowerHead().includes("Resource Usage"),
-        showMe: () => void click(rail("Resources")),
+        target: ".p6-lowersel",
+        task: "Now choose Resource Usage Profile in the same list.",
+        done: () => lowerView() === "resourceProfile",
+        showMe: () => void setValue(".p6-lowersel", "resourceProfile"),
         body: () => (
           <>
             <p>The Resource Usage Profile stacks weekly hours by resource: design engineers, civil crew, electrical technicians, OEM specialists, testing engineers and plant.</p>
@@ -733,10 +734,10 @@ export const LESSONS: Lesson[] = [
       },
       {
         title: "Back to activity details",
-        target: () => rail("Activities")(),
-        task: "Click Activities on the Directory bar.",
-        done: () => !lowerHead().includes("Usage"),
-        showMe: () => void click(rail("Activities")),
+        target: ".p6-lowersel",
+        task: "Choose Activity Details in the list to go back.",
+        done: () => lowerView() === "details",
+        showMe: () => void setValue(".p6-lowersel", "details"),
         body: () => <p>The Resources detail tab of any activity shows its assignments: budgeted, actual and remaining units and cost.</p>,
       },
       {
