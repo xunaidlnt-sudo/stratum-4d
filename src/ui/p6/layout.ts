@@ -32,7 +32,7 @@ export interface BarOptions {
 
 export type TimescaleUnit = "auto" | "day" | "week" | "month" | "quarter" | "year";
 export type GroupBy = "wbs" | "none" | string;
-export type LowerTab = "general" | "status" | "resources" | "predecessors" | "successors" | "relationships" | "codes" | "notebook" | "udf" | "feedback" | "summary";
+export type LowerTab = "general" | "status" | "resources" | "predecessors" | "successors" | "relationships" | "codes" | "steps" | "notebook" | "udf" | "feedback" | "summary";
 export type LowerView = "details" | "resourceUsage" | "activityUsage" | "trace" | "none";
 
 export interface P6Layout {

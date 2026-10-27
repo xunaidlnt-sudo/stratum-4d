@@ -4,6 +4,7 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useConfig } from "../../backend/config";
 import { scheduleCpm, ScheduleLoopError } from "../../core/cpm";
+import { levelResources } from "../../core/level";
 import { scheduleRange } from "../../core/simulation";
 import { ActivityEditor } from "../ActivityEditor";
 import { CostPanel, ResourcePanel } from "../Analysis";
@@ -24,7 +25,7 @@ export function displayRoute(): { view: string; id: string } | null {
   return m ? { view: decodeURIComponent(m[1]), id: m[2] } : null;
 }
 
-const DETAIL_SECTIONS = ["general", "status", "dates", "predecessors", "successors", "resources", "codes", "notebook", "udf"] as const;
+const DETAIL_SECTIONS = ["general", "status", "dates", "predecessors", "successors", "resources", "codes", "steps", "notebook", "udf"] as const;
 
 function schedule() {
   const s = useStore.getState();
@@ -32,6 +33,11 @@ function schedule() {
   try {
     const prev = scheduleRange(s.schedule)?.finish ?? null;
     const r = scheduleCpm(s.schedule);
+    if (s.schedule.scheduleOptions?.levelWhenScheduling) {
+      const lv = levelResources(r.schedule);
+      r.schedule = lv.schedule;
+      r.projectFinish = lv.projectFinish;
+    }
     s.setSchedule(r.schedule, { keepTime: true });
     s.setScheduleReport({ at: Date.now(), projectFinish: r.projectFinish, previousFinish: prev, criticalCount: r.criticalPath.length, warnings: r.warnings });
     s.setStatus(`Scheduled: finish ${fmtDate(r.projectFinish)}, ${r.criticalPath.length} critical activities.`);

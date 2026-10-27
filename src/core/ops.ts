@@ -521,3 +521,12 @@ export function snapStart(s: Schedule, a: Activity, t: number): number {
 export function finishFor(s: Schedule, a: Activity, start: number, hours: number): number {
   return addWorkHours(calOf(s)(a), start, hours);
 }
+
+// ---------------------------------------------------------------- steps
+
+/** Weighted % complete of an activity's steps (P6 physical % from steps). */
+export function stepsPercent(steps: { weight: number; pct: number }[]): number {
+  const w = steps.reduce((t, x) => t + Math.max(0, x.weight), 0);
+  if (!w) return steps.length ? steps.reduce((t, x) => t + x.pct, 0) / steps.length : 0;
+  return Math.round((steps.reduce((t, x) => t + Math.max(0, x.weight) * x.pct, 0) / w) * 10) / 10;
+}

@@ -126,6 +126,7 @@ const LOWER_TABS: [LowerTab, string, EditorSection[]][] = [
   ["successors", "Successors", ["successors"]],
   ["relationships", "Relationships", ["predecessors", "successors"]],
   ["codes", "Codes", ["codes"]],
+  ["steps", "Steps", ["steps"]],
   ["notebook", "Notebook", ["notebook"]],
   ["udf", "UDFs", ["udf"]],
 ];
@@ -531,7 +532,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
     [
       "Project",
       [
-        { label: "Schedule…", onClick: a.schedule, disabled: none, shortcut: "F9" },
+        { label: "Schedule", onClick: a.schedule, disabled: none, shortcut: "F9" },
+        { label: "Schedule Options…", onClick: () => P.open("scheduleOptions"), disabled: none },
         { label: "Level Resources…", onClick: () => P.open("level"), disabled: none, shortcut: "F10" },
         { label: "Check Schedule…", onClick: () => P.open("checkSchedule"), disabled: none },
         "sep",
@@ -549,6 +551,9 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       [
         { label: "Projects…", onClick: a.projects },
         { label: "Resources", onClick: () => P.show("resources"), disabled: none },
+        { label: "Calendars…", onClick: () => P.open("calendars"), disabled: none },
+        { label: "Activity Codes…", onClick: () => P.open("activityCodes"), disabled: none },
+        { label: "User Defined Fields…", onClick: () => P.open("udfs"), disabled: none },
         { label: "P6 Connections…", onClick: () => a.settings("p6") },
       ],
     ],
@@ -560,6 +565,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Store Period Performance…", onClick: () => P.open("periods"), disabled: none },
         { label: "Recalculate Assignment Costs", onClick: recalc, disabled: none },
         { label: "Check Schedule…", onClick: () => P.open("checkSchedule"), disabled: none },
+        { label: "Claim Digger (compare schedules)…", onClick: () => P.open("claimDigger"), disabled: none },
         { label: "Spell Check…", onClick: () => P.open("spelling"), disabled: none },
         "sep",
         { label: "Reports", onClick: a.dashboards },

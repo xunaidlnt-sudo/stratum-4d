@@ -30,7 +30,12 @@ export type P6Dialog =
   | "spelling"
   | "level"
   | "periods"
-  | "displays";
+  | "displays"
+  | "scheduleOptions"
+  | "calendars"
+  | "activityCodes"
+  | "udfs"
+  | "claimDigger";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

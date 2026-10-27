@@ -38,6 +38,31 @@ export interface Activity {
   constraint?: Constraint | null;
   /** Notebook text (P6 activity notebook). */
   notes?: string;
+  /** Secondary date constraint (P6 allows two). */
+  secondaryConstraint?: Constraint | null;
+  /** Set by CPM: on the longest path to the project finish. */
+  longestPath?: boolean;
+  /** Set by "multiple float paths": 1 = the driving path to the chosen end activity. */
+  floatPath?: number | null;
+  floatPathOrder?: number | null;
+  /** Activity steps (P6 Steps tab); weighted, they give the physical % complete. */
+  steps?: ActivityStep[];
+  /** How % complete is measured (P6 Percent Complete Type). */
+  pctType?: "duration" | "physical" | "units";
+  /** Physical % complete (0–100), entered or rolled up from steps. */
+  physicalPercent?: number;
+  /** P6 Duration Type; kept for round trips and shown in the table. */
+  durationType?: "fixed-duration-units-time" | "fixed-duration-units" | "fixed-units" | "fixed-units-time";
+  /** Set by levelling: the start was delayed for resources. */
+  leveledDelayHours?: number | null;
+}
+
+export interface ActivityStep {
+  id: string;
+  name: string;
+  weight: number;
+  /** 0–100 */
+  pct: number;
 }
 
 export type ConstraintType =
@@ -79,6 +104,8 @@ export interface Resource {
   unit: string;
   /** Default cost per unit (hour for labour/equipment). */
   pricePerUnit: number;
+  /** Max units per working hour (labour/equipment), for levelling; default 1 per resource unit. */
+  maxUnitsPerHour?: number;
 }
 
 export interface Assignment {
@@ -139,6 +166,10 @@ export interface Relationship {
   successorId: string;
   type: RelationshipType;
   lagHours: number;
+  /** Set by CPM: this link controls the successor's early date (relationship free float 0). */
+  driving?: boolean;
+  /** Set by CPM: relationship free float in working hours. */
+  freeFloatHours?: number | null;
 }
 
 export interface Schedule {
@@ -160,12 +191,61 @@ export interface Schedule {
   p6Source?: { connectionId: string; projectObjectId: string; kind: string; pulledAt: string } | null;
   /** The baseline the baseline dates came from, when assigned from another schedule. */
   baselineInfo?: BaselineInfo | null;
+  /** P6 Schedule Options (F9 dialog). */
+  scheduleOptions?: ScheduleOptions;
+  /** P6 Level Resources options (F10 dialog). */
+  levelingOptions?: LevelingOptions;
+  /** Planned start and must-finish-by from the project's Dates tab. */
+  plannedStart?: number | null;
+  mustFinishBy?: number | null;
+  /** Activity code types and values defined for the project (P6 Activity Codes dictionary). */
+  codeTypes?: CodeType[];
+  /** User-defined field definitions (P6 User Defined Fields). */
+  udfDefs?: UdfDef[];
   /** Baselines stored with the project (P6 Maintain Baselines). */
   baselines?: StoredBaseline[];
   /** Period performance snapshots (P6 Store Period Performance). */
   periods?: PeriodSnapshot[];
   /** Project registers: issues, risks, work products & documents, expenses, thresholds. */
   registers?: Partial<Record<RegisterKind, RegisterItem[]>>;
+}
+
+export interface ScheduleOptions {
+  /** Out-of-sequence progress. */
+  outOfSequence: "retained-logic" | "progress-override" | "actual-dates";
+  /** Total float is finish float, start float or the smaller. */
+  floatType: "finish" | "start" | "smallest";
+  /** Critical activities: total float at or below the threshold, or on the longest path. */
+  criticalBy: "float" | "longest-path";
+  criticalFloatHours: number;
+  /** Measure SS lags of in-progress predecessors from their actual start or their remaining early start. */
+  ssLagFrom: "actual-start" | "early-start";
+  /** Activities without a predecessor or successor are made critical. */
+  openEndsCritical: boolean;
+  /** Level resources (F10) right after scheduling. */
+  levelWhenScheduling: boolean;
+  /** Multiple float paths to an end activity (internal id); null = off. */
+  floatPaths: { endActivityId: string | null; count: number } | null;
+}
+
+export interface LevelingOptions {
+  /** Keep the project finish? If false, levelling may extend it. */
+  preserveFinish: boolean;
+  /** Only delay activities within their total float. */
+  levelWithinFloat: boolean;
+  /** Priority order: earliest late start first, then total float, then ID. */
+  priority: "late-start" | "total-float" | "early-start" | "activity-id";
+  resourceIds: string[] | null;
+}
+
+export interface CodeType {
+  name: string;
+  values: { value: string; description?: string; color?: string }[];
+}
+
+export interface UdfDef {
+  name: string;
+  type: "text" | "number" | "date" | "cost" | "indicator";
 }
 
 export interface StoredBaseline {

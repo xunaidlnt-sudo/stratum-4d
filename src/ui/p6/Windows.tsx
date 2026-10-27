@@ -158,6 +158,7 @@ export function ResourcesWindow() {
               <td>Type</td>
               <td>Unit</td>
               <td>Price / Unit</td>
+              <td title="For levelling: how many units can work at once (crew size). Empty = no limit.">Max Units / h</td>
               <td>Assignments</td>
               <td />
             </tr>
@@ -183,6 +184,9 @@ export function ResourcesWindow() {
                 </td>
                 <td>
                   <input className="cell num" type="number" value={r.pricePerUnit} onChange={(e) => set(r.id, { pricePerUnit: Number(e.target.value) || 0 })} style={{ width: 90 }} />
+                </td>
+                <td>
+                  <input className="cell num" type="number" min={0} step={0.5} placeholder="no limit" value={r.maxUnitsPerHour ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} style={{ width: 80 }} />
                 </td>
                 <td className="num">{used.get(r.id) ?? 0}</td>
                 <td>

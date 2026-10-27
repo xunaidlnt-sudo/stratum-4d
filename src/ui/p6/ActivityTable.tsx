@@ -9,6 +9,8 @@ import { fieldCtx, fieldsFor, fieldText, fmtDay, STANDARD_FILTERS, type FieldDef
 import { buildP6Rows, type P6Row } from "../../core/p6rows";
 import type { Activity } from "../../core/types";
 import { DAY, useStore } from "../store";
+import { addWorkHours, nextWorkStart, workHoursBetween } from "../../core/calendar";
+import { uid } from "../../core/ops";
 import { addActivity, collapseAll, copySelected, cutSelected, deleteSelected, dissolveSelected, expandAll, fillDownSelected, linkSelected, paste, selectAll, setCell, tableOrder, unlinkSelected, useP6 } from "./commands";
 import { useCtx, type CtxItem } from "./ContextMenu";
 import { allFilters, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
@@ -157,6 +159,7 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
   const [ganttW, setGanttW] = useState(600);
   const anchor = useRef<string | null>(null);
   const [printAll, setPrintAll] = useState(false);
+  const [drag, setDrag] = useState<{ kind: "move" | "resize" | "link"; id: string; x0: number; y0: number; x: number; y: number; shift: boolean } | null>(null);
   useEffect(() => {
     const on = (e: Event) => setPrintAll(!!(e as CustomEvent<boolean>).detail);
     window.addEventListener("stratum:print", on);
@@ -433,6 +436,69 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
     showCtx(e.clientX, e.clientY, items);
   };
 
+  // ---------------------------------------------------------------- bar editing (drag)
+
+  const contentPos = (e: MouseEvent | React.MouseEvent) => {
+    const el = ganttRef.current!;
+    const r = el.getBoundingClientRect();
+    return { x: e.clientX - r.left + el.scrollLeft, y: e.clientY - r.top + el.scrollTop - HEAD };
+  };
+  const startDrag = (kind: "move" | "resize" | "link", a: Activity, e: React.MouseEvent) => {
+    if (e.button !== 0 || !ganttRef.current) return;
+    e.stopPropagation();
+    e.preventDefault();
+    if (!selection.has(a.id)) setSelection(new Set([a.id]), a.id);
+    const p0 = contentPos(e);
+    setDrag({ kind, id: a.id, x0: p0.x, y0: p0.y, x: p0.x, y: p0.y, shift: e.shiftKey });
+    const move = (m: MouseEvent) => {
+      const p = contentPos(m);
+      setDrag((d) => (d ? { ...d, x: p.x, y: p.y, shift: m.shiftKey } : d));
+    };
+    const up = (m: MouseEvent) => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      const p = contentPos(m);
+      setDrag(null);
+      finishDrag(kind, a.id, p.x - p0.x, p.y, m.shiftKey);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  };
+  const finishDrag = (kind: "move" | "resize" | "link", id: string, dx: number, y: number, shift: boolean) => {
+    const st = useStore.getState();
+    const sch = st.schedule;
+    if (!sch || !ctx) return;
+    const a = sch.activities.find((q) => q.id === id);
+    if (!a || a.start === null || a.finish === null) return;
+    const cal = ctx.cal(a);
+    if (!cal) return;
+    if (kind === "link") {
+      const row = rows[Math.floor(y / ROW)];
+      if (!row || row.kind !== "activity" || row.id === id) return;
+      if (sch.relationships.some((r) => r.predecessorId === id && r.successorId === row.id)) return st.setStatus(`${a.code} is already a predecessor of ${row.activity.code}.`);
+      const type = shift ? "SS" : "FS";
+      st.commit({ ...sch, relationships: [...sch.relationships, { id: uid("rel"), predecessorId: id, successorId: row.id, type, lagHours: 0 }] }, `Link ${a.code} → ${row.activity.code}`);
+      return st.setStatus(`Linked ${a.code} → ${row.activity.code} (${type}). Press F9 to reschedule.`);
+    }
+    const days = Math.round(dx / pxPerDay);
+    if (!days) return;
+    if (kind === "move") {
+      if (a.status !== "not-started") return st.setStatus(`${a.code} has started; change its actual dates instead.`);
+      const rem = a.remainingDurationHours ?? a.originalDurationHours ?? 0;
+      const start = nextWorkStart(cal, a.start + days * DAY);
+      const patch = { start, finish: addWorkHours(cal, start, rem), constraint: { type: "start-on-or-after" as const, date: start } };
+      st.commit({ ...sch, activities: sch.activities.map((q) => (q.id === id ? { ...q, ...patch } : q)) }, `Move ${a.code}`);
+      return st.setStatus(`${a.code} moved to ${fmtDay(start)} with a Start On or After constraint. Press F9 to reschedule.`);
+    }
+    if (a.status === "complete") return;
+    const from = a.status === "in-progress" && dd !== null ? Math.max(dd, a.start) : a.start;
+    const target = Math.max(from, a.finish + days * DAY);
+    const hours = Math.max(0, Math.round(workHoursBetween(cal, from, target)));
+    const patch = { remainingDurationHours: hours, finish: addWorkHours(cal, from, hours), ...(a.status === "not-started" ? { originalDurationHours: hours } : {}) };
+    st.commit({ ...sch, activities: sch.activities.map((q) => (q.id === id ? { ...q, ...patch } : q)) }, `Duration of ${a.code}`);
+    st.setStatus(`${a.code} remaining duration set to ${Math.round((hours / ctx.hpd) * 10) / 10} days. Press F9 to reschedule.`);
+  };
+
   if (!schedule || !ctx) return <div className="empty">No schedule loaded.</div>;
 
   const first = printAll ? 0 : Math.max(0, Math.floor(scrollTop / ROW) - 6);
@@ -584,15 +650,51 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
           ) : (
             <>
               {bars.actual && split !== null && split > s && <div className="p6g-bar actual" style={{ left: x(s), width: Math.max(2, x(split) - x(s)) }} />}
-              {bars.remaining && split !== null && f > split && <div className={`p6g-bar remaining ${crit ? "crit" : ""}`} style={{ left: x(split), width: Math.max(2, x(f) - x(split)) }} />}
+              {bars.remaining && split !== null && f > split && (
+                <div
+                  className={`p6g-bar remaining ${crit ? "crit" : ""} ${a.status === "not-started" ? "movable" : ""}`}
+                  style={{ left: x(split), width: Math.max(2, x(f) - x(split)) }}
+                  title={a.status === "not-started" ? "Drag to move; drag the right end to change the duration" : "Drag the right end to change the remaining duration"}
+                  onMouseDown={(e) => a.status === "not-started" && startDrag("move", a, e)}
+                >
+                  <b className="p6g-grip" onMouseDown={(e) => startDrag("resize", a, e)} />
+                </div>
+              )}
               {bars.insideLabel && <span className="p6g-in" style={{ left: x(s) + 3, width: Math.max(0, x(f) - x(s) - 4) }}>{barLabel(a, bars.insideLabel)}</span>}
             </>
           ))}
         {bars.float && f !== null && lateF !== null && lateF > f && a.status !== "complete" && <div className="p6g-float" style={{ left: x(f), width: x(lateF) - x(f) }} title="Total float" />}
         {bars.rightLabel && f !== null && <span className="p6g-label" style={{ left: x(f) + (isMs ? 9 : 5) }}>{barLabel(a, bars.rightLabel)}</span>}
+        {f !== null && a.status !== "complete" && <i className="p6g-link" style={{ left: x(f) + (isMs ? 7 : 3) }} title="Drag onto another activity to link it as a successor (hold Shift for start-to-start)" onMouseDown={(e) => startDrag("link", a, e)} />}
       </div>
     );
   });
+
+  // Live preview while dragging a bar or a link.
+  let dragGhost: JSX.Element | null = null;
+  if (drag) {
+    const a = schedule.activities.find((q) => q.id === drag.id);
+    if (a && a.start !== null && a.finish !== null) {
+      const i = rowIndex.get(a.id) ?? 0;
+      const dx = drag.x - drag.x0;
+      if (drag.kind === "link") {
+        dragGhost = (
+          <svg className="p6g-rels drag" width={gw} height={bodyH} style={{ top: HEAD }}>
+            <path d={`M${drag.x0},${drag.y0} L${drag.x},${drag.y}`} />
+          </svg>
+        );
+      } else {
+        const from = drag.kind === "move" ? x(a.start) + dx : x(a.status === "in-progress" && dd !== null ? Math.max(dd, a.start) : a.start);
+        const width = drag.kind === "move" ? x(a.finish) - x(a.start) : Math.max(2, x(a.finish) - from + dx);
+        const days = Math.round(dx / pxPerDay);
+        dragGhost = (
+          <div className="p6g-ghost" style={{ top: HEAD + i * ROW, left: from, width, height: ROW }}>
+            <span>{days > 0 ? `+${days}` : days}d</span>
+          </div>
+        );
+      }
+    }
+  }
 
   // Relationship lines for the visible rows (P6 draws them from bar end to bar start).
   let relLines: JSX.Element | null = null;
@@ -684,6 +786,7 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
               {ganttRows}
             </div>
             {relLines}
+            {dragGhost}
             {bars.dataDateLine && dd !== null && <div className="p6g-dd" style={{ left: x(dd), top: HEAD, height: bodyH }} title={`Data date ${fmtDay(dd)}`} />}
           </div>
         </div>

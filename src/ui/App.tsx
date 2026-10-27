@@ -24,6 +24,7 @@ import { SettingsDialog } from "./SettingsDialog";
 import { SetupWizard } from "./SetupWizard";
 import { useTerms } from "./terms";
 import { useAppearance } from "./appearance";
+import { levelResources } from "../core/level";
 import { DisplaysButton, DisplaysDialog, useDisplays } from "./display/Displays";
 import { startSync } from "./display/sync";
 import { ModeSwitch, ThemeButton } from "./ModeSwitch";
@@ -200,6 +201,13 @@ function Workspace() {
     try {
       const prevFinish = scheduleRange(s.schedule)?.finish ?? null;
       const r = scheduleCpm(s.schedule);
+      // Schedule Options → "Level resources during scheduling".
+      if (s.schedule.scheduleOptions?.levelWhenScheduling) {
+        const lv = levelResources(r.schedule);
+        r.schedule = lv.schedule;
+        r.projectFinish = lv.projectFinish;
+        r.warnings.push(...lv.warnings);
+      }
       s.setSchedule(r.schedule, { keepTime: true });
       s.setScheduleReport({
         at: Date.now(),

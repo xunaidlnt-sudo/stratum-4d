@@ -291,6 +291,9 @@ export const BASE_FIELDS: FieldDef[] = [
   },
   { id: "ff", label: "Free Float", group: "Float", type: "duration", width: 52, align: "right", get: (a, c) => toDays(a.freeFloatHours, c.hpd) },
   { id: "critical", label: "Critical", group: "Float", type: "bool", width: 56, align: "center", get: (a) => a.critical, text: (a) => (a.critical ? "Yes" : "") },
+  { id: "longestPath", label: "Longest Path", group: "Float", type: "bool", width: 60, align: "center", get: (a) => !!a.longestPath, text: (a) => (a.longestPath ? "Yes" : "") },
+  { id: "floatPath", label: "Float Path", group: "Float", type: "number", width: 50, align: "right", get: (a) => a.floatPath ?? null },
+  { id: "floatPathOrder", label: "Float Path Order", group: "Float", type: "number", width: 60, align: "right", get: (a) => a.floatPathOrder ?? null },
   {
     id: "constraint",
     label: "Primary Constraint",
@@ -306,6 +309,30 @@ export const BASE_FIELDS: FieldDef[] = [
     },
   },
   dateField("constraintDate", "Primary Constraint Date", (a) => a.constraint?.date ?? null, (a, t) => (a.constraint ? { constraint: { ...a.constraint, date: t } } : null)),
+  {
+    id: "constraint2",
+    label: "Secondary Constraint",
+    group: "Dates",
+    type: "enum",
+    width: 120,
+    options: ["", ...Object.values(CONSTRAINT_LABEL)],
+    get: (a) => (a.secondaryConstraint ? CONSTRAINT_LABEL[a.secondaryConstraint.type] ?? a.secondaryConstraint.type : ""),
+    set: (a, v) => {
+      if (!v) return { secondaryConstraint: null };
+      const k = Object.keys(CONSTRAINT_LABEL).find((x) => CONSTRAINT_LABEL[x] === v);
+      return k ? { secondaryConstraint: { type: k as NonNullable<Activity["constraint"]>["type"], date: a.secondaryConstraint?.date ?? a.finish } } : null;
+    },
+  },
+  dateField("constraint2Date", "Secondary Constraint Date", (a) => a.secondaryConstraint?.date ?? null, (a, t) => (a.secondaryConstraint ? { secondaryConstraint: { ...a.secondaryConstraint, date: t } } : null)),
+  {
+    id: "leveledDelay",
+    label: "Leveling Delay",
+    group: "Durations",
+    type: "duration",
+    width: 62,
+    align: "right",
+    get: (a, c) => toDays(a.leveledDelayHours, c.hpd),
+  },
   { id: "preds", label: "Predecessors", group: "Relationships", type: "text", width: 140, get: (a, c) => (c.preds.get(a.id) ?? []).join(", ") },
   { id: "succs", label: "Successors", group: "Relationships", type: "text", width: 140, get: (a, c) => (c.succs.get(a.id) ?? []).join(", ") },
   { id: "resources", label: "Resources", group: "Costs", type: "text", width: 140, get: (a, c) => (c.resNames.get(a.id) ?? []).join(", ") },
@@ -328,6 +355,45 @@ export const BASE_FIELDS: FieldDef[] = [
   { id: "actualUnits", label: "Actual Labor Units", group: "Units", type: "number", width: 88, align: "right", get: costOf("actualUnits") },
   { id: "remainingUnits", label: "Remaining Labor Units", group: "Units", type: "number", width: 92, align: "right", get: costOf("remainingUnits") },
   { id: "notes", label: "Notebook", group: "General", type: "text", width: 160, get: (a) => a.notes ?? "", set: (_a, v) => ({ notes: String(v ?? "") || undefined }) },
+  {
+    id: "physicalPct",
+    label: "Physical % Complete",
+    group: "Status",
+    type: "percent",
+    width: 66,
+    align: "right",
+    get: (a) => (a.physicalPercent === undefined ? null : Math.round(a.physicalPercent * 10) / 10),
+    text: (a) => (a.physicalPercent === undefined ? "" : `${Math.round(a.physicalPercent)}%`),
+    set: (_a, v) => {
+      const p = Number(v);
+      return Number.isFinite(p) ? { physicalPercent: Math.min(100, Math.max(0, p)) } : null;
+    },
+  },
+  {
+    id: "pctType",
+    label: "Percent Complete Type",
+    group: "Status",
+    type: "enum",
+    width: 92,
+    options: ["Duration", "Physical", "Units"],
+    get: (a) => (a.pctType === "physical" ? "Physical" : a.pctType === "units" ? "Units" : "Duration"),
+    set: (_a, v) => ({ pctType: v === "Physical" ? "physical" : v === "Units" ? "units" : "duration" }),
+  },
+  {
+    id: "durationType",
+    label: "Duration Type",
+    group: "General",
+    type: "enum",
+    width: 150,
+    options: ["Fixed Duration and Units/Time", "Fixed Duration and Units", "Fixed Units", "Fixed Units/Time"],
+    get: (a) =>
+      ({ "fixed-duration-units-time": "Fixed Duration and Units/Time", "fixed-duration-units": "Fixed Duration and Units", "fixed-units": "Fixed Units", "fixed-units-time": "Fixed Units/Time" })[a.durationType ?? "fixed-duration-units-time"],
+    set: (_a, v) => {
+      const m: Record<string, Activity["durationType"]> = { "Fixed Duration and Units/Time": "fixed-duration-units-time", "Fixed Duration and Units": "fixed-duration-units", "Fixed Units": "fixed-units", "Fixed Units/Time": "fixed-units-time" };
+      return m[String(v)] ? { durationType: m[String(v)] } : null;
+    },
+  },
+  { id: "steps", label: "Steps", group: "Status", type: "number", width: 46, align: "right", get: (a) => (a.steps?.length ? a.steps.length : null) },
 ];
 
 /** All fields for a schedule: built-ins plus its activity codes and user-defined fields. */
@@ -339,6 +405,9 @@ export function fieldsFor(s: Schedule | null): FieldDef[] {
     for (const k in a.codes) codes.add(k);
     for (const k in a.userFields ?? {}) udfs.add(k);
   }
+  // Defined in the dictionaries even if no activity uses them yet.
+  for (const t of s.codeTypes ?? []) codes.add(t.name);
+  for (const u of s.udfDefs ?? []) udfs.add(u.name);
   const codeFields: FieldDef[] = [...codes].sort().map((k) => ({
     id: `code:${k}`,
     label: k,
@@ -507,6 +576,7 @@ export function filterMatches(def: FilterDef, a: Activity, fields: Map<string, F
 /** P6's default filters. */
 export const STANDARD_FILTERS: FilterDef[] = [
   { id: "critical", name: "Critical", match: "all", rules: [{ field: "critical", op: "isTrue" }] },
+  { id: "longestPath", name: "Longest Path", match: "all", rules: [{ field: "longestPath", op: "isTrue" }] },
   { id: "negFloat", name: "Negative Float", match: "all", rules: [{ field: "tf", op: "lt", value: "0" }] },
   { id: "notStarted", name: "Not Started", match: "all", rules: [{ field: "status", op: "eq", value: "Not Started" }] },
   { id: "inProgress", name: "In Progress", match: "all", rules: [{ field: "status", op: "eq", value: "In Progress" }] },

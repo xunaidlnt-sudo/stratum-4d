@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { standardCalendar } from "../core/calendar";
+import { stepsPercent } from "../core/ops";
 import type { Activity, ActivityStatus, ActivityType, ConstraintType, RelationshipType } from "../core/types";
 import { fmtNum } from "./charts";
 import { fmtDate, fromInputDate, toInputDate, useStore } from "./store";
@@ -78,7 +79,7 @@ export function deleteSelectedActivity() {
 }
 
 /** Parts of the activity editor; P6's detail tabs show one or two at a time. */
-export type EditorSection = "general" | "status" | "dates" | "predecessors" | "successors" | "resources" | "codes" | "udf" | "notebook";
+export type EditorSection = "general" | "status" | "dates" | "predecessors" | "successors" | "resources" | "codes" | "udf" | "notebook" | "steps";
 
 export function ActivityEditor({ only, bare }: { only?: EditorSection[]; bare?: boolean } = {}) {
   const st = useStore();
@@ -490,6 +491,64 @@ function Fields({ act, hpd, only }: { act: Activity; hpd: number; only?: EditorS
       </section>
       )}
 
+      {show("steps") && (
+      <section className="stack">
+        <h4>
+          Steps{act.steps?.length ? ` · physical ${stepsPercent(act.steps)}% complete` : ""}
+        </h4>
+        {(act.steps ?? []).length > 0 && (
+          <table className="props compact">
+            <thead>
+              <tr>
+                <td>Step name</td>
+                <td>Weight</td>
+                <td>% complete</td>
+                <td />
+              </tr>
+            </thead>
+            <tbody>
+              {(act.steps ?? []).map((st, i) => {
+                const setSteps = (steps: NonNullable<Activity["steps"]>) => {
+                  const phys = stepsPercent(steps);
+                  up({ steps, physicalPercent: phys, ...(act.pctType === "physical" && act.status !== "not-started" ? { percentComplete: phys } : {}) });
+                };
+                return (
+                  <tr key={st.id}>
+                    <td>
+                      <input value={st.name} style={{ width: "100%", minWidth: 280 }} onChange={(e) => setSteps(act.steps!.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)))} />
+                    </td>
+                    <td>
+                      <input type="number" min={0} value={st.weight} style={{ width: 70 }} onChange={(e) => setSteps(act.steps!.map((x, k) => (k === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)))} />
+                    </td>
+                    <td>
+                      <input type="number" min={0} max={100} value={st.pct} style={{ width: 70 }} onChange={(e) => setSteps(act.steps!.map((x, k) => (k === i ? { ...x, pct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) } : x)))} />
+                    </td>
+                    <td>
+                      <button className="link" onClick={() => setSteps(act.steps!.filter((_, k) => k !== i))}>
+                        ✕
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+        <div className="row">
+          <button onClick={() => up({ steps: [...(act.steps ?? []), { id: uid("step"), name: `Step ${(act.steps?.length ?? 0) + 1}`, weight: 1, pct: 0 }] })}>Add step</button>
+          <label>
+            Percent complete type{" "}
+            <select value={act.pctType ?? "duration"} onChange={(e) => up({ pctType: e.target.value as Activity["pctType"], ...(e.target.value === "physical" && act.steps?.length && act.status !== "not-started" ? { percentComplete: stepsPercent(act.steps) } : {}) })}>
+              <option value="duration">Duration</option>
+              <option value="physical">Physical</option>
+              <option value="units">Units</option>
+            </select>
+          </label>
+        </div>
+        <p className="muted">With the Physical type, the weighted step progress becomes the activity's % complete.</p>
+      </section>
+      )}
+
       {show("notebook") && (
       <section className="stack">
         <h4>Notebook</h4>
@@ -553,6 +612,9 @@ function RelTable({ rels, other, hpd }: { rels: import("../core/types").Relation
                   {a?.code ?? "?"}
                 </button>{" "}
                 <span className="muted">{a?.name}</span>
+              </td>
+              <td title="Driving: this link sets the successor's early date (relationship free float 0). Run Schedule (F9) to update.">
+                {r.driving ? <b className="bad">Driving</b> : r.freeFloatHours != null ? <span className="muted">{Math.round((r.freeFloatHours / hpd) * 10) / 10}d float</span> : ""}
               </td>
               <td>
                 <select value={r.type} onChange={(e) => st.updateRelationship(r.id, { type: e.target.value as RelationshipType })}>

@@ -1430,3 +1430,18 @@ html[data-theme="dark"] .p6t-row.selected, html[data-theme="dark"] .p6g-row.sele
 .display-body > * { flex: 1; min-height: 0; }
 .display-details { overflow: auto; padding: 4px 10px; }
 .display-body .overlay-view, .display-body > .dash { position: static; }
+
+/* ---------- P6 bar editing ---------- */
+.p6g-bar.movable { cursor: grab; }
+.p6g-bar .p6g-grip { position: absolute; right: -3px; top: -3px; bottom: -3px; width: 7px; cursor: ew-resize; }
+.p6g-link { position: absolute; top: calc(50% - 4px); width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--accent); background: var(--panel); cursor: crosshair; opacity: 0; transition: opacity 0.1s; }
+.p6g-row:hover .p6g-link, .p6g-row.selected .p6g-link { opacity: 1; }
+.p6g-ghost { position: absolute; z-index: 4; border: 1.5px dashed var(--accent); background: var(--accent-soft); pointer-events: none; box-sizing: border-box; display: flex; align-items: center; justify-content: flex-end; }
+.p6g-ghost span { font-size: 10px; font-weight: 600; color: var(--accent); background: var(--panel); padding: 0 3px; margin-right: -32px; border-radius: 2px; }
+.p6g-rels.drag { z-index: 5; }
+.p6g-rels.drag path { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 3; }
+.p6-cal { display: grid; grid-template-columns: 260px 1fr; gap: 12px; min-height: 360px; }
+.p6-cal .p6-list-body button .muted { margin-left: auto; }
+input.bad { border-color: var(--p6-critical, #d92d20) !important; }
+.p6-check { justify-content: flex-start; }
+.p6-check input[type="checkbox"], .p6-check input[type="radio"] { width: auto; flex: none; margin: 0; }

@@ -26,9 +26,10 @@ import {
 import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
+import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
 
-function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
+export function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
   return (
     <div className="help-backdrop p6-dlg-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className={`p6-dlg ${wide ? "wide" : ""}`} role="dialog" aria-label={title} onKeyDown={(e) => e.key === "Escape" && onClose()}>
@@ -45,7 +46,7 @@ function Shell({ title, children, foot, wide, onClose }: { title: string; childr
   );
 }
 
-const close = () => useP6.getState().open(null);
+export const close = () => useP6.getState().open(null);
 
 // ---------------------------------------------------------------- Columns
 
@@ -1387,6 +1388,14 @@ function ProjectDialog() {
         <label>
           Data date <input value={fmtDate(schedule.dataDate)} disabled />
         </label>
+        <label>
+          Planned start
+          <input type="date" value={schedule.plannedStart != null ? new Date(schedule.plannedStart).toISOString().slice(0, 10) : ""} onChange={(e) => up({ plannedStart: e.target.value ? Date.parse(`${e.target.value}T08:00:00Z`) : null })} />
+        </label>
+        <label title="Late dates are calculated back from this date when it is set (F9).">
+          Must finish by
+          <input type="date" value={schedule.mustFinishBy != null ? new Date(schedule.mustFinishBy).toISOString().slice(0, 10) : ""} onChange={(e) => up({ mustFinishBy: e.target.value ? Date.parse(`${e.target.value}T17:00:00Z`) : null })} />
+        </label>
       </div>
       <table className="props">
         <tbody>
@@ -1524,13 +1533,6 @@ function PeriodsDialog() {
   );
 }
 
-function LevelDialog() {
-  return (
-    <Shell title="Level Resources" onClose={close}>
-      <p>Resource leveling is not available yet in Stratum. Schedule (F9) calculates dates from logic and calendars only. Use the Resource Usage profile in the lower pane to find overloads, then adjust logic or durations.</p>
-    </Shell>
-  );
-}
 
 // ---------------------------------------------------------------- host
 
@@ -1562,7 +1564,12 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     pageSetup: () => <PageSetupDialog />,
     projectInfo: () => <ProjectDialog />,
     spelling: () => <SpellingDialog />,
-    level: () => <LevelDialog />,
+    level: () => <LevelDialog onSchedule={onSchedule} />,
+    scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,
+    calendars: () => <CalendarsDialog />,
+    activityCodes: () => <ActivityCodesDialog />,
+    udfs: () => <UdfDialog />,
+    claimDigger: () => <ClaimDiggerDialog />,
     periods: () => <PeriodsDialog />,
     displays: () => displays ?? null,
   };
