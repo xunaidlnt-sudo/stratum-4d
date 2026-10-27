@@ -10,6 +10,7 @@ import type { StratumProject } from "../../core/project";
 import type { Schedule } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
+import { closeDlg, DetailTabs, ListHead, P6Dlg, SideArrows, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 
 const payload = (schedule: Schedule, old?: StratumProject | null): StratumProject => ({
   format: "stratum-project",
@@ -85,6 +86,13 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
+  const [portfolio, setPortfolio] = useState("");
+  const [portfolios, setPortfolios] = useState(loadPortfolios);
+  useEffect(() => {
+    const on = () => setPortfolios(loadPortfolios());
+    window.addEventListener("stratum:portfolios", on);
+    return () => window.removeEventListener("stratum:portfolios", on);
+  }, []);
 
   const load = async () => {
     try {
@@ -119,10 +127,11 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { 
 
   const byId = new Map((list ?? []).map((p) => [p.id, p]));
   const rows = useMemo(() => {
-    const items: { id: string; code: string; name: string; eps?: string[] }[] = [...(list ?? [])];
+    const pf = portfolios.find((x) => x.id === portfolio);
+    const items: { id: string; code: string; name: string; eps?: string[] }[] = (list ?? []).filter((p) => !pf || pf.projectIds.includes(p.id));
     emptyEps.forEach((path, i) => items.push({ id: `__eps${i}`, code: "", name: "", eps: path }));
     return epsTree(items).filter((r) => !(r.kind === "project" && r.projectId!.startsWith("__eps")));
-  }, [list, emptyEps]);
+  }, [list, emptyEps, portfolio, portfolios]);
   const epsPaths = useMemo(() => {
     // Every EPS node as a path, for the Move to EPS list.
     const out: { key: string; path: string[]; label: string }[] = [];
@@ -283,6 +292,17 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { 
           Delete
         </button>
         <span className="spacer" />
+        <label className="p6-drop">
+          Portfolio
+          <select value={portfolio} onChange={(e) => setPortfolio(e.target.value)}>
+            <option value="">All Projects</option>
+            {portfolios.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <span className="muted small">{msg || backend.label}</span>
       </div>
       <div className="p6-win-body">
@@ -393,3 +413,408 @@ export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { 
 }
 
 const epsCache = new Map<string, Omit<Row, keyof ProjectSummary>>();
+
+// ---------------------------------------------------------------- EPS dictionary (Enterprise › EPS)
+
+type EpsEntry = { key: string; path: string[]; depth: number; id: string; name: string; projects: number };
+
+/** Every EPS node, from the projects in the database plus empty nodes kept on this device. */
+async function readEps(): Promise<{ entries: EpsEntry[]; projects: { id: string; eps: string[] }[] }> {
+  const backend = useConfig.getState().backend;
+  const rows = await backend.listProjects();
+  const projects = await Promise.all(rows.map(async (r) => ({ id: r.id, eps: (await backend.getProject(r.id).catch(() => null))?.project.schedule?.eps ?? [] })));
+  const paths = [...projects.map((p) => p.eps), ...loadEmptyEps()];
+  const map = new Map<string, EpsEntry>();
+  for (const path of paths)
+    for (let i = 1; i <= path.length; i++) {
+      const sub = path.slice(0, i);
+      const key = sub.map((x) => epsNode(x).id).join("/");
+      if (!map.has(key)) map.set(key, { key, path: sub, depth: i - 1, ...epsNode(sub[i - 1]), projects: 0 });
+    }
+  for (const p of projects) for (let i = 1; i <= p.eps.length; i++) map.get(p.eps.slice(0, i).map((x) => epsNode(x).id).join("/"))!.projects++;
+  const entries = [...map.values()].sort((a, b) => a.key.localeCompare(b.key, undefined, { numeric: true }));
+  return { entries, projects };
+}
+
+const keyOfPath = (p: string[]) => p.map((x) => epsNode(x).id).join("/");
+const startsWith = (path: string[], prefix: string[]) => prefix.length <= path.length && keyOfPath(path.slice(0, prefix.length)) === keyOfPath(prefix);
+
+/** Replace an EPS path prefix in every project and empty node (rename, move). */
+async function rewriteEps(from: string[], to: string[]) {
+  const backend = useConfig.getState().backend;
+  for (const r of await backend.listProjects()) {
+    const got = await backend.getProject(r.id);
+    const s = got?.project.schedule;
+    if (!s?.eps || !startsWith(s.eps, from)) continue;
+    const eps = [...to, ...s.eps.slice(from.length)];
+    const v = await backend.saveProject(r.id, { ...got!.project, schedule: { ...s, eps } }, got!.version);
+    const st = useStore.getState();
+    if (st.currentProjectId === r.id && st.schedule) {
+      useStore.setState({ schedule: { ...st.schedule, eps } });
+      st.setCurrentProject(r.id, v);
+    }
+  }
+  saveEmptyEps(loadEmptyEps().map((p) => (startsWith(p, from) ? [...to, ...p.slice(from.length)] : p)));
+}
+
+const OBS_KEY = "stratum.epsobs.v1";
+const readEpsObs = (): Record<string, string> => {
+  try {
+    return JSON.parse(localStorage.getItem(OBS_KEY) ?? "{}");
+  } catch {
+    return {};
+  }
+};
+
+let epsClip: { path: string[]; cut: boolean } | null = null;
+
+export function EpsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [data, setData] = useState<{ entries: EpsEntry[] } | null>(null);
+  const [sel, setSel] = useState<string | null>(null);
+  const [draft, setDraft] = useState<{ id: string; name: string } | null>(null);
+  const [obs, setObs] = useState<Record<string, string>>(readEpsObs);
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState("");
+  const reload = async () => setData(await readEps());
+  useEffect(() => {
+    void reload().catch((e) => setMsg((e as Error).message));
+  }, []);
+  const cur = data?.entries.find((e) => e.key === sel) ?? null;
+  const pick = (e: EpsEntry | null) => (setSel(e?.key ?? null), setDraft(e ? { id: e.id, name: e.name } : null));
+  const run = async (fn: () => Promise<void>) => {
+    setBusy(true);
+    setMsg("");
+    try {
+      await fn();
+      await reload();
+    } catch (e) {
+      setMsg((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  const add = () => {
+    const parent = cur?.path ?? [];
+    const taken = new Set((data?.entries ?? []).map((e) => e.key));
+    let n = 1;
+    while (taken.has(keyOfPath([...parent, `EPS${n}`]))) n++;
+    const path = [...parent, `EPS${n} | New EPS`];
+    saveEmptyEps([...loadEmptyEps(), path]);
+    void reload().then(() => pick({ key: keyOfPath(path), path, depth: path.length - 1, ...epsNode(path[path.length - 1]), projects: 0 }));
+  };
+  const del = () =>
+    run(async () => {
+      if (!cur) return;
+      if (cur.projects) throw new Error(`${cur.id} holds ${cur.projects} project(s). Move them to another EPS first (Projects window › Move to).`);
+      saveEmptyEps(loadEmptyEps().filter((p) => !startsWith(p, cur.path)));
+      pick(null);
+    });
+  const saveDraft = () =>
+    run(async () => {
+      if (!cur || !draft) return;
+      const id = draft.id.trim();
+      if (!id) throw new Error("The EPS ID cannot be empty.");
+      const seg = draft.name.trim() && draft.name.trim() !== id ? `${id} | ${draft.name.trim()}` : id;
+      if (seg === cur.path[cur.path.length - 1]) return;
+      const to = [...cur.path.slice(0, -1), seg];
+      if (keyOfPath(to) !== cur.key && data?.entries.some((e) => e.key === keyOfPath(to))) throw new Error(`EPS ID ${id} is already used here.`);
+      await rewriteEps(cur.path, to);
+      setSel(keyOfPath(to));
+    });
+  const moveTo = (newParent: string[]) =>
+    run(async () => {
+      if (!cur) return;
+      if (startsWith(newParent, cur.path)) throw new Error("An EPS node cannot move under itself.");
+      const to = [...newParent, cur.path[cur.path.length - 1]];
+      await rewriteEps(cur.path, to);
+      setSel(keyOfPath(to));
+    });
+  const siblingAbove = () => {
+    if (!cur || !data) return null;
+    const sibs = data.entries.filter((e) => e.depth === cur.depth && keyOfPath(e.path.slice(0, -1)) === keyOfPath(cur.path.slice(0, -1)));
+    const i = sibs.findIndex((e) => e.key === cur.key);
+    return i > 0 ? sibs[i - 1] : null;
+  };
+  const obsOptions = (schedule?.obs ?? []).map((o) => o.name);
+  return (
+    <P6Dlg
+      title="Enterprise Project Structure (EPS)"
+      width={640}
+      onClose={closeDlg}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={closeDlg} />
+          <SideGap />
+          <SideBtn kind="add" label="Add" disabled={busy} onClick={add} />
+          <SideBtn kind="delete" label="Delete" disabled={!cur || busy} onClick={del} />
+          <SideBtn kind="cut" label="Cut" disabled={!cur} onClick={() => cur && (epsClip = { path: cur.path, cut: true })} />
+          <SideBtn kind="copy" label="Copy" disabled={!cur} onClick={() => cur && (epsClip = { path: cur.path, cut: false })} />
+          <SideBtn
+            kind="paste"
+            label="Paste"
+            disabled={busy}
+            onClick={() => {
+              if (!epsClip) return;
+              const clip = epsClip;
+              if (clip.cut) {
+                epsClip = null;
+                const node = data?.entries.find((e) => e.key === keyOfPath(clip.path));
+                if (!node) return;
+                setSel(node.key);
+                void run(async () => {
+                  const to = [...(cur?.path ?? []), clip.path[clip.path.length - 1]];
+                  if (startsWith(cur?.path ?? [], clip.path)) throw new Error("An EPS node cannot move under itself.");
+                  await rewriteEps(clip.path, to);
+                  setSel(keyOfPath(to));
+                });
+              } else {
+                // Copy pastes the node structure (not its projects) under the selection.
+                const base = cur?.path ?? [];
+                const copies = (data?.entries ?? []).filter((e) => startsWith(e.path, clip.path)).map((e) => [...base, ...e.path.slice(clip.path.length - 1)]);
+                saveEmptyEps([...loadEmptyEps(), ...copies.map((p, i) => (i === 0 ? [...p.slice(0, -1), `${epsNode(p[p.length - 1]).id}-1 | ${epsNode(p[p.length - 1]).name}`] : p))]);
+                void reload();
+              }
+            }}
+          />
+          <SideArrows left={cur && cur.depth > 0 ? () => void moveTo(cur.path.slice(0, -2)) : undefined} right={siblingAbove() ? () => void moveTo(siblingAbove()!.path) : undefined} />
+          <SideGap />
+          <SideHelp topic="eps" />
+        </>
+      }
+    >
+      <div>
+        <ListHead>EPS</ListHead>
+        <div className="p6-list2">
+          <table>
+            <thead>
+              <tr>
+                <td style={{ width: "40%" }}>EPS ID</td>
+                <td>EPS Name</td>
+                <td style={{ width: 70 }}>Projects</td>
+              </tr>
+            </thead>
+            <tbody>
+              {data === null ? (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    Loading…
+                  </td>
+                </tr>
+              ) : !data.entries.length ? (
+                <tr>
+                  <td colSpan={3} className="muted">
+                    No EPS yet. Click Add.
+                  </td>
+                </tr>
+              ) : (
+                data.entries.map((e) => (
+                  <tr key={e.key} className={sel === e.key ? "on" : ""} onClick={() => pick(e)}>
+                    <td style={{ paddingLeft: 6 + e.depth * 16 }}>
+                      <span className="p6-ico" aria-hidden style={{ color: "#c49a00" }}>
+                        ◆
+                      </span>
+                      {e.id}
+                    </td>
+                    <td>{e.name}</td>
+                    <td className="num">{e.projects}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {cur && draft && (
+        <div className="p6-detail">
+          <div className="p6-detail-body">
+            <div className="row" style={{ gap: 10 }} onBlur={(e) => !e.currentTarget.contains(e.relatedTarget as Node | null) && void saveDraft()}>
+              <label style={{ flex: "0 0 140px" }}>
+                EPS ID
+                <input value={draft.id} onChange={(e) => setDraft({ ...draft, id: e.target.value })} onKeyDown={(e) => e.key === "Enter" && void saveDraft()} />
+              </label>
+              <label style={{ flex: 1 }}>
+                EPS Name
+                <input value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} onKeyDown={(e) => e.key === "Enter" && void saveDraft()} />
+              </label>
+            </div>
+            <label>
+              Responsible Manager
+              <select
+                value={obs[cur.key] ?? ""}
+                onChange={(e) => {
+                  const next = { ...obs, [cur.key]: e.target.value };
+                  setObs(next);
+                  try {
+                    localStorage.setItem(OBS_KEY, JSON.stringify(next));
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+              >
+                <option value="">Enterprise</option>
+                {obsOptions.map((o) => (
+                  <option key={o} value={o}>
+                    {o}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+        </div>
+      )}
+      {msg && <p className="small" style={{ color: "#b42318" }}>{msg}</p>}
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Project Portfolios (Enterprise › Project Portfolios)
+
+export interface Portfolio {
+  id: string;
+  name: string;
+  description: string;
+  projectIds: string[];
+}
+const PF_KEY = "stratum.portfolios.v1";
+export const loadPortfolios = (): Portfolio[] => {
+  try {
+    return JSON.parse(localStorage.getItem(PF_KEY) ?? "[]");
+  } catch {
+    return [];
+  }
+};
+const savePortfolios = (v: Portfolio[]) => {
+  try {
+    localStorage.setItem(PF_KEY, JSON.stringify(v));
+  } catch {
+    /* ignore */
+  }
+  window.dispatchEvent(new Event("stratum:portfolios"));
+};
+
+let pfClip: Portfolio | null = null;
+
+export function PortfoliosDialog() {
+  const backend = useConfig((c) => c.backend);
+  const [list, setList] = useState<Portfolio[]>(loadPortfolios);
+  const [sel, setSel] = useState<string | null>(list[0]?.id ?? null);
+  const [projects, setProjects] = useState<ProjectSummary[]>([]);
+  useEffect(() => {
+    backend.listProjects().then(setProjects).catch(() => {});
+  }, [backend]);
+  const set = (v: Portfolio[]) => (setList(v), savePortfolios(v));
+  const cur = list.find((p) => p.id === sel) ?? null;
+  const put = (p: Portfolio) => set(list.map((x) => (x.id === p.id ? p : x)));
+  const add = (from?: Portfolio) => {
+    const p: Portfolio = from ? { ...structuredClone(from), id: uid("pf"), name: `${from.name} (copy)` } : { id: uid("pf"), name: "New Portfolio", description: "", projectIds: [] };
+    set([...list, p]);
+    setSel(p.id);
+  };
+  return (
+    <P6Dlg
+      title="Project Portfolios"
+      width={760}
+      onClose={closeDlg}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={closeDlg} />
+          <SideGap />
+          <SideBtn kind="add" label="Add" onClick={() => add()} />
+          <SideBtn kind="delete" label="Delete" disabled={!cur} onClick={() => cur && window.confirm(`Delete portfolio ${cur.name}? Its projects stay in the database.`) && (set(list.filter((x) => x.id !== cur.id)), setSel(null))} />
+          <SideBtn kind="cut" label="Cut" disabled={!cur} onClick={() => cur && ((pfClip = cur), set(list.filter((x) => x.id !== cur.id)), setSel(null))} />
+          <SideBtn kind="copy" label="Copy" disabled={!cur} onClick={() => (pfClip = cur)} />
+          <SideBtn kind="paste" label="Paste" onClick={() => pfClip && add(pfClip)} />
+          <SideGap />
+          <SideHelp topic="portfolios" />
+        </>
+      }
+    >
+      <div>
+        <ListHead>Portfolios</ListHead>
+        <div className="p6-list2" style={{ minHeight: 160, maxHeight: "32vh" }}>
+          <table>
+            <thead>
+              <tr>
+                <td>Portfolio Name</td>
+                <td style={{ width: 80 }}>Projects</td>
+              </tr>
+            </thead>
+            <tbody>
+              <tr className="grp">
+                <td colSpan={2}>⊟ Global Portfolios</td>
+              </tr>
+              {list.map((p) => (
+                <tr key={p.id} className={sel === p.id ? "on" : ""} onClick={() => setSel(p.id)}>
+                  <td style={{ paddingLeft: 22 }}>
+                    <span className="p6-ico" aria-hidden>
+                      💼
+                    </span>
+                    {p.name}
+                  </td>
+                  <td className="num">{p.projectIds.length}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {cur && (
+        <DetailTabs
+          key={cur.id}
+          tabs={[
+            [
+              "General",
+              <>
+                <label>
+                  Name <input value={cur.name} onChange={(e) => put({ ...cur, name: e.target.value })} />
+                </label>
+                <label>
+                  Description
+                  <textarea rows={4} value={cur.description} onChange={(e) => put({ ...cur, description: e.target.value })} />
+                </label>
+              </>,
+            ],
+            [
+              "Projects",
+              <div className="p6-list2" style={{ minHeight: 120, maxHeight: 240 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <td style={{ width: 50 }}>In</td>
+                      <td>Project ID</td>
+                      <td>Project Name</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projects.map((p) => (
+                      <tr key={p.id}>
+                        <td style={{ textAlign: "center" }}>
+                          <input
+                            type="checkbox"
+                            aria-label={`${p.code} in ${cur.name}`}
+                            checked={cur.projectIds.includes(p.id)}
+                            onChange={(e) => put({ ...cur, projectIds: e.target.checked ? [...cur.projectIds, p.id] : cur.projectIds.filter((x) => x !== p.id) })}
+                          />
+                        </td>
+                        <td>{p.code}</td>
+                        <td>{p.name}</td>
+                      </tr>
+                    ))}
+                    {!projects.length && (
+                      <tr>
+                        <td colSpan={3} className="muted small">
+                          No projects in the database yet.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              </div>,
+            ],
+          ]}
+        />
+      )}
+    </P6Dlg>
+  );
+}

@@ -9,12 +9,15 @@ import type { CostAccount, Resource, ResourceCurve, Role, Schedule, Shift } from
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, useP6 } from "./commands";
 import { close, Shell } from "./Dialogs";
+import { DetailTabs, ListHead, P6Dlg, SideArrows, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 
 const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
 const money = (v: number) => v.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const DAY = 86_400_000;
 
 // ---------------------------------------------------------------- Roles
+
+let roleClip: Role | null = null;
 
 export function RolesDialog() {
   const schedule = useStore((s) => s.schedule);
@@ -31,88 +34,182 @@ export function RolesDialog() {
       { ...s, resources: (s.resources ?? []).map((x) => (x.id === r.id ? { ...x, roleIds: on ? [...new Set([...(x.roleIds ?? []), role.id])] : (x.roleIds ?? []).filter((y) => y !== role.id) } : x)) },
       `Role resources ${role.id}`,
     );
+  const addRole = (from?: Role) => {
+    const r: Role = from ? { ...structuredClone(from), id: uid("role"), code: `${from.code}-1` } : { id: uid("role"), code: `ROLE${roles.length + 1}`, name: "New Role", pricePerUnit: 0 };
+    commit({ ...s, roles: [...roles, r] }, "Add role");
+    setSel(r.id);
+  };
+  const delMerge = () => {
+    if (!role) return;
+    const others = roles.filter((x) => x.id !== role.id);
+    const into = used(role.id) && others.length ? window.prompt(`${role.code} is used by ${used(role.id)} assignments. Type the Role ID to merge them into, or leave empty to remove the role from them:`, others[0].code) : "";
+    if (into === null) return;
+    const target = others.find((x) => x.code === into?.trim()) ?? null;
+    if (into && !target) return window.alert(`No role ${into}.`);
+    commit(
+      {
+        ...s,
+        roles: others,
+        assignments: (s.assignments ?? []).filter((x) => target || !(x.roleId === role.id && !x.resourceId)).map((x) => (x.roleId === role.id ? { ...x, roleId: target?.id ?? null } : x)),
+        resources: (s.resources ?? []).map((x) => (x.roleIds?.includes(role.id) ? { ...x, roleIds: [...new Set(x.roleIds.map((y) => (y === role.id ? target?.id ?? "" : y)).filter(Boolean))] } : x)),
+      },
+      target ? `Merge role into ${target.code}` : "Delete role",
+    );
+    setSel(target?.id ?? null);
+  };
+  const rates = role ? [...(role.rates ?? [])].sort((x, y) => x.from - y.from) : [];
+  const setRate = (i: number, patch: Partial<NonNullable<Role["rates"]>[number]>) => role && put({ ...role, rates: rates.map((x, k) => (k === i ? { ...x, ...patch } : x)) });
+  const idx = role ? roles.findIndex((x) => x.id === role.id) : -1;
+  const swap = (d: -1 | 1) => {
+    if (idx < 0 || !roles[idx + d]) return;
+    const next = [...roles];
+    [next[idx], next[idx + d]] = [next[idx + d], next[idx]];
+    commit({ ...s, roles: next }, "Move role");
+  };
   return (
-    <Shell title="Roles" wide onClose={close}>
-      <div className="p6-cal">
-        <div className="p6-list">
-          <div className="p6-list-head">Roles</div>
-          <div className="p6-list-body">
-            {roles.map((r) => (
-              <button key={r.id} className={sel === r.id ? "on" : ""} onClick={() => setSel(r.id)}>
-                {r.code} {r.name} <span className="muted small">{used(r.id)} asg.</span>
-              </button>
-            ))}
-          </div>
-          <div className="row" style={{ padding: 6 }}>
-            <button
-              onClick={() => {
-                const r: Role = { id: uid("role"), code: `ROLE${roles.length + 1}`, name: "New Role", pricePerUnit: 0 };
-                commit({ ...s, roles: [...roles, r] }, "Add role");
-                setSel(r.id);
-              }}
-            >
-              Add
-            </button>
-            <button
-              disabled={!role}
-              onClick={() => {
-                if (!role || !window.confirm(`Delete role ${role.code}? Its unstaffed assignments are removed; staffed ones keep their resource.`)) return;
-                commit(
-                  {
-                    ...s,
-                    roles: roles.filter((x) => x.id !== role.id),
-                    assignments: (s.assignments ?? []).filter((x) => !(x.roleId === role.id && !x.resourceId)).map((x) => (x.roleId === role.id ? { ...x, roleId: null } : x)),
-                    resources: (s.resources ?? []).map((x) => (x.roleIds?.includes(role.id) ? { ...x, roleIds: x.roleIds.filter((y) => y !== role.id) } : x)),
-                  },
-                  "Delete role",
-                );
-                setSel(null);
-              }}
-            >
-              Delete
-            </button>
-          </div>
+    <P6Dlg
+      title="Roles"
+      width={720}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideGap />
+          <SideBtn kind="add" label="Add" onClick={() => addRole()} />
+          <SideBtn kind="delete" label="Del. / Merge" disabled={!role} onClick={delMerge} />
+          <SideBtn kind="cut" label="Cut" disabled={!role} onClick={() => role && ((roleClip = role), delMerge())} />
+          <SideBtn kind="copy" label="Copy" disabled={!role} onClick={() => (roleClip = role)} />
+          <SideBtn kind="paste" label="Paste" onClick={() => roleClip && addRole(roleClip)} />
+          <SideArrows up={idx > 0 ? () => swap(-1) : undefined} down={idx >= 0 && idx < roles.length - 1 ? () => swap(1) : undefined} />
+          <SideGap />
+          <SideHelp topic="roles" />
+        </>
+      }
+    >
+      <div>
+        <ListHead>Current Project&apos;s Roles</ListHead>
+        <div className="p6-list2" style={{ minHeight: 150, maxHeight: "30vh" }}>
+          <table>
+            <thead>
+              <tr>
+                <td style={{ width: "35%" }}>Role ID</td>
+                <td>Role Name</td>
+                <td style={{ width: 90 }}>Assignments</td>
+              </tr>
+            </thead>
+            <tbody>
+              {roles.map((r) => (
+                <tr key={r.id} className={sel === r.id ? "on" : ""} onClick={() => setSel(r.id)}>
+                  <td>{r.code}</td>
+                  <td>{r.name}</td>
+                  <td className="num">{used(r.id)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
-        {role ? (
-          <div className="stack" key={role.id}>
-            <div className="grid2">
-              <label>
-                Role ID <input value={role.code} onChange={(e) => put({ ...role, code: e.target.value })} />
-              </label>
-              <label>
-                Role name <input value={role.name} onChange={(e) => put({ ...role, name: e.target.value })} />
-              </label>
-              <label>
-                Price / unit (used until the role is staffed)
-                <input type="number" min={0} value={role.pricePerUnit} onChange={(e) => put({ ...role, pricePerUnit: Math.max(0, Number(e.target.value) || 0) })} />
-              </label>
-              <label>
-                Max units / h (role limit)
-                <input type="number" min={0} step={0.5} placeholder="no limit" value={role.maxUnitsPerHour ?? ""} onChange={(e) => put({ ...role, maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} />
-              </label>
-            </div>
-            <h4>Resources that can fill this role</h4>
-            <div className="p6-scroll" style={{ maxHeight: 260 }}>
-              <table className="p6-grid">
-                <tbody>
-                  {(s.resources ?? []).map((r) => (
-                    <tr key={r.id}>
-                      <td style={{ width: 30 }}>
-                        <input type="checkbox" checked={!!r.roleIds?.includes(role.id)} onChange={(e) => toggle(r, e.target.checked)} aria-label={`${r.code} fills ${role.code}`} />
-                      </td>
-                      <td>{r.code}</td>
-                      <td>{r.name}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        ) : (
-          <p className="muted">Add a role (a job title such as Electrician or Planner), then tick the resources that can do it. Assign roles to activities from Activities › Assign Roles and staff them later in the Assignments window.</p>
-        )}
       </div>
-    </Shell>
+      {role ? (
+        <DetailTabs
+          key={role.id}
+          tabs={[
+            [
+              "General",
+              <>
+                <div className="row" style={{ gap: 10 }}>
+                  <label style={{ flex: "0 0 160px" }}>
+                    Role ID <input value={role.code} onChange={(e) => put({ ...role, code: e.target.value })} />
+                  </label>
+                  <label style={{ flex: 1 }}>
+                    Role Name <input value={role.name} onChange={(e) => put({ ...role, name: e.target.value })} />
+                  </label>
+                </div>
+                <label>
+                  Responsibilities
+                  <textarea rows={4} value={role.responsibilities ?? ""} onChange={(e) => put({ ...role, responsibilities: e.target.value })} />
+                </label>
+              </>,
+            ],
+            [
+              "Resources",
+              <div className="p6-list2" style={{ minHeight: 120, maxHeight: 220 }}>
+                <table>
+                  <thead>
+                    <tr>
+                      <td style={{ width: 50 }}>Assign</td>
+                      <td>Resource ID</td>
+                      <td>Resource Name</td>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {(s.resources ?? []).map((r) => (
+                      <tr key={r.id}>
+                        <td style={{ textAlign: "center" }}>
+                          <input type="checkbox" checked={!!r.roleIds?.includes(role.id)} onChange={(e) => toggle(r, e.target.checked)} aria-label={`${r.code} fills ${role.code}`} />
+                        </td>
+                        <td>{r.code}</td>
+                        <td>{r.name}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>,
+            ],
+            [
+              "Units & Prices",
+              <>
+                <div className="row" style={{ gap: 10 }}>
+                  <label>
+                    Price / Unit (before the first effective date)
+                    <input type="number" min={0} value={role.pricePerUnit} onChange={(e) => put({ ...role, pricePerUnit: Math.max(0, Number(e.target.value) || 0) })} />
+                  </label>
+                  <label>
+                    Max Units / Time
+                    <input type="number" min={0} step={0.5} placeholder="no limit" value={role.maxUnitsPerHour ?? ""} onChange={(e) => put({ ...role, maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} />
+                  </label>
+                </div>
+                <table className="p6-grid">
+                  <thead>
+                    <tr>
+                      <td>Effective Date</td>
+                      <td>Max Units / Time</td>
+                      <td>Price / Unit</td>
+                      <td />
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rates.map((x, i) => (
+                      <tr key={i}>
+                        <td>
+                          <input type="date" value={new Date(x.from).toISOString().slice(0, 10)} onChange={(e) => e.target.value && setRate(i, { from: Date.parse(`${e.target.value}T00:00:00Z`) })} />
+                        </td>
+                        <td>
+                          <input className="cell num" type="number" min={0} step={0.5} placeholder="unchanged" value={x.maxUnitsPerHour ?? ""} onChange={(e) => setRate(i, { maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} />
+                        </td>
+                        <td>
+                          <input className="cell num" type="number" min={0} value={x.pricePerUnit} onChange={(e) => setRate(i, { pricePerUnit: Math.max(0, Number(e.target.value) || 0) })} />
+                        </td>
+                        <td>
+                          <button className="link" onClick={() => put({ ...role, rates: rates.filter((_, k) => k !== i) })}>
+                            Remove
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div className="row">
+                  <button onClick={() => put({ ...role, rates: [...rates, { from: Math.floor((rates.at(-1)?.from ?? s.dataDate ?? Date.now()) / 86_400_000) * 86_400_000 + (rates.length ? 365 * 86_400_000 : 0), pricePerUnit: rates.at(-1)?.pricePerUnit ?? role.pricePerUnit }] })}>Add</button>
+                  <span className="muted small">Unstaffed role assignments are costed at the price in force each day.</span>
+                </div>
+              </>,
+            ],
+          ]}
+        />
+      ) : (
+        <p className="muted small">Add a role (a job title such as Electrician or Planner), tick the resources that can fill it, then assign roles to activities from Edit › Assign Roles.</p>
+      )}
+    </P6Dlg>
   );
 }
 

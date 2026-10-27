@@ -49,7 +49,9 @@ export type P6Dialog =
   | "costAccounts"
   | "obs"
   | "budgets"
-  | "riskMatrix";
+  | "riskMatrix"
+  | "eps"
+  | "portfolios";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

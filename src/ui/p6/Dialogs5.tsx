@@ -8,6 +8,7 @@ import type { BudgetChange, FundingSource, ObsNode, RiskMatrix, Schedule } from 
 import { useStore } from "../store";
 import { useP6 } from "./commands";
 import { close, Shell } from "./Dialogs";
+import { DetailTabs, ListHead, P6Dlg, SideArrows, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { useLayout } from "./layout";
 
 const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
@@ -16,84 +17,163 @@ const num = (v: string) => (v.trim() === "" ? 0 : Number(v.replace(/[^0-9.-]/g, 
 
 // ---------------------------------------------------------------- OBS
 
+let obsClip: { node: ObsNode; cut: boolean } | null = null;
+
 export function ObsDialog() {
   const schedule = useStore((s) => s.schedule);
-  const [sel, setSel] = useState<string | null>(null);
+  const [sel, setSel] = useState<string | null>(schedule?.obs?.[0]?.id ?? null);
   if (!schedule) return null;
   const s = schedule;
   const list = s.obs ?? [];
   const cur = list.find((o) => o.id === sel) ?? null;
   const put = (o: ObsNode) => commit({ ...s, obs: list.map((x) => (x.id === o.id ? o : x)) }, `OBS ${o.id}`);
-  const add = (parentId: string | null) => {
-    const o: ObsNode = { id: uid("obs"), parentId, name: "New responsible manager" };
+  const add = (parentId: string | null, name = "New OBS") => {
+    const o: ObsNode = { id: uid("obs"), parentId, name };
     commit({ ...s, obs: [...list, o] }, "Add OBS");
     setSel(o.id);
   };
-  const usedBy = (id: string) => s.wbs.filter((w) => w.obsId === id).length + (s.obsId === id ? 1 : 0);
+  const wbsOf = (id: string) => s.wbs.filter((w) => w.obsId === id);
+  const delMerge = () => {
+    if (!cur) return;
+    const n = wbsOf(cur.id).length + (s.obsId === cur.id ? 1 : 0);
+    const into = n ? window.prompt(`${cur.name} is responsible for ${n} element(s). Type the OBS name to hand them to, or leave empty to clear them:`, list.find((o) => o.id === cur.parentId)?.name ?? "") : "";
+    if (into === null) return;
+    const target = into ? list.find((o) => o.name === into.trim() && o.id !== cur.id) : null;
+    if (into && !target) return window.alert(`No OBS named ${into}.`);
+    const to = target?.id ?? null;
+    commit(
+      {
+        ...s,
+        obs: list.filter((o) => o.id !== cur.id).map((o) => (o.parentId === cur.id ? { ...o, parentId: cur.parentId } : o)),
+        obsId: s.obsId === cur.id ? to : s.obsId,
+        wbs: s.wbs.map((w) => (w.obsId === cur.id ? { ...w, obsId: to } : w)),
+      },
+      target ? `Merge OBS into ${target.name}` : "Delete OBS",
+    );
+    setSel(to);
+  };
+  const rows = obsTree(s);
+  const i = rows.findIndex((r) => r.node.id === cur?.id);
+  const above = i > 0 ? rows.slice(0, i).reverse().find((r) => r.depth === rows[i].depth) : undefined;
+  const parent = cur?.parentId ? list.find((o) => o.id === cur.parentId) : undefined;
   return (
-    <Shell
-      title="OBS (Organisational Breakdown Structure)"
-      wide
+    <P6Dlg
+      title="Organizational Breakdown Structure"
+      width={640}
       onClose={close}
-      foot={
+      side={
         <>
-          <button onClick={() => add(null)}>Add</button>
-          <button disabled={!cur} onClick={() => cur && add(cur.id)}>
-            Add child
-          </button>
-          <button
-            disabled={!cur || list.some((o) => o.parentId === cur?.id)}
-            title="Delete children first"
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideGap />
+          <SideBtn kind="add" label="Add" onClick={() => add(cur?.id ?? null)} />
+          <SideBtn kind="delete" label="Del. / Merge" disabled={!cur} onClick={delMerge} />
+          <SideBtn kind="cut" label="Cut" disabled={!cur} onClick={() => cur && (obsClip = { node: cur, cut: true })} />
+          <SideBtn kind="copy" label="Copy" disabled={!cur} onClick={() => cur && (obsClip = { node: cur, cut: false })} />
+          <SideBtn
+            kind="paste"
+            label="Paste"
             onClick={() => {
-              if (!cur || !window.confirm(`Delete ${cur.name}? ${usedBy(cur.id)} WBS elements lose it.`)) return;
-              commit({ ...s, obs: list.filter((o) => o.id !== cur.id), obsId: s.obsId === cur.id ? null : s.obsId, wbs: s.wbs.map((w) => (w.obsId === cur.id ? { ...w, obsId: null } : w)) }, "Delete OBS");
-              setSel(null);
+              if (!obsClip) return;
+              if (obsClip.cut) {
+                const moving = obsClip.node;
+                obsClip = null;
+                let p = cur;
+                for (let n = 0; p && n < 1000; p = p.parentId ? list.find((o) => o.id === p!.parentId) ?? null : null, n++) if (p.id === moving.id) return;
+                commit({ ...s, obs: list.map((o) => (o.id === moving.id ? { ...o, parentId: cur?.id ?? null } : o)) }, "Move OBS");
+              } else add(cur?.id ?? null, `${obsClip.node.name} (copy)`);
             }}
-          >
-            Delete
-          </button>
-          <span className="spacer" />
-          <button onClick={close}>Close</button>
+          />
+          <SideArrows
+            left={parent ? () => put({ ...cur!, parentId: parent.parentId }) : undefined}
+            right={above ? () => put({ ...cur!, parentId: above.node.id }) : undefined}
+          />
+          <SideGap />
+          <SideHelp topic="obs" />
         </>
       }
     >
-      <label>
-        Project responsible manager
-        <select value={s.obsId ?? ""} onChange={(e) => commit({ ...s, obsId: e.target.value || null }, "Project OBS")}>
-          <option value="">–</option>
-          {obsTree(s).map(({ node, depth }) => (
-            <option key={node.id} value={node.id}>
-              {" ".repeat(depth * 2)}
-              {node.name}
-            </option>
-          ))}
-        </select>
-      </label>
-      {list.length ? (
-        <div className="p6-scroll" style={{ marginTop: 10 }}>
-          <table className="p6-grid">
+      <div>
+        <ListHead>Current EPS/Projects</ListHead>
+        <div className="p6-list2" style={{ minHeight: 150, maxHeight: "32vh" }}>
+          <table>
             <thead>
               <tr>
                 <td>OBS Name</td>
-                <td>Description</td>
-                <td>WBS assigned</td>
               </tr>
             </thead>
             <tbody>
-              {obsTree(s).map(({ node, depth }) => (
+              {rows.map(({ node, depth }) => (
                 <tr key={node.id} className={sel === node.id ? "on" : ""} onClick={() => setSel(node.id)}>
-                  <td style={{ paddingLeft: 6 + depth * 14 }}>{sel === node.id ? <input className="cell" value={node.name} onChange={(e) => put({ ...node, name: e.target.value })} /> : node.name}</td>
-                  <td>{sel === node.id ? <input className="cell" value={node.description ?? ""} onChange={(e) => put({ ...node, description: e.target.value })} /> : node.description}</td>
-                  <td className="num">{usedBy(node.id)}</td>
+                  <td style={{ paddingLeft: 6 + depth * 16 }}>
+                    <span className="p6-ico" aria-hidden>
+                      👤
+                    </span>
+                    {node.name}
+                  </td>
                 </tr>
               ))}
+              {!rows.length && (
+                <tr>
+                  <td className="muted">No OBS yet. Click Add to create the top element (e.g. Enterprise).</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>
-      ) : (
-        <p className="muted">The OBS lists the people or departments responsible for the work. Assign them to WBS elements in the WBS window; activities show their manager in the Responsible Manager column.</p>
+      </div>
+      {cur && (
+        <DetailTabs
+          key={cur.id}
+          tabs={[
+            [
+              "General",
+              <>
+                <label>
+                  OBS Name <input value={cur.name} onChange={(e) => put({ ...cur, name: e.target.value })} />
+                </label>
+                <label>
+                  OBS Description
+                  <textarea rows={3} value={cur.description ?? ""} onChange={(e) => put({ ...cur, description: e.target.value })} />
+                </label>
+              </>,
+            ],
+            [
+              "Responsibility",
+              <>
+                <label className="p6-check" style={{ flexDirection: "row" }}>
+                  <input type="checkbox" checked={s.obsId === cur.id} onChange={(e) => commit({ ...s, obsId: e.target.checked ? cur.id : null }, "Project OBS")} /> Responsible manager of project {s.projectCode}
+                </label>
+                <div className="p6-list2" style={{ minHeight: 90, maxHeight: 200 }}>
+                  <table>
+                    <thead>
+                      <tr>
+                        <td>WBS</td>
+                        <td>WBS Name</td>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {wbsOf(cur.id).map((w) => (
+                        <tr key={w.id}>
+                          <td>{w.code}</td>
+                          <td>{w.name}</td>
+                        </tr>
+                      ))}
+                      {!wbsOf(cur.id).length && (
+                        <tr>
+                          <td colSpan={2} className="muted small">
+                            No WBS elements. Assign them in the WBS window&apos;s Responsible Manager column.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </>,
+            ],
+          ]}
+        />
       )}
-    </Shell>
+    </P6Dlg>
   );
 }
 

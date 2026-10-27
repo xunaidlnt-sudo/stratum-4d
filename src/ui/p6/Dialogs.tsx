@@ -6,9 +6,9 @@
 
 import { printPage } from "../files";
 import { download as saveFile } from "../files";
-import { X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
-import { fieldCtx, fieldsFor, OP_LABEL, type FilterDef, type FilterOp, type FilterRule } from "../../core/fields";
+import { Filter, X } from "lucide-react";
+import { Fragment, useMemo, useState, type ReactNode } from "react";
+import { fieldCtx, fieldsFor, OP_LABEL, STANDARD_FILTERS, type FilterDef, type FilterOp, type FilterRule } from "../../core/fields";
 import {
   checkSchedule,
   deleteBaseline,
@@ -28,6 +28,8 @@ import {
 import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
+import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
+import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
@@ -181,7 +183,7 @@ function RuleRows({ rules, onChange }: { rules: FilterRule[]; onChange: (r: Filt
           const ops = OPS_BY_TYPE[f?.type ?? "text"];
           const needsValue = !["empty", "notEmpty", "isTrue", "isFalse"].includes(r.op);
           return (
-            <tr key={i}>
+            <tr key={i} data-i={i}>
               <td>
                 <select
                   value={r.field}
@@ -238,139 +240,181 @@ function RuleRows({ rules, onChange }: { rules: FilterRule[]; onChange: (r: Filt
   );
 }
 
+let filterClipboard: FilterDef | null = null;
+
 function FiltersDialog() {
   const layout = useLayout((s) => s.layout);
   const custom = useLayout((s) => s.customFilters);
   const L = useLayout.getState();
-  const all = allFilters(custom);
   const [on, setOn] = useState<string[]>(layout.filters);
   const [match, setMatch] = useState(layout.filterMatch);
   const [mode, setMode] = useState(layout.filterMode);
   const [edit, setEdit] = useState<FilterDef | null>(null);
+  const [cur, setCur] = useState<string | null>(null);
+  const [rowSel, setRowSel] = useState<number | null>(null);
+  const [folded, setFolded] = useState<Set<string>>(new Set());
   const apply = () => L.set({ filters: on, filterMatch: match, filterMode: mode });
-  if (edit)
+  const isUser = (id: string | null) => !!id && custom.some((c) => c.id === id);
+  const curDef = allFilters(custom).find((f) => f.id === cur) ?? null;
+  if (edit) {
+    const rules = edit.rules;
     return (
-      <Shell
-        title={custom.some((f) => f.id === edit.id) ? "Modify Filter" : "New Filter"}
-        wide
+      <P6Dlg
+        title={isUser(edit.id) ? `Filter: ${edit.name || "untitled"}` : "New Filter"}
+        width={900}
         onClose={() => setEdit(null)}
-        foot={
+        side={
           <>
-            <button onClick={() => setEdit({ ...edit, rules: [...edit.rules, { field: "name", op: "contains", value: "" }] })}>Add Row</button>
-            <span className="spacer" />
-            <button
-              className="primary"
-              disabled={!edit.name.trim() || !edit.rules.length}
+            <SideBtn
+              kind="ok"
+              label="OK"
+              primary
+              disabled={!edit.name.trim() || !rules.length}
               onClick={() => {
                 L.saveFilter(edit);
                 setOn([...on.filter((x) => x !== edit.id), edit.id]);
+                setCur(edit.id);
                 setEdit(null);
               }}
-            >
-              OK
-            </button>
-            <button onClick={() => setEdit(null)}>Cancel</button>
+            />
+            <SideBtn kind="cancel" label="Cancel" onClick={() => setEdit(null)} />
+            <SideGap />
+            <SideBtn kind="add" label="Add" onClick={() => setEdit({ ...edit, rules: [...rules, { field: "name", op: "contains", value: "" }] })} />
+            <SideBtn kind="delete" label="Delete" disabled={rowSel === null} onClick={() => (setEdit({ ...edit, rules: rules.filter((_, k) => k !== rowSel) }), setRowSel(null))} />
+            <SideGap />
+            <SideHelp topic="filters" />
           </>
         }
       >
-        <div className="row">
+        <div className="row" style={{ gap: 12, alignItems: "end" }}>
           <label>
-            Filter Name <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} />
+            Filter Name <input value={edit.name} onChange={(e) => setEdit({ ...edit, name: e.target.value })} autoFocus />
           </label>
           <label>
-            Show activities where{" "}
+            Show activities where
             <select value={edit.match} onChange={(e) => setEdit({ ...edit, match: e.target.value as "all" | "any" })}>
-              <option value="all">all of the following are met</option>
-              <option value="any">any of the following are met</option>
+              <option value="all">All of the following are met</option>
+              <option value="any">Any of the following are met</option>
             </select>
           </label>
         </div>
-        <RuleRows rules={edit.rules} onChange={(rules) => setEdit({ ...edit, rules })} />
-      </Shell>
+        <div onClick={(e) => {
+          const tr = (e.target as HTMLElement).closest("tr[data-i]");
+          if (tr) setRowSel(Number(tr.getAttribute("data-i")));
+        }}>
+          <RuleRows rules={rules} onChange={(r) => setEdit({ ...edit, rules: r })} />
+        </div>
+      </P6Dlg>
     );
+  }
+  const groups: [string, FilterDef[]][] = [
+    ["Default", STANDARD_FILTERS],
+    ["User Defined", custom],
+  ];
   return (
-    <Shell
+    <P6Dlg
       title="Filters"
-      wide
+      width={760}
       onClose={close}
-      foot={
+      side={
         <>
-          <button onClick={() => setEdit({ id: uid("flt"), name: "", match: "all", rules: [{ field: "name", op: "contains", value: "" }] })}>New…</button>
-          <span className="spacer" />
-          <button onClick={apply}>Apply</button>
-          <button
-            className="primary"
+          <SideBtn
+            kind="ok"
+            label="OK"
+            primary
             onClick={() => {
               apply();
               close();
             }}
-          >
-            OK
-          </button>
-          <button onClick={close}>Cancel</button>
+          />
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideBtn kind="apply" label="Apply" onClick={apply} />
+          <SideGap />
+          <SideBtn kind="add" label="New..." onClick={() => setEdit({ id: uid("flt"), name: "", match: "all", rules: [{ field: "name", op: "contains", value: "" }] })} />
+          <SideBtn kind="delete" label="Delete" disabled={!isUser(cur)} onClick={() => cur && (L.deleteFilter(cur), setOn(on.filter((x) => x !== cur)), setCur(null))} />
+          <SideBtn kind="copy" label="Copy" disabled={!curDef} onClick={() => (filterClipboard = curDef ? structuredClone(curDef) : null)} />
+          <SideBtn
+            kind="paste"
+            label="Paste"
+            onClick={() => {
+              if (!filterClipboard) return;
+              const f = { ...structuredClone(filterClipboard), id: uid("flt"), name: `${filterClipboard.name} (copy)` };
+              L.saveFilter(f);
+              setCur(f.id);
+            }}
+          />
+          <SideBtn kind="modify" label="Modify..." disabled={!curDef} onClick={() => curDef && setEdit(isUser(curDef.id) ? structuredClone(curDef) : { ...structuredClone(curDef), id: uid("flt"), name: `${curDef.name} (copy)` })} />
+          <SideGap />
+          <SideHelp topic="filters" />
         </>
       }
     >
-      <table className="p6-grid">
-        <thead>
-          <tr>
-            <td>Select</td>
-            <td>Filter Name</td>
-            <td>Definition</td>
-            <td />
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>
-              <input type="checkbox" checked={!on.length} onChange={() => setOn([])} />
-            </td>
-            <td>All Activities</td>
-            <td className="muted">No filter</td>
-            <td />
-          </tr>
-          {all.map((f) => {
-            const mine = custom.some((c) => c.id === f.id);
-            return (
-              <tr key={f.id}>
-                <td>
-                  <input type="checkbox" checked={on.includes(f.id)} onChange={(e) => setOn(e.target.checked ? [...on, f.id] : on.filter((x) => x !== f.id))} />
-                </td>
-                <td>
-                  {f.name} {mine ? <span className="muted">(user)</span> : <span className="muted">(default)</span>}
-                </td>
-                <td className="muted small">{f.rules.map((r) => `${r.field} ${OP_LABEL[r.op]} ${r.value ?? ""}`).join(f.match === "all" ? " and " : " or ")}</td>
-                <td className="nowrap">
-                  <button className="link" onClick={() => setEdit(mine ? structuredClone(f) : { ...structuredClone(f), id: uid("flt"), name: `${f.name} (copy)` })}>
-                    {mine ? "Modify" : "Copy"}
-                  </button>
-                  {mine && (
-                    <button className="link" onClick={() => L.deleteFilter(f.id)}>
-                      Delete
-                    </button>
-                  )}
-                </td>
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-      <div className="row">
-        <label>
-          Show activities that match{" "}
-          <select value={match} onChange={(e) => setMatch(e.target.value as "all" | "any")}>
-            <option value="all">all selected filters</option>
-            <option value="any">any selected filter</option>
-          </select>
+      <div className="row" style={{ justifyContent: "space-between", alignItems: "start" }}>
+        <label className="p6-check">
+          <input type="checkbox" checked={!on.length} onChange={() => setOn([])} /> All Activities
         </label>
-        <label>
-          <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} /> Replace activities shown
-        </label>
-        <label>
-          <input type="radio" checked={mode === "highlight"} onChange={() => setMode("highlight")} /> Highlight activities that match
-        </label>
+        <div>
+          <div className="small">Show activities that match</div>
+          <label className="p6-check">
+            <input type="radio" checked={match === "all"} onChange={() => setMatch("all")} /> All selected filters
+          </label>
+          <label className="p6-check">
+            <input type="radio" checked={match === "any"} onChange={() => setMatch("any")} /> Any selected filter
+          </label>
+        </div>
       </div>
-    </Shell>
+      <div className="p6-list2" style={{ maxHeight: "50vh" }}>
+        <table>
+          <thead>
+            <tr>
+              <td>Filter</td>
+              <td style={{ width: 60, textAlign: "center" }}>Select</td>
+            </tr>
+          </thead>
+          <tbody>
+            {groups.map(([g, list]) => (
+              <Fragment key={g}>
+                <tr className="grp" onClick={() => setFolded((f) => (f.has(g) ? new Set([...f].filter((x) => x !== g)) : new Set([...f, g])))}>
+                  <td colSpan={2}>
+                    {folded.has(g) ? "⊞" : "⊟"} {g}
+                  </td>
+                </tr>
+                {!folded.has(g) &&
+                  list.map((f) => (
+                    <tr key={f.id} className={cur === f.id ? "on" : ""} onClick={() => setCur(f.id)} onDoubleClick={() => setEdit(isUser(f.id) ? structuredClone(f) : { ...structuredClone(f), id: uid("flt"), name: `${f.name} (copy)` })} title={f.rules.map((r) => `${r.field} ${OP_LABEL[r.op]} ${r.value ?? ""}`).join(f.match === "all" ? " and " : " or ")}>
+                      <td style={{ paddingLeft: 22 }}>
+                        <span className="p6-ico" aria-hidden>
+                          <Filter size={12} color={cur === f.id ? "#fff" : "#1f5fa8"} />
+                        </span>
+                        {f.name}
+                      </td>
+                      <td style={{ textAlign: "center" }} onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" aria-label={`Select ${f.name}`} checked={on.includes(f.id)} onChange={(e) => setOn(e.target.checked ? [...on, f.id] : on.filter((x) => x !== f.id))} />
+                      </td>
+                    </tr>
+                  ))}
+                {!folded.has(g) && !list.length && (
+                  <tr>
+                    <td colSpan={2} className="muted small" style={{ paddingLeft: 22 }}>
+                      None yet. Use New... or Copy and Paste a default filter.
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <fieldset className="p6-fieldset">
+        <legend>When applying the selected filter(s):</legend>
+        <label className="p6-check">
+          <input type="radio" checked={mode === "replace"} onChange={() => setMode("replace")} /> Replace activities shown in current layout
+        </label>
+        <label className="p6-check">
+          <input type="radio" checked={mode === "highlight"} onChange={() => setMode("highlight")} /> Highlight activities in current layout which match criteria
+        </label>
+      </fieldset>
+    </P6Dlg>
   );
 }
 
@@ -431,25 +475,28 @@ function GroupSortDialog() {
   };
   const apply = () => L.set({ groupBy, groupTotals: totals, sort, groupOptions: go });
   return (
-    <Shell
+    <P6Dlg
       title="Group and Sort"
-      wide
+      width={900}
       onClose={close}
-      foot={
+      side={
         <>
-          <button onClick={() => (setGroupBy("wbs"), setSort([{ field: "start" }]), setTotals(true), setGo(DEFAULT_GROUP_OPTIONS))}>Default</button>
-          <span className="spacer" />
-          <button onClick={apply}>Apply</button>
-          <button
-            className="primary"
+          <SideBtn
+            kind="ok"
+            label="OK"
+            primary
             onClick={() => {
               apply();
               close();
             }}
-          >
-            OK
-          </button>
-          <button onClick={close}>Cancel</button>
+          />
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideBtn kind="apply" label="Apply" onClick={apply} />
+          <SideBtn kind="delete" label="Delete" disabled={!go.thenBy.length} onClick={() => put({ thenBy: go.thenBy.slice(0, -1) })} />
+          <SideGap />
+          <SideBtn kind="default" label="Default" onClick={() => (setGroupBy("wbs"), setSort([{ field: "start" }]), setTotals(true), setGo(DEFAULT_GROUP_OPTIONS))} />
+          <SideGap />
+          <SideHelp topic="group-sort" />
         </>
       }
     >
@@ -619,7 +666,7 @@ function GroupSortDialog() {
         </table>
         <button onClick={() => setSort([...sort, { field: "code" }])}>Add sort level</button>
       </fieldset>
-    </Shell>
+    </P6Dlg>
   );
 }
 
@@ -1862,6 +1909,8 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     obs: () => <ObsDialog />,
     budgets: () => <BudgetsDialog />,
     riskMatrix: () => <RiskMatrixDialog />,
+    eps: () => <EpsDialog />,
+    portfolios: () => <PortfoliosDialog />,
     periods: () => <PeriodsDialog />,
     displays: () => displays ?? null,
   };

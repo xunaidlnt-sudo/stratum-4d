@@ -352,6 +352,10 @@ export interface Role {
   pricePerUnit: number;
   /** Role limit for planning, units per hour. */
   maxUnitsPerHour?: number;
+  /** Prices and limits over time (P6 role Units & Prices). */
+  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number }[];
+  /** P6 role Responsibilities text. */
+  responsibilities?: string;
 }
 
 export interface Shift {

@@ -586,7 +586,10 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
     [
       "Enterprise",
       [
-        { label: "Projects…", onClick: a.projects },
+        { label: "Projects", onClick: () => P.show("projects") },
+        { label: "Enterprise Project Structure…", onClick: () => P.open("eps") },
+        { label: "Project Portfolios…", onClick: () => P.open("portfolios") },
+        "sep",
         { label: "Resources", onClick: () => P.show("resources"), disabled: none },
         { label: "Roles…", onClick: () => P.open("roles"), disabled: none },
         { label: "Resource Rates and Shifts…", onClick: () => P.open("resourceRates"), disabled: none },
