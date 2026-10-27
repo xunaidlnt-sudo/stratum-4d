@@ -103,6 +103,9 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
           <label className="p6-check">
             <input type="checkbox" checked={o.levelWhenScheduling} onChange={(e) => setO({ ...o, levelWhenScheduling: e.target.checked })} /> Level resources during scheduling
           </label>
+          <label className="p6-check">
+            <input type="checkbox" checked={!!o.useExpectedFinish} onChange={(e) => setO({ ...o, useExpectedFinish: e.target.checked })} /> Use Expected Finish dates
+          </label>
         </div>
       </div>
       <h4>Multiple float paths</h4>

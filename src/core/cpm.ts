@@ -27,6 +27,7 @@ export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
   ssLagFrom: "actual-start",
   openEndsCritical: false,
   levelWhenScheduling: false,
+  useExpectedFinish: false,
   floatPaths: null,
 };
 
@@ -175,14 +176,24 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
     const c = a.constraint;
     const inProgress = a.actualStart !== null && a.status !== "not-started";
 
-    // Remaining work starts no earlier than the data date.
+    // Remaining work starts no earlier than the data date (nor before a resume date).
     let es = Math.max(dataDate, startBound);
+    if (inProgress && a.suspendDate != null) {
+      if (a.resumeDate != null) es = Math.max(es, a.resumeDate);
+      else warnings.push(`${a.code}: suspended with no resume date`);
+    }
     if (c?.date != null && (c.type === "start-on-or-after" || c.type === "start-on")) es = Math.max(es, c.date);
     if (finishBound > -Infinity) es = Math.max(es, subtractWorkHours(cal, finishBound, n.dur));
     if (c?.date != null && (c.type === "finish-on-or-after" || c.type === "finish-on")) es = Math.max(es, subtractWorkHours(cal, c.date, n.dur));
     if (c?.date != null && c.type === "mandatory-start") es = c.date;
     if (c?.date != null && c.type === "mandatory-finish") es = subtractWorkHours(cal, c.date, n.dur);
 
+    // Expected Finish: the remaining work is re-estimated to end on that date.
+    if (opt.useExpectedFinish && a.expectedFinish != null && !n.milestone) {
+      const from = nextWorkStart(cal, es);
+      n.dur = a.expectedFinish > from ? workHoursBetween(cal, from, a.expectedFinish) : 0;
+      a.remainingDurationHours = Math.round(n.dur * 100) / 100;
+    }
     if (n.milestone === "finish") {
       // A finish milestone sits at the finish of what drives it (e.g. 17:00), not the next morning.
       const t = Math.max(es, finishBound);

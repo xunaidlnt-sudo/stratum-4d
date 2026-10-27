@@ -53,6 +53,11 @@ export interface Activity {
   physicalPercent?: number;
   /** P6 Duration Type; kept for round trips and shown in the table. */
   durationType?: "fixed-duration-units-time" | "fixed-duration-units" | "fixed-units" | "fixed-units-time";
+  /** P6 Expected Finish: remaining duration is recalculated to finish on this date when Schedule Options use it. */
+  expectedFinish?: number | null;
+  /** P6 Suspend / Resume: an in-progress activity stops at suspend and its remaining work restarts at resume. */
+  suspendDate?: number | null;
+  resumeDate?: number | null;
   /** Set by levelling: the start was delayed for resources. */
   leveledDelayHours?: number | null;
 }
@@ -224,6 +229,8 @@ export interface ScheduleOptions {
   openEndsCritical: boolean;
   /** Level resources (F10) right after scheduling. */
   levelWhenScheduling: boolean;
+  /** Recalculate remaining duration from each activity's Expected Finish. */
+  useExpectedFinish?: boolean;
   /** Multiple float paths to an end activity (internal id); null = off. */
   floatPaths: { endActivityId: string | null; count: number } | null;
 }

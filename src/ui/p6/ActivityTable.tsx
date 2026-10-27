@@ -13,6 +13,7 @@ import { addWorkHours, nextWorkStart, workHoursBetween } from "../../core/calend
 import { uid } from "../../core/ops";
 import { addActivity, collapseAll, copySelected, cutSelected, deleteSelected, dissolveSelected, expandAll, fillDownSelected, linkSelected, paste, selectAll, setCell, tableOrder, unlinkSelected, useP6 } from "./commands";
 import { useCtx, type CtxItem } from "./ContextMenu";
+import { usePrefs } from "./prefs";
 import { allFilters, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
 
 const HEAD = 36;
@@ -143,6 +144,8 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
   const quickKind = useStore((s) => s.ganttFilter.kind);
   const tracking = useStore((s) => s.ganttTracking);
   const layout = useLayout((s) => s.layout);
+  // Re-render when units or date format change in User Preferences.
+  usePrefs((p) => `${p.dateFormat}${p.durationUnit}${p.decimals}${p.showTime}`);
   const custom = useLayout((s) => s.customFilters);
   const setLayout = useLayout((s) => s.set);
   const editing = useP6((s) => s.editing);
@@ -737,6 +740,27 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
     );
   }
 
+  // P6 progress line: through each activity's progress point, back to the data date line.
+  let progressLine: JSX.Element | null = null;
+  if (bars.progressLine && dd !== null && layout.showGantt) {
+    const pts: string[] = [];
+    visible.forEach((r, k) => {
+      const y = (first + k) * ROW + ROW / 2;
+      let t = dd;
+      if (r.kind === "activity") {
+        const a = r.activity;
+        if (a.status === "in-progress" && a.actualStart !== null && a.finish !== null) t = a.actualStart + ((a.finish - a.actualStart) * Math.min(100, a.percentComplete)) / 100;
+        else if (a.status === "not-started" && a.start !== null && a.start < dd) t = a.start;
+      }
+      pts.push(`${x(t).toFixed(1)},${y}`);
+    });
+    progressLine = (
+      <svg className="p6g-rels p6g-progress" width={gw} height={bodyH} style={{ top: HEAD }}>
+        <polyline points={pts.join(" ")} />
+      </svg>
+    );
+  }
+
   const tableW = layout.showGantt ? Math.min(layout.tableWidth, Math.max(240, COLS + 16)) : undefined;
 
   const splitter = (e: React.MouseEvent) => {
@@ -786,6 +810,7 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
               {ganttRows}
             </div>
             {relLines}
+            {progressLine}
             {dragGhost}
             {bars.dataDateLine && dd !== null && <div className="p6g-dd" style={{ left: x(dd), top: HEAD, height: bodyH }} title={`Data date ${fmtDay(dd)}`} />}
           </div>

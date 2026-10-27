@@ -84,6 +84,9 @@ import { useTraining } from "../training/engine";
 import { TrainingButton } from "../training/Training";
 import { ActivityTable } from "./ActivityTable";
 import {
+  lastCopied,
+  pasteIntoCells,
+  selectionTsv,
   addActivity,
   collapseAll,
   copySelected,
@@ -102,6 +105,7 @@ import {
 } from "./commands";
 import { ContextMenuHost } from "./ContextMenu";
 import { P6Dialogs, printLayout } from "./Dialogs";
+import { exportLayoutXlsx } from "./Dialogs3";
 import { STOCK_LAYOUTS, useLayout, type LowerTab, type LowerView } from "./layout";
 import { AssignmentsWindow, NetworkView, ProjectsWindow, RegisterWindow, ResourcesWindow, TraceLogicView, UsageSpreadsheet, WbsWindow } from "./Windows";
 
@@ -287,17 +291,44 @@ function useP6Keys(a: ClassicActions, find: () => void) {
       };
       if (e.key === "Insert") act(addActivity);
       else if (e.key === "Delete" && st.selectedActivities.size) act(() => deleteSelected());
-      else if (ctrl && k === "c" && !window.getSelection()?.toString()) act(copySelected);
-      else if (ctrl && k === "x") act(cutSelected);
-      else if (ctrl && k === "v") act(paste);
       else if (ctrl && k === "z" && !e.shiftKey) act(st.undo);
       else if ((ctrl && k === "y") || (ctrl && e.shiftKey && k === "z")) act(st.redo);
       else if (ctrl && k === "a") act(selectAll);
       else if (ctrl && k === "e") act(fillDownSelected);
       else if (ctrl && k === "l") act(() => linkSelected("FS"));
     };
+    // Copy / cut / paste go through the clipboard events, so cells can travel to and from Excel.
+    const inTable = (e: Event) => {
+      const el = e.target instanceof Element ? e.target : document.activeElement;
+      return !el?.closest("input, textarea, select, [contenteditable]") && !useP6.getState().dialog && useP6.getState().window === "activities";
+    };
+    const onCopy = (e: ClipboardEvent) => {
+      if (!inTable(e) || !useStore.getState().selectedActivities.size || window.getSelection()?.toString()) return;
+      e.preventDefault();
+      const tsv = selectionTsv();
+      e.clipboardData?.setData("text/plain", tsv);
+      lastCopied.text = tsv;
+      if (e.type === "cut") cutSelected();
+      else copySelected();
+    };
+    const onPaste = (e: ClipboardEvent) => {
+      if (!inTable(e)) return;
+      e.preventDefault();
+      const text = e.clipboardData?.getData("text/plain") ?? "";
+      // Our own copy (or nothing): paste activities. Anything else, e.g. cells from Excel: paste into cells.
+      if (!text || text === lastCopied.text) return paste();
+      pasteIntoCells(text);
+    };
     window.addEventListener("keydown", on, true);
-    return () => window.removeEventListener("keydown", on, true);
+    window.addEventListener("copy", onCopy);
+    window.addEventListener("cut", onCopy);
+    window.addEventListener("paste", onPaste);
+    return () => {
+      window.removeEventListener("keydown", on, true);
+      window.removeEventListener("copy", onCopy);
+      window.removeEventListener("cut", onCopy);
+      window.removeEventListener("paste", onPaste);
+    };
   }, [a, find]);
 }
 
@@ -459,7 +490,9 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Import…", onClick: a.importSchedule },
         { label: "Import from P6 Connection…", onClick: a.importP6 },
         { label: "Export… (XER)", onClick: a.exportXer, disabled: none },
-        { label: "Export to Excel (CSV)", onClick: a.exportCsv, disabled: none },
+        { label: "Export to Excel (.xlsx) – current layout", onClick: () => void exportLayoutXlsx(), disabled: none },
+        { label: "Import from Excel…", onClick: () => P.open("excelImport"), disabled: none },
+        { label: "Export to CSV", onClick: a.exportCsv, disabled: none },
         "sep",
         { label: "Open Project File…", onClick: a.openFile },
         { label: "Save Project File", onClick: a.saveFile, disabled: none },
@@ -494,7 +527,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         "sep",
         { label: "Find…", onClick: find, disabled: none, shortcut: "Ctrl+F" },
         { label: "Spell Check…", onClick: () => P.open("spelling"), disabled: none },
-        { label: "User Preferences…", onClick: () => a.settings("interface") },
+        { label: "User Preferences…", onClick: () => P.open("preferences") },
+        { label: "Interface Settings…", onClick: () => a.settings("interface") },
       ],
     ],
     [
@@ -526,6 +560,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Go To Selected Activity", onClick: () => ganttCommand("scroll-to-selected"), disabled: !n },
         { label: "Spotlight", onClick: () => P.setSpotlight(!P.spotlight), checked: P.spotlight, disabled: none },
         { label: "Show Baseline Bars", onClick: () => setTracking(!tracking), checked: tracking },
+        { label: "Show Progress Line", onClick: () => useLayout.getState().setBars({ progressLine: !layout.bars.progressLine }), checked: !!layout.bars.progressLine },
         ...(displays ? (["sep", ...displays.menu] as MenuItem[]) : []),
       ],
     ],
@@ -566,6 +601,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Recalculate Assignment Costs", onClick: recalc, disabled: none },
         { label: "Check Schedule…", onClick: () => P.open("checkSchedule"), disabled: none },
         { label: "Claim Digger (compare schedules)…", onClick: () => P.open("claimDigger"), disabled: none },
+        { label: "Schedule Log…", onClick: () => P.open("scheduleLog"), disabled: none },
         { label: "Spell Check…", onClick: () => P.open("spelling"), disabled: none },
         "sep",
         { label: "Reports", onClick: a.dashboards },

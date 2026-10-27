@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useConfig } from "../../backend/config";
 import { scheduleCpm, ScheduleLoopError } from "../../core/cpm";
 import { levelResources } from "../../core/level";
+import { scheduleLog } from "../../core/scheduleLog";
 import { scheduleRange } from "../../core/simulation";
 import { ActivityEditor } from "../ActivityEditor";
 import { CostPanel, ResourcePanel } from "../Analysis";
@@ -39,7 +40,7 @@ function schedule() {
       r.projectFinish = lv.projectFinish;
     }
     s.setSchedule(r.schedule, { keepTime: true });
-    s.setScheduleReport({ at: Date.now(), projectFinish: r.projectFinish, previousFinish: prev, criticalCount: r.criticalPath.length, warnings: r.warnings });
+    s.setScheduleReport({ at: Date.now(), projectFinish: r.projectFinish, previousFinish: prev, criticalCount: r.criticalPath.length, warnings: r.warnings, log: scheduleLog(r.schedule, r.warnings) });
     s.setStatus(`Scheduled: finish ${fmtDate(r.projectFinish)}, ${r.criticalPath.length} critical activities.`);
   } catch (err) {
     s.setStatus(err instanceof ScheduleLoopError ? err.message : `Scheduling failed: ${(err as Error).message}`);

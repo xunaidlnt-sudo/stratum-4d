@@ -25,6 +25,7 @@ import { SetupWizard } from "./SetupWizard";
 import { useTerms } from "./terms";
 import { useAppearance } from "./appearance";
 import { levelResources } from "../core/level";
+import { scheduleLog } from "../core/scheduleLog";
 import { DisplaysButton, DisplaysDialog, useDisplays } from "./display/Displays";
 import { startSync } from "./display/sync";
 import { ModeSwitch, ThemeButton } from "./ModeSwitch";
@@ -215,6 +216,7 @@ function Workspace() {
         previousFinish: prevFinish,
         criticalCount: r.criticalPath.length,
         warnings: r.warnings,
+        log: scheduleLog(r.schedule, r.warnings),
       });
       const shift = prevFinish !== null ? Math.round((r.projectFinish - prevFinish) / 86_400_000) : 0;
       s.setStatus(

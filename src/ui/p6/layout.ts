@@ -28,6 +28,8 @@ export interface BarOptions {
   insideLabel: string;
   dataDateLine: boolean;
   summaryBars: boolean;
+  /** P6 progress line: joins each activity's progress point to the data date line. */
+  progressLine?: boolean;
 }
 
 export type TimescaleUnit = "auto" | "day" | "week" | "month" | "quarter" | "year";

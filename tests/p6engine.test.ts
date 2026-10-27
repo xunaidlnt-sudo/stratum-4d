@@ -128,3 +128,48 @@ describe("levelling edge cases", () => {
     expect(get(r.schedule, "A").start).toBe(get(s0, "A").start);
   });
 });
+
+import { importTable, parseDateCell, parseTsv, pasteCells, toTsv } from "../src/core/tableImport";
+import { scheduleLog, scheduleLogText } from "../src/core/scheduleLog";
+
+describe("Excel round trip", () => {
+  it("reads P6, ISO and Excel dates", () => {
+    expect(parseDateCell("05-Mar-26 A")).toBe(T("2026-03-05 08:00"));
+    expect(parseDateCell("2026-03-05")).toBe(T("2026-03-05 08:00"));
+    expect(parseDateCell(46086)).toBe(T("2026-03-05 08:00"));
+  });
+  it("updates by Activity ID and adds new rows", () => {
+    const s = scheduleCpm(sched([act("A", 8), act("B", 8)], [rel("A", "B")])).schedule;
+    const r = importTable(s, ["Activity ID", "Activity Name", "Original Duration", "Foo"], [["A", "Excavate", 3, "x"], ["Z", "New one", 2, ""]], { addNew: true });
+    expect(get(r.schedule, "A").name).toBe("Excavate");
+    expect(get(r.schedule, "A").originalDurationHours).toBe(24);
+    expect(r.added).toBe(1);
+    expect(r.unknownColumns).toEqual(["Foo"]);
+    expect(r.schedule.activities.find((a) => a.code === "Z")!.originalDurationHours).toBe(16);
+  });
+  it("pastes a block of cells and round-trips TSV", () => {
+    const s = scheduleCpm(sched([act("A", 8), act("B", 8)], [])).schedule;
+    const block = parseTsv(toTsv([["One", "4"], ["Two", "6"]]));
+    const r = pasteCells(s, ["A", "B"], ["name", "od"], block);
+    expect(r.changes).toBe(4);
+    expect(get(r.schedule, "B").name).toBe("Two");
+    expect(get(r.schedule, "B").originalDurationHours).toBe(48);
+    expect(parseTsv('a\t"b\tc"\r\nd\te')).toEqual([["a", "b\tc"], ["d", "e"]]);
+  });
+});
+
+describe("schedule log, expected finish, suspend", () => {
+  it("lists out-of-sequence progress and open ends", () => {
+    const s = scheduleCpm(sched([act("A", 40, { status: "in-progress", actualStart: T(`${MON} 08:00`), remainingDurationHours: 32 }), act("B", 16, { status: "in-progress", actualStart: T(`${MON} 08:00`), remainingDurationHours: 8 })], [rel("A", "B")], { dataDate: T("2026-03-03 08:00") })).schedule;
+    const log = scheduleLog(s);
+    expect(log.sections.find((x) => x.title.startsWith("Out-of-sequence"))!.lines[0].code).toBe("B");
+    expect(scheduleLogText(s, log)).toContain("Schedule log");
+  });
+  it("uses Expected Finish and resume dates", () => {
+    const base = sched([act("A", 40, { expectedFinish: T("2026-03-03 17:00") })], []);
+    expect(get(scheduleCpm(base).schedule, "A").finish).toBe(T("2026-03-06 17:00"));
+    expect(get(scheduleCpm(base, { settings: { useExpectedFinish: true } }).schedule, "A").finish).toBe(T("2026-03-03 17:00"));
+    const susp = sched([act("A", 16, { status: "in-progress", actualStart: T(`${MON} 08:00`), remainingDurationHours: 8, suspendDate: T(`${MON} 17:00`), resumeDate: T("2026-03-09 08:00") })], [], { dataDate: T("2026-03-03 08:00") });
+    expect(get(scheduleCpm(susp).schedule, "A").finish).toBe(T("2026-03-09 17:00"));
+  });
+});

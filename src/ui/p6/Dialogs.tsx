@@ -26,6 +26,7 @@ import {
 import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
+import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_LAYOUT, STOCK_LAYOUTS, useLayout, type TimescaleUnit } from "./layout";
 
@@ -486,6 +487,7 @@ function BarsDialog() {
       {tick("summaryBars", "Summary bars", "on WBS and group bands")}
       {tick("relationships", "Relationship lines", "predecessor to successor, critical in red")}
       {tick("dataDateLine", "Data date line", "")}
+      {tick("progressLine", "Progress line", "joins each activity's progress point to the data date")}
       <h4>Bar labels</h4>
       <div className="row">
         <label>
@@ -1570,6 +1572,9 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     activityCodes: () => <ActivityCodesDialog />,
     udfs: () => <UdfDialog />,
     claimDigger: () => <ClaimDiggerDialog />,
+    preferences: () => <PreferencesDialog />,
+    scheduleLog: () => <ScheduleLogDialog />,
+    excelImport: () => <ExcelImportDialog />,
     periods: () => <PeriodsDialog />,
     displays: () => displays ?? null,
   };

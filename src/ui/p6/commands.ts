@@ -4,7 +4,9 @@
 
 import { create } from "zustand";
 import { standardCalendar } from "../../core/calendar";
-import { fieldCtx, fieldsFor } from "../../core/fields";
+import { fieldCtx, fieldsFor, fieldText } from "../../core/fields";
+import { parseTsv, pasteCells, toTsv } from "../../core/tableImport";
+import { useLayout } from "./layout";
 import { copyActivities, deleteActivities, dissolve, fillDown, linkActivities, nextCode, pasteActivities, uid, unlinkActivities } from "../../core/ops";
 import type { Activity, RelationshipType } from "../../core/types";
 import { useStore } from "../store";
@@ -35,7 +37,10 @@ export type P6Dialog =
   | "calendars"
   | "activityCodes"
   | "udfs"
-  | "claimDigger";
+  | "claimDigger"
+  | "preferences"
+  | "scheduleLog"
+  | "excelImport";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 
@@ -254,4 +259,51 @@ export function expandToLevel(level: number) {
     return d;
   };
   st().setCollapsedWbs(new Set(s.wbs.filter((w) => depth(w.id) >= level - 1).map((w) => w.id)));
+}
+
+// ---------------------------------------------------------------- cells to and from Excel
+
+/** What this window last put on the system clipboard, to tell our own copy from Excel's. */
+export const lastCopied: { text: string } = { text: "" };
+
+/** Selected rows in the layout's columns as tab-separated text (with a title row), as P6 copies cells. */
+export function selectionTsv(): string {
+  const s = st().schedule;
+  if (!s) return "";
+  const cols = useLayoutCols();
+  const c = fieldCtx(s);
+  const byId = new Map(s.activities.map((a) => [a.id, a]));
+  const rows = [cols.map((f) => f.label)];
+  for (const id of selectedInOrder()) {
+    const a = byId.get(id);
+    if (a) rows.push(cols.map((f) => fieldText(f, a, c)));
+  }
+  return toTsv(rows);
+}
+
+/** Paste a block copied from Excel into the table from the focused cell down and right. */
+export function pasteIntoCells(text: string) {
+  const s = st().schedule;
+  if (!s) return;
+  let block = parseTsv(text.replace(/\r?\n$/, ""));
+  const cols = useLayoutCols();
+  // A copied title row that matches the columns is skipped.
+  if (block.length > 1 && block[0].every((h, i) => !h || cols.some((f) => f.label === h) || i >= cols.length)) block = block.slice(1);
+  const startField = useP6.getState().focusField ?? cols[0]?.id;
+  const ci = Math.max(0, cols.findIndex((f) => f.id === startField));
+  const startId = st().selectedActivity;
+  const ri = startId ? tableOrder.ids.indexOf(startId) : -1;
+  if (ri < 0) return say("Click the cell where the pasted block should start.");
+  const rowIds = tableOrder.ids.slice(ri, ri + block.length);
+  const fieldIds = cols.slice(ci, ci + Math.max(...block.map((r) => r.length))).map((f) => f.id);
+  const r = pasteCells(s, rowIds, fieldIds, block);
+  if (!r.changes) return say(r.readOnly.length ? `Nothing pasted: ${r.readOnly.join(", ")} cannot be edited.` : "Nothing pasted.");
+  st().commit(r.schedule, `Paste ${r.changes} cells`, rowIds);
+  say(`Pasted ${r.changes} cells into ${rowIds.length} activities${r.readOnly.length ? ` (read-only skipped: ${r.readOnly.join(", ")})` : ""}. Press F9 to reschedule.`);
+}
+
+function useLayoutCols() {
+  const s = st().schedule!;
+  const fields = new Map(fieldsFor(s).map((f) => [f.id, f]));
+  return useLayout.getState().layout.columns.map((c) => fields.get(c.id)).filter((f): f is NonNullable<typeof f> => !!f);
 }

@@ -39,13 +39,46 @@ export interface FieldDef {
 }
 
 const DAY = 86_400_000;
+export type DateFormat = "dd-Mmm-yy" | "dd-Mmm-yyyy" | "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd";
+
+/** P6 User Preferences that change how values read: date format, time units and decimals. */
+export const displayPrefs: { dateFormat: DateFormat; showTime: boolean; durationUnit: "d" | "h"; decimals: number } = {
+  dateFormat: "dd-Mmm-yy",
+  showTime: false,
+  durationUnit: "d",
+  decimals: 1,
+};
+export function setDisplayPrefs(p: Partial<typeof displayPrefs>) {
+  Object.assign(displayPrefs, p);
+}
+
+const pad = (n: number) => String(n).padStart(2, "0");
 export const fmtDay = (t: number | null | undefined) => {
   if (t === null || t === undefined || !Number.isFinite(t)) return "";
   const d = new Date(t);
-  return `${String(d.getUTCDate()).padStart(2, "0")}-${monthShort(d)}-${String(d.getUTCFullYear()).slice(2)}`;
+  const dd = pad(d.getUTCDate());
+  const mm = pad(d.getUTCMonth() + 1);
+  const y = String(d.getUTCFullYear());
+  const date =
+    displayPrefs.dateFormat === "dd-Mmm-yyyy"
+      ? `${dd}-${monthShort(d)}-${y}`
+      : displayPrefs.dateFormat === "dd/mm/yyyy"
+        ? `${dd}/${mm}/${y}`
+        : displayPrefs.dateFormat === "mm/dd/yyyy"
+          ? `${mm}/${dd}/${y}`
+          : displayPrefs.dateFormat === "yyyy-mm-dd"
+            ? `${y}-${mm}-${dd}`
+            : `${dd}-${monthShort(d)}-${y.slice(2)}`;
+  return displayPrefs.showTime ? `${date} ${pad(d.getUTCHours())}:${pad(d.getUTCMinutes())}` : date;
 };
-const r1 = (v: number) => Math.round(v * 10) / 10;
-const toDays = (h: number | null | undefined, hpd: number) => (h === null || h === undefined ? null : r1(h / hpd));
+const r1 = (v: number) => {
+  const k = 10 ** displayPrefs.decimals;
+  return Math.round(v * k) / k;
+};
+/** Working hours shown in the preferred unit (days or hours). */
+const toDays = (h: number | null | undefined, hpd: number) => (h === null || h === undefined ? null : r1(displayPrefs.durationUnit === "h" ? h : h / hpd));
+/** A typed duration back to working hours. */
+const fromUnit = (v: number, hpd: number) => (displayPrefs.durationUnit === "h" ? v : v * hpd);
 const num = (v: unknown) => (v === null || v === undefined || v === "" ? null : Number(v));
 
 const TYPE_LABEL: Record<Activity["type"], string> = {
@@ -91,7 +124,7 @@ export function fieldCtx(s: Schedule): FieldCtx {
     const p = byId.get(r.predecessorId);
     const q = byId.get(r.successorId);
     if (!p || !q) continue;
-    const lag = r.lagHours ? ` ${r.lagHours > 0 ? "+" : ""}${r1(r.lagHours / hpd)}d` : "";
+    const lag = r.lagHours ? ` ${r.lagHours > 0 ? "+" : ""}${toDays(r.lagHours, hpd)}${displayPrefs.durationUnit}` : "";
     (preds.get(q.id) ?? preds.set(q.id, []).get(q.id)!).push(`${p.code}${r.type === "FS" && !lag ? "" : `: ${r.type}${lag}`}`);
     (succs.get(p.id) ?? succs.set(p.id, []).get(p.id)!).push(`${q.code}${r.type === "FS" && !lag ? "" : `: ${r.type}${lag}`}`);
   }
@@ -134,7 +167,7 @@ const daysField = (id: string, label: string, width: number, get: (a: Activity) 
   width,
   align: "right",
   get: (a, c) => toDays(get(a), c.hpd),
-  set: set ? (a, v, c) => set(a, num(v) === null ? null : Math.max(0, Number(v)) * c.hpd) : undefined,
+  set: set ? (a, v, c) => set(a, num(v) === null ? null : fromUnit(Math.max(0, Number(v)), c.hpd)) : undefined,
 });
 
 const dateField = (id: string, label: string, get: (a: Activity) => number | null, set?: (a: Activity, t: number | null) => Partial<Activity> | null, actualMark?: (a: Activity) => boolean): FieldDef => ({
@@ -198,7 +231,7 @@ export const BASE_FIELDS: FieldDef[] = [
       if (a.actualStart === null) return 0;
       const cal = c.cal(a);
       const end = a.actualFinish ?? c.s.dataDate ?? a.actualStart;
-      return cal ? r1(workHoursBetween(cal, a.actualStart, Math.max(a.actualStart, end)) / c.hpd) : null;
+      return cal ? toDays(workHoursBetween(cal, a.actualStart, Math.max(a.actualStart, end)), c.hpd) : null;
     },
   },
   {
@@ -211,7 +244,7 @@ export const BASE_FIELDS: FieldDef[] = [
     get: (a, c) => {
       const cal = c.cal(a);
       if (!cal || a.start === null || a.finish === null) return toDays(a.originalDurationHours, c.hpd);
-      return r1(workHoursBetween(cal, a.start, a.finish) / c.hpd);
+      return toDays(workHoursBetween(cal, a.start, a.finish), c.hpd);
     },
   },
   {
@@ -256,6 +289,9 @@ export const BASE_FIELDS: FieldDef[] = [
   dateField("actualFinish", "Actual Finish", (a) => a.actualFinish, (a, t) =>
     t === null ? { actualFinish: null, status: a.actualStart !== null ? "in-progress" : "not-started" } : { actualFinish: t, actualStart: a.actualStart ?? a.start, status: "complete", percentComplete: 100, remainingDurationHours: 0 },
   ),
+  dateField("expectedFinish", "Expected Finish", (a) => a.expectedFinish ?? null, (_a, t) => ({ expectedFinish: t })),
+  dateField("suspendDate", "Suspend Date", (a) => a.suspendDate ?? null, (a, t) => (a.status === "in-progress" || t === null ? { suspendDate: t } : null)),
+  dateField("resumeDate", "Resume Date", (a) => a.resumeDate ?? null, (a, t) => (a.suspendDate != null || t === null ? { resumeDate: t } : null)),
   dateField("earlyStart", "Early Start", (a) => (a.status === "complete" ? null : a.start)),
   dateField("earlyFinish", "Early Finish", (a) => (a.status === "complete" ? null : a.finish)),
   dateField("lateStart", "Late Start", (a) => a.lateStart ?? null),

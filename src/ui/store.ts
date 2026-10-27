@@ -31,6 +31,8 @@ export interface ScheduleReport {
   criticalCount: number;
   warnings: string[];
   error?: string;
+  /** P6-style schedule log for this run. */
+  log?: import("../core/scheduleLog").ScheduleLog;
 }
 
 export type GanttFilterKind = "all" | "critical" | "not-started" | "in-progress" | "complete" | "late" | "milestones";
