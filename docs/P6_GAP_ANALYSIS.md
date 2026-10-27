@@ -25,11 +25,11 @@ Last updated for release 0.6.
 
 | Topic | Status | Notes |
 |---|---|---|
-| EPS: structure, add/copy/delete nodes, project status | Partial | Project database with project list; no EPS tree or several projects open at once |
-| OBS | Missing | |
-| Resources: add, details, shifts, multiple rates | Partial | Resources window with type, unit, price, max units; no shifts or rates over time |
-| Roles: rates and limits over time, assign to activities and resources | Missing | |
-| Resource curves | Missing | Units spread evenly |
+| EPS: structure, add/copy/delete nodes, project status | Done | EPS tree in the Projects window (Set EPS); open any set of projects together, scheduled as one network with cross-project relationships; Commit saves each back |
+| OBS | Done | OBS tree, project and WBS responsible managers (inherited down the WBS), Responsible Manager column; imported from XER |
+| Resources: add, details, shifts, multiple rates | Done | Rates and max units over time, shifts with per-period limits (used in costs and levelling); imported from XER RSRCRATE |
+| Roles: rates and limits over time, assign to activities and resources | Partial | Roles dictionary with price and limit, resources per role, role assignments and staffing; no role rates over time |
+| Resource curves | Done | 8 standard curves plus custom 21-point curves |
 | WBS: add, edit, copy, move, indent | Done | WBS window |
 | WBS weighted milestones, categories, status, earned value settings | Missing | |
 | Project codes, resource codes | Missing | Activity codes done |
@@ -52,12 +52,12 @@ Last updated for release 0.6.
 | Relationships in the Activity Network | Partial | Shown; not drawn there |
 | Trace Logic | Done | |
 | Assign resources, recalc costs | Done | |
-| Assign by role, rate types, rate source | Missing | |
-| Resource curves on assignments | Missing | |
-| Budgeting: budget log, funding sources, spending plan | Missing | |
+| Assign by role, rate types, rate source | Partial | Assign Roles, staff from the Assignments window; one rate type |
+| Resource curves on assignments | Done | Spread usage profiles and recalculated costs |
+| Budgeting: budget log, funding sources, spending plan | Done | Budgets dialog per WBS: original, changes (approved / pending), distributed, funding, monthly spending and benefit plan against schedule cost |
 | Future period bucket planning | Missing | |
 | Expenses and expense categories, accrual | Partial | Expenses register; costs included in cost columns from 0.6 |
-| Cost accounts | Missing | |
+| Cost accounts | Done | Account tree, default account, assignment and expense booking, roll-up totals |
 | Top-down estimation | Missing | |
 | Notebooks and notebook topics | Done (0.6) | Notebook tab with topics |
 | Global Change: If/Then/Else, arithmetic, combine text | Done | With change report |
@@ -73,14 +73,14 @@ Last updated for release 0.6.
 | Remove progress, suspend / resume | Done (0.6) | |
 | Apply actuals, store period performance | Partial | Period actuals stored; no past-period editing |
 | Earned value | Done | Activity Usage Profile, dashboards |
-| Reflections | Missing | |
+| Reflections | Done | Create Reflection, change it, Merge Reflection with a change summary |
 | Check out / check in | Out of scope | |
 | Schedule, schedule automatically, multiple float paths, critical paths | Done | Schedule Options; "schedule automatically" from 0.6 |
 | Check Schedule | Done | DCMA 14-point |
 | Level resources, leveling priorities | Partial | Serial levelling by priority |
 | Issues: add, responsibility, history | Partial | Issues register |
 | Thresholds and threshold monitoring | Done (0.6) | Monitor creates issues |
-| Risks: create, assign, respond, scoring matrix | Partial | Risks register |
+| Risks: create, assign, respond, scoring matrix | Done | Risks register with score and level from the scoring matrix, heat map |
 | Work products and documents | Partial | WPs & Docs register |
 
 ## Layouts and views (Pro ch. 7)
@@ -91,7 +91,7 @@ Last updated for release 0.6.
 | Activity table: columns, titles, sort, fonts, row height | Done | Custom column titles from 0.6 |
 | Gantt chart: timescale, bars, labels, data date line, relationship lines | Done | |
 | Multiple bars with filters, bar styles, legend | Done (0.6) | Bar definitions with timescale, filter, colour, row |
-| Curtain and text attachments | Missing | |
+| Curtain and text attachments | Done | Bar Chart Options › Curtains and Text attachments |
 | Change dates and durations in the Gantt chart | Done | Drag |
 | Progress line | Done | |
 | Activity Network: display, layout, box templates | Partial | Canvas network; fixed box layout |
@@ -110,6 +110,6 @@ Last updated for release 0.6.
 | Portfolios, capacity planning | Partial | Portfolio rows in dashboards |
 | Team Member status updates, timesheets, email statusing | Out of scope | |
 | Workflows, document repository and reviews | Out of scope | |
-| Risk scoring matrices, risk thresholds, response plans | Missing | |
+| Risk scoring matrices, risk thresholds, response plans | Partial | Editable 5×5 matrix and thresholds; response text per risk, no response plan items |
 | Activity views (web), filters, grouping | Done | Same as the P6 layout |
 | Summarizer service, publication services | Out of scope | |

@@ -3,6 +3,7 @@
 // behaves the same everywhere.
 
 import { obsPath, wbsObs } from "./budget";
+import { projectCodeOf } from "./multiproject";
 import { workHoursBetween } from "./calendar";
 import { monthShort } from "./dates";
 import type { Activity, Calendar, Schedule } from "./types";
@@ -214,6 +215,7 @@ export const BASE_FIELDS: FieldDef[] = [
   { id: "code", label: "Activity ID", group: "General", type: "text", width: 96, get: (a) => a.code, set: (_a, v) => (String(v ?? "").trim() ? { code: String(v).trim() } : null) },
   { id: "name", label: "Activity Name", group: "General", type: "text", width: 230, get: (a) => a.name, set: (_a, v) => ({ name: String(v ?? "") }) },
   { id: "wbs", label: "WBS", group: "General", type: "text", width: 90, get: (a, c) => c.wbsPath(a.wbsId) },
+  { id: "project", label: "Project ID", group: "General", type: "text", width: 90, get: (a, c) => projectCodeOf(c.s, a) },
   { id: "obs", label: "Responsible Manager", group: "General", type: "text", width: 140, get: (a, c) => obsPath(c.s, wbsObs(c.s, a.wbsId)).split(" / ").pop() ?? "" },
   { id: "wbsName", label: "WBS Name", group: "General", type: "text", width: 150, get: (a, c) => (a.wbsId ? c.wbs.get(a.wbsId)?.name ?? "" : "") },
   {

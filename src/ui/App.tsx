@@ -18,6 +18,8 @@ import { reportRoute, useConfig } from "../backend/config";
 import { ConflictError } from "../backend/types";
 import { uid, type P6Connection } from "../core/reporting";
 import { DashboardsView } from "./Dashboards";
+import { isCombined } from "../core/multiproject";
+import { saveCombined } from "./p6/EnterpriseProjects";
 import { ProjectsDialog } from "./ProjectsDialog";
 import { ReportView } from "./ReportView";
 import { SettingsDialog } from "./SettingsDialog";
@@ -460,6 +462,10 @@ function Workspace() {
   const saveToDb = async (asNew = false) => {
     const st = useStore.getState();
     if (!st.schedule) return;
+    if (isCombined(st.schedule) && !asNew) {
+      st.setStatus(await saveCombined());
+      return;
+    }
     const id = asNew || !st.currentProjectId ? uid("prj") : st.currentProjectId;
     try {
       const v = await useConfig.getState().backend.saveProject(id, currentPayload(), asNew || !st.currentProjectId ? undefined : st.currentVersion ?? undefined);
@@ -891,6 +897,7 @@ function Workspace() {
 
   const classicActions: ClassicActions = {
     projects: () => setProjectsTab("database"),
+    openOne: openFromDb,
     save: () => void saveToDb(false).catch((e) => window.alert(e.message)),
     saveAsNew: () => void saveToDb(true).catch((e) => window.alert(e.message)),
     importSchedule,

@@ -107,6 +107,7 @@ import { ContextMenuHost } from "./ContextMenu";
 import { P6Dialogs, printLayout } from "./Dialogs";
 import { exportLayoutXlsx } from "./Dialogs3";
 import { openBudgets } from "./Dialogs5";
+import { EnterpriseProjectsWindow } from "./EnterpriseProjects";
 import { loginEnabled, signOut } from "../LoginGate";
 import { STOCK_LAYOUTS, useLayout, type LowerTab, type LowerView } from "./layout";
 import { AssignmentsWindow, NetworkView, ProjectsWindow, RegisterWindow, ResourcesWindow, TraceLogicView, UsageSpreadsheet, WbsWindow } from "./Windows";
@@ -673,7 +674,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       case "assignments":
         return <AssignmentsWindow />;
       case "projects":
-        return <ProjectsWindow onOpen={a.projects} />;
+        return a.openOne ? <EnterpriseProjectsWindow onOpenOne={a.openOne} onImport={a.projects} /> : <ProjectsWindow onOpen={a.projects} />;
       case "documents":
       case "expenses":
       case "thresholds":

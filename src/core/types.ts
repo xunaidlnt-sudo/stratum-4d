@@ -6,6 +6,8 @@ export type ActivityStatus = "not-started" | "in-progress" | "complete";
 export type RelationshipType = "FS" | "SS" | "FF" | "SF";
 
 export interface Activity {
+  /** Project the activity belongs to when several projects are open together (key into Schedule.projects). */
+  projectId?: string;
   id: string; // internal P6 task_id
   code: string; // user-facing Activity ID (task_code)
   name: string;
@@ -258,6 +260,35 @@ export interface Schedule {
   spendingPlan?: SpendingPlanRow[];
   /** Probability × impact scoring matrix used to score risks. */
   riskMatrix?: RiskMatrix;
+  /** EPS path of the project, top first (e.g. ["Company", "Substations"]). */
+  eps?: string[];
+  /** Projects open together: one entry per project in this combined view. */
+  projects?: ProjectPart[];
+  /** Relationships to activities of other projects, kept while the project is open alone. */
+  externalRelationships?: ExternalRelationship[];
+  /** Set on a reflection: the project it copies and the copy's starting point. */
+  reflectionOf?: { dbId: string; code: string; createdAt: string } | null;
+}
+
+export interface ProjectPart {
+  /** Key used as the activity/WBS id prefix and in Activity.projectId. */
+  key: string;
+  /** Database id when the project was opened from the database. */
+  dbId: string | null;
+  version?: number | null;
+  code: string;
+  name: string;
+  /** Everything in the project's own schedule that the combined view does not show. */
+  rest: Omit<Schedule, "activities" | "wbs" | "relationships" | "assignments" | "registers" | "projects">;
+}
+
+export interface ExternalRelationship {
+  /** Project code and Activity ID of the predecessor in the other project. */
+  predecessorProject: string;
+  predecessorCode: string;
+  successorId: string;
+  type: RelationshipType;
+  lagHours: number;
 }
 
 export interface ObsNode {

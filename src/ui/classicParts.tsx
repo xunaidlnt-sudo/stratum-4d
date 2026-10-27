@@ -9,6 +9,8 @@ import { fmtDate, useStore, type GanttFilterKind } from "./store";
 
 export interface ClassicActions {
   projects: () => void;
+  /** Open one project from the database. */
+  openOne?: (id: string) => Promise<void>;
   save: () => void;
   saveAsNew: () => void;
   importSchedule: () => void;

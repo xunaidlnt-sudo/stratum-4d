@@ -6,6 +6,10 @@
 
 Stratum links a Primavera P6 schedule to an IFC building model and plays back the construction sequence over time. It runs in the browser, as a desktop app for Windows, macOS and Linux, or on a team server.
 
+**Try it in the browser:** [xunaidlnt-sudo.github.io/stratum-4d](https://xunaidlnt-sudo.github.io/stratum-4d/) (sign-in required). The site is rebuilt from `main` on every push; schedules you open stay in your browser.
+
+Release 0.6 also covers the enterprise side of P6: an EPS tree with several projects open at once (one network, cross-project relationships), reflections, the OBS, roles and role assignments, resource rates and limits over time, shifts, resource curves, cost accounts, budgets with a budget log, funding and spending plans, a risk scoring matrix with a heat map, and Gantt curtains and text attachments.
+
 Release 0.6 follows the chapters of Oracle's P6 Professional and EPPM user guides (see [docs/P6_GAP_ANALYSIS.md](docs/P6_GAP_ANALYSIS.md)): Excel export/import and copy-paste of cells, a schedule log, progress lines, user preferences for units and dates, Expected Finish and Suspend/Resume, BL2/BL3 comparison baselines, custom Gantt bars with a legend, lookahead filters, threshold monitoring, step templates, notebook topics, Estimate/Remove Progress, scheduling automatically, and layout files. Release 0.5 added P6's Schedule Options (longest path, multiple float paths, out-of-sequence progress), resource levelling, calendar, activity code and UDF dictionaries, activity steps, bar dragging and linking in the Gantt chart, and Claim Digger. Release 0.4 made the P6 layout work like P6 Professional (configurable activity table, Global Change, Update Progress, baselines, Check Schedule, Activity Network, all the Directory bar windows), opens any view on another monitor with **Displays**, and schedules 25,000-activity projects in under a second. Release 0.3 added three interface modes, a project database, live Primavera P6 connections, and a dashboard and report builder with scheduled email. Everything from release 0.2 (phases 1 to 4 of the roadmap) is still there:
 
 **4D**
