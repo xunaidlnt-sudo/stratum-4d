@@ -47,13 +47,16 @@ function index(cal: Calendar): Index {
 
 /** Working spans for the day starting at `day` (UTC midnight), as absolute ms intervals. */
 export function spansOn(cal: Calendar, day: number): [number, number][] {
+  return relSpans(cal, day).map(([a, b]) => [day + a * HOUR, day + b * HOUR]);
+}
+
+/** Working spans of a day in hours from midnight (shared arrays: do not mutate). */
+function relSpans(cal: Calendar, day: number): [number, number][] {
   const ix = index(cal);
-  let spans: [number, number][];
   const override = ix.workdays.get(day);
-  if (override) spans = override;
-  else if (ix.holidays.has(day)) spans = [];
-  else spans = cal.week[new Date(day).getUTCDay()] ?? [];
-  return spans.map(([a, b]) => [day + a * HOUR, day + b * HOUR]);
+  if (override) return override;
+  if (ix.holidays.has(day)) return [];
+  return cal.week[(((Math.floor(day / DAY) + 4) % 7) + 7) % 7] ?? []; // 1 Jan 1970 was a Thursday
 }
 
 function hasAnyWork(cal: Calendar): boolean {
@@ -61,6 +64,103 @@ function hasAnyWork(cal: Calendar): boolean {
 }
 
 const MAX_DAYS = 365 * 60;
+
+// ---------------------------------------------------------------------------
+// Fast arithmetic. Each calendar gets a running total of working time per day
+// (prefix[i] = working ms before day d0 + i), built once and widened on demand.
+// Then "working hours between" is a subtraction and "add N hours" a binary
+// search, instead of walking day by day. This is what keeps F9 fast on
+// schedules with tens of thousands of activities over several years.
+// ---------------------------------------------------------------------------
+
+interface Cum {
+  d0: number; // first day number covered (days since 1970-01-01)
+  n: number; // days covered
+  prefix: Float64Array; // length n + 1
+}
+const cumCache = new WeakMap<Calendar, Cum>();
+
+function buildCum(cal: Calendar, d0: number, n: number): Cum {
+  const prefix = new Float64Array(n + 1);
+  for (let i = 0; i < n; i++) {
+    let h = 0;
+    for (const [a, b] of relSpans(cal, (d0 + i) * DAY)) if (b > a) h += b - a;
+    prefix[i + 1] = prefix[i] + h * HOUR;
+  }
+  return { d0, n, prefix };
+}
+
+/** The cumulative index for `cal`, covering at least days lo..hi. */
+function cumFor(cal: Calendar, lo: number, hi: number): Cum {
+  let c = cumCache.get(cal);
+  if (!c || lo < c.d0 || hi >= c.d0 + c.n) {
+    const from = Math.min(lo, c ? c.d0 : lo) - 366;
+    const to = Math.max(hi, c ? c.d0 + c.n - 1 : hi) + 366 * 2;
+    const next = buildCum(cal, from, to - from + 1);
+    // Keep the same origin as before so totals already computed stay comparable.
+    if (c) {
+      const shift = c.prefix[0] - next.prefix[c.d0 - next.d0];
+      if (shift) for (let i = 0; i < next.prefix.length; i++) next.prefix[i] += shift;
+    }
+    c = next;
+    cumCache.set(cal, c);
+  }
+  return c;
+}
+
+/** Working ms from the index origin to t. */
+function cumAt(cal: Calendar, c: Cum, t: number): number {
+  const d = Math.floor(t / DAY);
+  const day = d * DAY;
+  let v = c.prefix[d - c.d0];
+  for (const [a, b] of relSpans(cal, day)) {
+    const s = day + a * HOUR;
+    const e = day + b * HOUR;
+    if (t >= e) v += e - s;
+    else if (t > s) v += t - s;
+  }
+  return v;
+}
+
+/** First day index i (from lo) with prefix[i + 1] >= target (or > when strict); -1 if none in range. */
+function findDay(c: Cum, target: number, strict: boolean, from = 0): number {
+  let lo = Math.max(0, from);
+  let hi = c.n - 1;
+  const ok = (i: number) => (strict ? c.prefix[i + 1] > target : c.prefix[i + 1] >= target);
+  if (lo > hi || !ok(hi)) return -1;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (ok(mid)) hi = mid;
+    else lo = mid + 1;
+  }
+  return lo;
+}
+
+/**
+ * Smallest moment where the running total reaches `target` (strict = false)
+ * or starts to exceed it (strict = true), searching forward from day index `from`.
+ */
+function momentOf(cal: Calendar, t0: number, target: number, strict: boolean): number | null {
+  const startDay = Math.floor(t0 / DAY);
+  for (let span = 366 * 4; span <= MAX_DAYS * 2; span *= 2) {
+    const c = cumFor(cal, startDay - 2, startDay + span);
+    const i = findDay(c, target, strict, startDay - c.d0 - 1);
+    if (i < 0) {
+      if (span >= MAX_DAYS) return null;
+      continue;
+    }
+    const day = (c.d0 + i) * DAY;
+    let acc = c.prefix[i];
+    for (const [a, b] of relSpans(cal, day)) {
+      const len = (b - a) * HOUR;
+      if (len <= 0) continue;
+      if (strict ? acc + len > target : acc + len >= target) return day + a * HOUR + Math.max(0, target - acc);
+      acc += len;
+    }
+    return day + DAY; // unreachable with a consistent index
+  }
+  return null;
+}
 
 /**
  * Add working hours to t. A result that lands exactly on the end of a working
@@ -71,17 +171,10 @@ export function addWorkHours(cal: Calendar, t: number, hours: number): number {
   if (hours < 0) return subtractWorkHours(cal, t, -hours);
   if (hours === 0) return t;
   if (!hasAnyWork(cal)) throw new Error(`Calendar "${cal.name}" has no working time`);
-  let rem = hours * HOUR;
-  for (let day = dayStart(t), i = 0; i < MAX_DAYS; day += DAY, i++) {
-    for (const [a, b] of spansOn(cal, day)) {
-      const s = Math.max(t, a);
-      if (s >= b) continue;
-      const avail = b - s;
-      if (rem <= avail) return s + rem;
-      rem -= avail;
-    }
-  }
-  throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  const c = cumFor(cal, Math.floor(t / DAY) - 2, Math.floor(t / DAY) + 2);
+  const r = momentOf(cal, t, cumAt(cal, c, t) + hours * HOUR, false);
+  if (r === null) throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  return r;
 }
 
 /** Subtract working hours. A result exactly on the start of a span stays there. */
@@ -89,41 +182,56 @@ export function subtractWorkHours(cal: Calendar, t: number, hours: number): numb
   if (hours < 0) return addWorkHours(cal, t, -hours);
   if (hours === 0) return t;
   if (!hasAnyWork(cal)) throw new Error(`Calendar "${cal.name}" has no working time`);
-  let rem = hours * HOUR;
-  for (let day = dayStart(t), i = 0; i < MAX_DAYS; day -= DAY, i++) {
-    const spans = spansOn(cal, day);
-    for (let k = spans.length - 1; k >= 0; k--) {
-      const [a, b] = spans[k];
-      const e = Math.min(t, b);
-      if (e <= a) continue;
-      const avail = e - a;
-      if (rem <= avail) return e - rem;
-      rem -= avail;
-    }
+  const day = Math.floor(t / DAY);
+  // Make sure the index reaches far enough back to hold the hours we subtract.
+  let c = cumFor(cal, day - 2, day + 2);
+  let target = cumAt(cal, c, t) - hours * HOUR;
+  for (let back = 366 * 4; target < c.prefix[0] && back <= MAX_DAYS * 2; back *= 2) {
+    c = cumFor(cal, day - back, day + 2);
+    target = cumAt(cal, c, t) - hours * HOUR;
   }
-  throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  if (target < c.prefix[0]) throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  // Largest moment with that total: where the total starts to exceed it, searching from the index start.
+  const i = findDay(c, target, true, 0);
+  if (i < 0) throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  const d = (c.d0 + i) * DAY;
+  let acc = c.prefix[i];
+  for (const [a, b] of relSpans(cal, d)) {
+    const len = (b - a) * HOUR;
+    if (len <= 0) continue;
+    if (acc + len > target) return d + a * HOUR + Math.max(0, target - acc);
+    acc += len;
+  }
+  return d + DAY;
 }
 
 /** Earliest working moment at or after t (a start date). */
 export function nextWorkStart(cal: Calendar, t: number): number {
   if (!hasAnyWork(cal)) return t;
-  for (let day = dayStart(t), i = 0; i < MAX_DAYS; day += DAY, i++) {
-    for (const [a, b] of spansOn(cal, day)) {
-      if (t < b) return Math.max(t, a);
-    }
-  }
-  return t;
+  const c = cumFor(cal, Math.floor(t / DAY) - 2, Math.floor(t / DAY) + 2);
+  return momentOf(cal, t, cumAt(cal, c, t), true) ?? t;
 }
 
 /** Latest working moment at or before t (a finish date). */
 export function prevWorkEnd(cal: Calendar, t: number): number {
   if (!hasAnyWork(cal)) return t;
-  for (let day = dayStart(t), i = 0; i < MAX_DAYS; day -= DAY, i++) {
-    const spans = spansOn(cal, day);
-    for (let k = spans.length - 1; k >= 0; k--) {
-      const [a, b] = spans[k];
-      if (t > a) return Math.min(t, b);
-    }
+  const day = Math.floor(t / DAY);
+  let c = cumFor(cal, day - 2, day + 2);
+  let target = cumAt(cal, c, t);
+  for (let back = 366 * 4; target <= c.prefix[0] && back <= MAX_DAYS * 2; back *= 2) {
+    c = cumFor(cal, day - back, day + 2);
+    target = cumAt(cal, c, t);
+  }
+  if (target <= c.prefix[0]) return t;
+  const i = findDay(c, target, false, 0);
+  if (i < 0) return t;
+  const d = (c.d0 + i) * DAY;
+  let acc = c.prefix[i];
+  for (const [a, b] of relSpans(cal, d)) {
+    const len = (b - a) * HOUR;
+    if (len <= 0) continue;
+    if (acc + len >= target) return Math.min(t, d + a * HOUR + Math.max(0, target - acc));
+    acc += len;
   }
   return t;
 }
@@ -131,15 +239,9 @@ export function prevWorkEnd(cal: Calendar, t: number): number {
 /** Working hours between a and b (negative when b < a). */
 export function workHoursBetween(cal: Calendar, a: number, b: number): number {
   if (b < a) return -workHoursBetween(cal, b, a);
-  let total = 0;
-  for (let day = dayStart(a); day < b; day += DAY) {
-    for (const [s, e] of spansOn(cal, day)) {
-      const lo = Math.max(s, a);
-      const hi = Math.min(e, b);
-      if (hi > lo) total += hi - lo;
-    }
-  }
-  return total / HOUR;
+  if (a === b) return 0;
+  const c = cumFor(cal, Math.floor(a / DAY) - 1, Math.floor(b / DAY) + 1);
+  return (cumAt(cal, c, b) - cumAt(cal, c, a)) / HOUR;
 }
 
 // ---------------------------------------------------------------------------

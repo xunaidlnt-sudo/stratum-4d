@@ -62,7 +62,9 @@ function durationOf(a: Activity, cal: Calendar): number {
 }
 
 export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResult {
-  const schedule: Schedule = structuredClone(input);
+  // Copy what CPM writes (activities); relationships, WBS, calendars and the
+  // raw XER tables are read-only here, so they are shared, not cloned.
+  const schedule: Schedule = { ...input, activities: input.activities.map((a) => ({ ...a })) };
   const warnings: string[] = [];
   const calendars = new Map((schedule.calendars ?? []).map((c) => [c.id, c]));
   const fallback =
@@ -103,8 +105,8 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   for (const r of rels) indeg.set(r.successorId, indeg.get(r.successorId)! + 1);
   const queue = [...nodes.keys()].filter((id) => indeg.get(id) === 0);
   const order: string[] = [];
-  while (queue.length) {
-    const id = queue.shift()!;
+  for (let qi = 0; qi < queue.length; qi++) {
+    const id = queue[qi];
     order.push(id);
     for (const r of succs.get(id) ?? []) {
       const n = indeg.get(r.successorId)! - 1;
@@ -113,7 +115,8 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
     }
   }
   if (order.length < nodes.size) {
-    const stuck = [...nodes.keys()].filter((id) => !order.includes(id)).map((id) => nodes.get(id)!.a.code);
+    const done = new Set(order);
+    const stuck = [...nodes.keys()].filter((id) => !done.has(id)).map((id) => nodes.get(id)!.a.code);
     throw new ScheduleLoopError(stuck);
   }
 
@@ -169,8 +172,12 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
     }
   }
 
-  const projectFinish = Math.max(...[...nodes.values()].map((n) => n.EF), dataDate);
-  const projectStart = Math.min(...[...nodes.values()].map((n) => n.ES), dataDate);
+  let projectFinish = dataDate;
+  let projectStart = dataDate;
+  for (const n of nodes.values()) {
+    if (n.EF > projectFinish) projectFinish = n.EF;
+    if (n.ES < projectStart) projectStart = n.ES;
+  }
 
   // ---- Backward pass ----
   for (let i = order.length - 1; i >= 0; i--) {
@@ -260,11 +267,20 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
 
   // ---- Derived activities: LOE spans its neighbours, WBS summaries span their WBS ----
   const byId = new Map(schedule.activities.map((a) => [a.id, a]));
-  for (const a of schedule.activities.filter(isDerived)) {
+  const derived = schedule.activities.filter(isDerived);
+  // Relationships by activity, and activity spans by WBS (rolled up the tree), built once.
+  const relsOf = new Map<string, Relationship[]>();
+  if (derived.some((a) => a.type === "loe"))
+    for (const r of schedule.relationships) {
+      (relsOf.get(r.successorId) ?? relsOf.set(r.successorId, []).get(r.successorId)!).push(r);
+      if (r.predecessorId !== r.successorId) (relsOf.get(r.predecessorId) ?? relsOf.set(r.predecessorId, []).get(r.predecessorId)!).push(r);
+    }
+  const wbsSpan = derived.some((a) => a.type === "wbs-summary") ? spansByWbs(schedule) : new Map<string, [number, number]>();
+  for (const a of derived) {
     let s = Infinity;
     let f = -Infinity;
     if (a.type === "loe") {
-      for (const r of schedule.relationships) {
+      for (const r of relsOf.get(a.id) ?? []) {
         if (r.successorId === a.id) {
           const p = byId.get(r.predecessorId);
           if (p?.start != null && p.finish != null) s = Math.min(s, r.type === "FS" ? p.finish : p.start);
@@ -275,11 +291,10 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
         }
       }
     } else {
-      const under = descendantsOf(schedule, a.wbsId);
-      for (const b of schedule.activities) {
-        if (b === a || isDerived(b) || !under.has(b.wbsId ?? "")) continue;
-        if (b.start != null) s = Math.min(s, b.start);
-        if (b.finish != null) f = Math.max(f, b.finish);
+      const sp = a.wbsId ? wbsSpan.get(a.wbsId) : undefined;
+      if (sp) {
+        s = sp[0];
+        f = sp[1];
       }
     }
     if (Number.isFinite(s) && Number.isFinite(f) && f >= s) {
@@ -310,14 +325,18 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   return { schedule, projectStart, projectFinish, criticalPath, warnings };
 }
 
-function descendantsOf(schedule: Schedule, wbsId: string | null): Set<string> {
-  const out = new Set<string>();
-  if (!wbsId) return out;
-  const stack = [wbsId];
-  while (stack.length) {
-    const id = stack.pop()!;
-    out.add(id);
-    for (const w of schedule.wbs) if (w.parentId === id) stack.push(w.id);
+/** Earliest start and latest finish of the non-derived activities under each WBS node (including sub-nodes). */
+function spansByWbs(schedule: Schedule): Map<string, [number, number]> {
+  const parent = new Map(schedule.wbs.map((w) => [w.id, w.parentId]));
+  const out = new Map<string, [number, number]>();
+  for (const b of schedule.activities) {
+    if (isDerived(b) || !b.wbsId) continue;
+    for (let id: string | null | undefined = b.wbsId, guard = 0; id && guard < 64; id = parent.get(id), guard++) {
+      const cur = out.get(id) ?? [Infinity, -Infinity];
+      if (b.start != null) cur[0] = Math.min(cur[0], b.start);
+      if (b.finish != null) cur[1] = Math.max(cur[1], b.finish);
+      out.set(id, cur);
+    }
   }
   return out;
 }
