@@ -1,11 +1,19 @@
 // Shared data model for Stratum. Dates are stored as epoch milliseconds (UTC)
 // so they serialise cleanly to JSON and compare cheaply during playback.
 
-export type ActivityType = "task" | "milestone" | "finish-milestone" | "loe" | "wbs-summary" | "resource-dependent";
+export type ActivityType =
+  | "task"
+  | "milestone"
+  | "finish-milestone"
+  | "loe"
+  | "wbs-summary"
+  | "resource-dependent";
 export type ActivityStatus = "not-started" | "in-progress" | "complete";
 export type RelationshipType = "FS" | "SS" | "FF" | "SF";
 
 export interface Activity {
+  /** P6 Activity Leveling Priority: 1 Top, 2 High, 3 Normal (default), 4 Low, 5 Lowest. */
+  levelingPriority?: 1 | 2 | 3 | 4 | 5;
   /** Project the activity belongs to when several projects are open together (key into Schedule.projects). */
   projectId?: string;
   id: string; // internal P6 task_id
@@ -56,7 +64,11 @@ export interface Activity {
   /** Physical % complete (0–100), entered or rolled up from steps. */
   physicalPercent?: number;
   /** P6 Duration Type; kept for round trips and shown in the table. */
-  durationType?: "fixed-duration-units-time" | "fixed-duration-units" | "fixed-units" | "fixed-units-time";
+  durationType?:
+    | "fixed-duration-units-time"
+    | "fixed-duration-units"
+    | "fixed-units"
+    | "fixed-units-time";
   /** P6 Expected Finish: remaining duration is recalculated to finish on this date when Schedule Options use it. */
   expectedFinish?: number | null;
   /** P6 Suspend / Resume: an in-progress activity stops at suspend and its remaining work restarts at resume. */
@@ -118,7 +130,12 @@ export interface Resource {
   /** Max units per working hour (labour/equipment), for levelling; default 1 per resource unit. */
   maxUnitsPerHour?: number;
   /** Price and max units that change over time (P6 resource rates); entries apply from their date. */
-  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number; prices?: number[] }[];
+  rates?: {
+    from: number;
+    pricePerUnit: number;
+    maxUnitsPerHour?: number;
+    prices?: number[];
+  }[];
   /** Shift that sets max units by hour of day (P6 resource shifts). */
   shiftId?: string | null;
   /** Roles this resource can fill. */
@@ -147,6 +164,8 @@ export interface Assignment {
   costAccountId?: string | null;
   /** Future period bucket planning: remaining units entered per period (overrides the curve). */
   buckets?: { start: number; finish: number; qty: number }[];
+  /** P6 "Drive Activity Dates": for resource-dependent activities, this resource's calendar sets the dates (default true). */
+  drivesDates?: boolean;
   /** P6 Rate Type: which of the five Price/Unit columns prices the assignment (1-5, default 1). */
   rateType?: number;
   /** P6 Rate Source: price from the resource, the role, or the override price. */
@@ -175,7 +194,14 @@ export interface MotionPath {
   orient: boolean;
 }
 
-export type GrowthDirection = "none" | "bottom-up" | "top-down" | "west-east" | "east-west" | "south-north" | "north-south";
+export type GrowthDirection =
+  | "none"
+  | "bottom-up"
+  | "top-down"
+  | "west-east"
+  | "east-west"
+  | "south-north"
+  | "north-south";
 
 /** A piece of a model element (a pour or bay), cut along one axis by fraction. */
 export interface ElementSegment {
@@ -202,7 +228,12 @@ export interface WbsNode {
   anticipatedStart?: number | null;
   anticipatedFinish?: number | null;
   /** Earned value technique for this WBS (P6 WBS › Earned Value). */
-  evTechnique?: "activity-pct" | "0-100" | "50-50" | "wbs-milestones" | "custom";
+  evTechnique?:
+    | "activity-pct"
+    | "0-100"
+    | "50-50"
+    | "wbs-milestones"
+    | "custom";
   /** Percent earned at the start of an activity for the custom technique. */
   evCustomStartPct?: number;
   /** Weighted WBS milestones (P6 WBS Milestones tab). */
@@ -237,7 +268,12 @@ export interface Schedule {
   sourceXer?: Record<string, Record<string, string>[]> | null;
   sourceFormat?: "xer" | "mspdi" | "stratum" | "p6-eppm" | "p6-db";
   /** Where the schedule was pulled from, for refresh and push-back. */
-  p6Source?: { connectionId: string; projectObjectId: string; kind: string; pulledAt: string } | null;
+  p6Source?: {
+    connectionId: string;
+    projectObjectId: string;
+    kind: string;
+    pulledAt: string;
+  } | null;
   /** The baseline the baseline dates came from, when assigned from another schedule. */
   baselineInfo?: BaselineInfo | null;
   /** P6 Schedule Options (F9 dialog). */
@@ -300,13 +336,23 @@ export interface Schedule {
   /** Project code types that came with the project (e.g. from an XER). */
   projectCodeTypes?: CodeType[];
   /** P6 financial period calendar (Admin › Financial Period Calendar). */
-  financialPeriods?: { id: string; name: string; start: number; finish: number }[];
+  financialPeriods?: {
+    id: string;
+    name: string;
+    start: number;
+    finish: number;
+  }[];
   /** P6 expense categories (Enterprise › Expense Categories). */
   expenseCategories?: string[];
   /** Resource code types (P6 Enterprise › Resource Codes); values sit on each resource. */
   resourceCodeTypes?: CodeType[];
   /** P6 Settings tab. */
-  projectSettings?: { wbsSeparator?: string; fiscalYearStartMonth?: number; evBaseline?: "project" | "bl2" | "bl3"; currency?: string };
+  projectSettings?: {
+    wbsSeparator?: string;
+    fiscalYearStartMonth?: number;
+    evBaseline?: "project" | "bl2" | "bl3";
+    currency?: string;
+  };
   /** Projects open together: one entry per project in this combined view. */
   projects?: ProjectPart[];
   /** Relationships to activities of other projects, kept while the project is open alone. */
@@ -339,7 +385,15 @@ export interface ProjectPart {
   code: string;
   name: string;
   /** Everything in the project's own schedule that the combined view does not show. */
-  rest: Omit<Schedule, "activities" | "wbs" | "relationships" | "assignments" | "registers" | "projects">;
+  rest: Omit<
+    Schedule,
+    | "activities"
+    | "wbs"
+    | "relationships"
+    | "assignments"
+    | "registers"
+    | "projects"
+  >;
 }
 
 export interface ExternalRelationship {
@@ -413,7 +467,12 @@ export interface Role {
   /** Role limit for planning, units per hour. */
   maxUnitsPerHour?: number;
   /** Prices and limits over time (P6 role Units & Prices). */
-  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number; prices?: number[] }[];
+  rates?: {
+    from: number;
+    pricePerUnit: number;
+    maxUnitsPerHour?: number;
+    prices?: number[];
+  }[];
   /** P6 role Responsibilities text. */
   responsibilities?: string;
 }
@@ -476,6 +535,14 @@ export interface LevelingOptions {
   levelWithinFloat: boolean;
   /** Priority order: earliest late start first, then total float, then ID. */
   priority: "late-start" | "total-float" | "early-start" | "activity-id";
+  /**
+   * P6 Leveling Priorities: fields compared in order, each ascending or
+   * descending. When set it replaces `priority`. Fields: total-float,
+   * late-start, early-start, late-finish, early-finish, leveling-priority,
+   * original-duration, remaining-duration, activity-id, project-priority,
+   * or "code:<type>" / "udf:<name>".
+   */
+  priorities?: { field: string; desc?: boolean }[];
   resourceIds: string[] | null;
 }
 
@@ -508,10 +575,18 @@ export interface PeriodSnapshot {
   date: number;
   name: string;
   /** Activity internal id -> actuals to date. */
-  actuals: Record<string, { pct: number; actualCost: number; actualUnits: number }>;
+  actuals: Record<
+    string,
+    { pct: number; actualCost: number; actualUnits: number }
+  >;
 }
 
-export type RegisterKind = "issues" | "risks" | "documents" | "expenses" | "thresholds";
+export type RegisterKind =
+  | "issues"
+  | "risks"
+  | "documents"
+  | "expenses"
+  | "thresholds";
 
 /** A row in one of the project registers. Columns differ per register; values are kept as text. */
 export interface RegisterItem {
@@ -522,7 +597,15 @@ export interface RegisterItem {
   /** P6 issue history: what changed, when. */
   history?: { at: string; text: string }[];
   /** P6 risk response plan steps. */
-  responsePlan?: { id: string; step: string; owner: string; start: number | null; finish: number | null; cost: number; status: "proposed" | "sanctioned" | "rejected" | "done" }[];
+  responsePlan?: {
+    id: string;
+    step: string;
+    owner: string;
+    start: number | null;
+    finish: number | null;
+    cost: number;
+    status: "proposed" | "sanctioned" | "rejected" | "done";
+  }[];
 }
 
 export interface BaselineInfo {
@@ -545,7 +628,12 @@ export interface ModelElement {
   properties: Record<string, string>;
 }
 
-export type ProfileAction = "install" | "remove" | "temporary" | "maintain" | "neutral";
+export type ProfileAction =
+  | "install"
+  | "remove"
+  | "temporary"
+  | "maintain"
+  | "neutral";
 
 /** How an element looks in one phase of its task (before / during / after). */
 export interface PhaseAppearance {

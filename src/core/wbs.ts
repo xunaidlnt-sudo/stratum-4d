@@ -4,17 +4,29 @@ import { activityDates } from "./simulation";
 import type { Activity, DateSource, Schedule } from "./types";
 
 export type GanttRow =
-  | { kind: "wbs"; id: string; depth: number; label: string; start: number | null; finish: number | null }
+  | {
+      kind: "wbs";
+      id: string;
+      depth: number;
+      label: string;
+      start: number | null;
+      finish: number | null;
+    }
   | { kind: "activity"; id: string; depth: number; activity: Activity };
 
-export function buildGanttRows(schedule: Schedule, source: DateSource, collapsed: Set<string> = new Set()): GanttRow[] {
+export function buildGanttRows(
+  schedule: Schedule,
+  source: DateSource,
+  collapsed: Set<string> = new Set(),
+): GanttRow[] {
   const children = new Map<string | null, typeof schedule.wbs>();
   for (const w of schedule.wbs) {
     const list = children.get(w.parentId) ?? [];
     list.push(w);
     children.set(w.parentId, list);
   }
-  for (const list of children.values()) list.sort((a, b) => a.seq - b.seq || a.code.localeCompare(b.code));
+  for (const list of children.values())
+    list.sort((a, b) => a.seq - b.seq || a.code.localeCompare(b.code));
 
   const acts = new Map<string | null, Activity[]>();
   for (const a of schedule.activities) {
@@ -23,15 +35,27 @@ export function buildGanttRows(schedule: Schedule, source: DateSource, collapsed
     acts.set(a.wbsId, list);
   }
   for (const list of acts.values()) {
-    list.sort((a, b) => (activityDates(a, source).start ?? 0) - (activityDates(b, source).start ?? 0) || a.code.localeCompare(b.code));
+    list.sort(
+      (a, b) =>
+        (activityDates(a, source).start ?? 0) -
+          (activityDates(b, source).start ?? 0) || a.code.localeCompare(b.code),
+    );
   }
 
   const rows: GanttRow[] = [];
   const visit = (parent: string | null, depth: number) => {
-    for (const a of acts.get(parent) ?? []) rows.push({ kind: "activity", id: a.id, depth, activity: a });
+    for (const a of acts.get(parent) ?? [])
+      rows.push({ kind: "activity", id: a.id, depth, activity: a });
     for (const w of children.get(parent) ?? []) {
       const idx = rows.length;
-      rows.push({ kind: "wbs", id: w.id, depth, label: `${w.code} ${w.name}`.trim(), start: null, finish: null });
+      rows.push({
+        kind: "wbs",
+        id: w.id,
+        depth,
+        label: `${w.code} ${w.name}`.trim(),
+        start: null,
+        finish: null,
+      });
       const before = rows.length;
       visit(w.id, depth + 1);
       // Roll up summary dates from everything below this WBS node.

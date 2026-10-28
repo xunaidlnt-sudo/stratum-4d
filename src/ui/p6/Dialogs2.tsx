@@ -3,12 +3,28 @@
 
 import { download as saveFile, download } from "../files";
 import { useMemo, useState } from "react";
-import { claimDigger, claimDiggerCsv, type ClaimDiggerReport } from "../../core/compare";
+import {
+  claimDigger,
+  claimDiggerCsv,
+  type ClaimDiggerReport,
+} from "../../core/compare";
 import { DEFAULT_SCHEDULE_OPTIONS } from "../../core/cpm";
-import { DEFAULT_LEVELING, levelResources, overloads } from "../../core/level";
+import {
+  DEFAULT_LEVELING,
+  LEVEL_PRIORITY_FIELDS,
+  levelResources,
+  overloads,
+} from "../../core/level";
 import { parseMspdi } from "../../core/mspdi";
 import { uid } from "../../core/ops";
-import type { Calendar, CodeType, LevelingOptions, Schedule, ScheduleOptions, UdfDef } from "../../core/types";
+import type {
+  Calendar,
+  CodeType,
+  LevelingOptions,
+  Schedule,
+  ScheduleOptions,
+  UdfDef,
+} from "../../core/types";
 import { parseXer } from "../../core/xer";
 import { fmtDate, useStore } from "../store";
 import { close, Shell } from "./Dialogs";
@@ -16,31 +32,71 @@ import { DetailTabs, P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { useP6 } from "./commands";
 import { scheduleLogText } from "../../core/scheduleLog";
 
-const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
+const commit = (s: Schedule, label: string) =>
+  useStore.getState().commit(s, label);
 const say = (m: string) => useStore.getState().setStatus(m);
 
 // ---------------------------------------------------------------- Schedule Options
 
-export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }) {
+export function ScheduleOptionsDialog({
+  onSchedule,
+}: {
+  onSchedule: () => void;
+}) {
   const schedule = useStore((s) => s.schedule);
-  const [o, setO] = useState<ScheduleOptions>({ ...DEFAULT_SCHEDULE_OPTIONS, ...(schedule?.scheduleOptions ?? {}) });
-  const [endCode, setEndCode] = useState(() => schedule?.activities.find((a) => a.id === o.floatPaths?.endActivityId)?.code ?? "");
+  const [o, setO] = useState<ScheduleOptions>({
+    ...DEFAULT_SCHEDULE_OPTIONS,
+    ...(schedule?.scheduleOptions ?? {}),
+  });
+  const [endCode, setEndCode] = useState(
+    () =>
+      schedule?.activities.find((a) => a.id === o.floatPaths?.endActivityId)
+        ?.code ?? "",
+  );
   if (!schedule) return null;
   void onSchedule;
-  const hpd = (schedule.calendars?.find((c) => c.id === schedule.defaultCalendarId) ?? schedule.calendars?.[0])?.hoursPerDay ?? 8;
+  const hpd =
+    (
+      schedule.calendars?.find((c) => c.id === schedule.defaultCalendarId) ??
+      schedule.calendars?.[0]
+    )?.hoursPerDay ?? 8;
   const save = () => {
-    const end = schedule.activities.find((a) => a.code.toLowerCase() === endCode.trim().toLowerCase());
-    const next: ScheduleOptions = { ...o, floatPaths: o.floatPaths && end ? { ...o.floatPaths, endActivityId: end.id } : o.floatPaths ? { ...o.floatPaths, endActivityId: null } : null };
+    const end = schedule.activities.find(
+      (a) => a.code.toLowerCase() === endCode.trim().toLowerCase(),
+    );
+    const next: ScheduleOptions = {
+      ...o,
+      floatPaths:
+        o.floatPaths && end
+          ? { ...o.floatPaths, endActivityId: end.id }
+          : o.floatPaths
+            ? { ...o.floatPaths, endActivityId: null }
+            : null,
+    };
     commit({ ...schedule, scheduleOptions: next }, "Schedule Options");
   };
   const tick = (k: keyof ScheduleOptions, label: string) => (
     <label className="p6-check">
-      <input type="checkbox" checked={!!o[k]} onChange={(e) => setO({ ...o, [k]: e.target.checked })} /> {label}
+      <input
+        type="checkbox"
+        checked={!!o[k]}
+        onChange={(e) => setO({ ...o, [k]: e.target.checked })}
+      />{" "}
+      {label}
     </label>
   );
-  const radio = <K extends keyof ScheduleOptions>(k: K, v: ScheduleOptions[K], label: string) => (
+  const radio = <K extends keyof ScheduleOptions>(
+    k: K,
+    v: ScheduleOptions[K],
+    label: string,
+  ) => (
     <label className="p6-check" style={{ flex: 1 }}>
-      <input type="radio" checked={o[k] === v} onChange={() => setO({ ...o, [k]: v })} /> {label}
+      <input
+        type="radio"
+        checked={o[k] === v}
+        onChange={() => setO({ ...o, [k]: v })}
+      />{" "}
+      {label}
     </label>
   );
   return (
@@ -50,10 +106,19 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
       onClose={close}
       side={
         <>
-          <SideBtn kind="close" label="Close" primary onClick={() => (save(), close())} />
+          <SideBtn
+            kind="close"
+            label="Close"
+            primary
+            onClick={() => (save(), close())}
+          />
           <SideBtn kind="cancel" label="Cancel" onClick={close} />
           <SideGap />
-          <SideBtn kind="default" label="Default" onClick={() => (setO(DEFAULT_SCHEDULE_OPTIONS), setEndCode(""))} />
+          <SideBtn
+            kind="default"
+            label="Default"
+            onClick={() => (setO(DEFAULT_SCHEDULE_OPTIONS), setEndCode(""))}
+          />
           <SideGap />
           <SideHelp topic="schedule-options" />
         </>
@@ -73,18 +138,37 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
             "General",
             <>
               <div>
-                {tick("ignoreExternal", "Ignore relationships to and from other projects")}
-                {tick("openEndsCritical", "Make open-ended activities critical")}
+                {tick(
+                  "ignoreExternal",
+                  "Ignore relationships to and from other projects",
+                )}
+                {tick(
+                  "openEndsCritical",
+                  "Make open-ended activities critical",
+                )}
                 {tick("useExpectedFinish", "Use Expected Finish Dates")}
-                {tick("autoSchedule", "Schedule automatically when a change affects dates")}
-                {tick("levelWhenScheduling", "Level resources during scheduling")}
-                {tick("recalcCosts", "Recalculate assignment costs after scheduling")}
+                {tick(
+                  "autoSchedule",
+                  "Schedule automatically when a change affects dates",
+                )}
+                {tick(
+                  "levelWhenScheduling",
+                  "Level resources during scheduling",
+                )}
+                {tick(
+                  "recalcCosts",
+                  "Recalculate assignment costs after scheduling",
+                )}
               </div>
               <fieldset className="p6-fieldset">
                 <legend>When scheduling progressed activities use</legend>
                 <div className="row">
                   {radio("outOfSequence", "retained-logic", "Retained Logic")}
-                  {radio("outOfSequence", "progress-override", "Progress Override")}
+                  {radio(
+                    "outOfSequence",
+                    "progress-override",
+                    "Progress Override",
+                  )}
                   {radio("outOfSequence", "actual-dates", "Actual Dates")}
                 </div>
               </fieldset>
@@ -97,9 +181,27 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
               </fieldset>
               <fieldset className="p6-fieldset">
                 <legend>Define critical activities as</legend>
-                {radio("criticalBy", "float", "Total Float less than or equal to")}
+                {radio(
+                  "criticalBy",
+                  "float",
+                  "Total Float less than or equal to",
+                )}
                 <div style={{ paddingLeft: 24 }}>
-                  <input type="number" step={0.5} disabled={o.criticalBy !== "float"} value={o.criticalFloatHours / hpd} onChange={(e) => setO({ ...o, criticalFloatHours: (Number(e.target.value) || 0) * hpd })} style={{ width: 90 }} aria-label="Critical float threshold in days" /> d
+                  <input
+                    type="number"
+                    step={0.5}
+                    disabled={o.criticalBy !== "float"}
+                    value={o.criticalFloatHours / hpd}
+                    onChange={(e) =>
+                      setO({
+                        ...o,
+                        criticalFloatHours: (Number(e.target.value) || 0) * hpd,
+                      })
+                    }
+                    style={{ width: 90 }}
+                    aria-label="Critical float threshold in days"
+                  />{" "}
+                  d
                 </div>
                 {radio("criticalBy", "longest-path", "Longest Path")}
               </fieldset>
@@ -107,23 +209,55 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
                 <legend>Calculate float based on finish date of</legend>
                 <div className="row">
                   <label className="p6-check" style={{ flex: 1 }}>
-                    <input type="radio" checked={o.floatBasis !== "opened-projects"} onChange={() => setO({ ...o, floatBasis: "each-project" })} /> Each project
+                    <input
+                      type="radio"
+                      checked={o.floatBasis !== "opened-projects"}
+                      onChange={() =>
+                        setO({ ...o, floatBasis: "each-project" })
+                      }
+                    />{" "}
+                    Each project
                   </label>
                   {radio("floatBasis", "opened-projects", "Opened projects")}
                 </div>
               </fieldset>
               <label>
                 Compute Total Float as
-                <select value={o.floatType} onChange={(e) => setO({ ...o, floatType: e.target.value as ScheduleOptions["floatType"] })}>
-                  <option value="finish">Finish Float = Late Finish - Early Finish</option>
-                  <option value="start">Start Float = Late Start - Early Start</option>
-                  <option value="smallest">Smallest of Start Float and Finish Float</option>
+                <select
+                  value={o.floatType}
+                  onChange={(e) =>
+                    setO({
+                      ...o,
+                      floatType: e.target.value as ScheduleOptions["floatType"],
+                    })
+                  }
+                >
+                  <option value="finish">
+                    Finish Float = Late Finish - Early Finish
+                  </option>
+                  <option value="start">
+                    Start Float = Late Start - Early Start
+                  </option>
+                  <option value="smallest">
+                    Smallest of Start Float and Finish Float
+                  </option>
                 </select>
               </label>
               <label>
                 Calendar for scheduling Relationship Lag
-                <select value={o.lagCalendar ?? "predecessor"} onChange={(e) => setO({ ...o, lagCalendar: e.target.value as ScheduleOptions["lagCalendar"] })}>
-                  <option value="predecessor">Predecessor Activity Calendar</option>
+                <select
+                  value={o.lagCalendar ?? "predecessor"}
+                  onChange={(e) =>
+                    setO({
+                      ...o,
+                      lagCalendar: e.target
+                        .value as ScheduleOptions["lagCalendar"],
+                    })
+                  }
+                >
+                  <option value="predecessor">
+                    Predecessor Activity Calendar
+                  </option>
                   <option value="successor">Successor Activity Calendar</option>
                   <option value="24h">24-Hour Calendar</option>
                   <option value="project">Project Default Calendar</option>
@@ -138,10 +272,18 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
               <div className="row" style={{ gap: 12 }}>
                 <label>
                   Display multiple float paths ending with activity
-                  <input list="p6-end-acts" disabled={!o.floatPaths} value={endCode} onChange={(e) => setEndCode(e.target.value)} placeholder="Activity ID" />
+                  <input
+                    list="p6-end-acts"
+                    disabled={!o.floatPaths}
+                    value={endCode}
+                    onChange={(e) => setEndCode(e.target.value)}
+                    placeholder="Activity ID"
+                  />
                   <datalist id="p6-end-acts">
                     {schedule.activities
-                      .filter((a) => a.type === "finish-milestone" || a.longestPath)
+                      .filter(
+                        (a) => a.type === "finish-milestone" || a.longestPath,
+                      )
                       .slice(0, 300)
                       .map((a) => (
                         <option key={a.id} value={a.code}>
@@ -152,10 +294,31 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
                 </label>
                 <label>
                   Number of paths to calculate
-                  <input type="number" min={1} max={50} disabled={!o.floatPaths} value={o.floatPaths?.count ?? 10} onChange={(e) => o.floatPaths && setO({ ...o, floatPaths: { ...o.floatPaths, count: Math.max(1, Number(e.target.value) || 1) } })} style={{ width: 80 }} />
+                  <input
+                    type="number"
+                    min={1}
+                    max={50}
+                    disabled={!o.floatPaths}
+                    value={o.floatPaths?.count ?? 10}
+                    onChange={(e) =>
+                      o.floatPaths &&
+                      setO({
+                        ...o,
+                        floatPaths: {
+                          ...o.floatPaths,
+                          count: Math.max(1, Number(e.target.value) || 1),
+                        },
+                      })
+                    }
+                    style={{ width: 80 }}
+                  />
                 </label>
               </div>
-              <p className="muted small">Paths are ranked by the least relationship free float to the ending activity: path 1 drives it. Show the Float Path and Float Path Order columns and group by Float Path to read them.</p>
+              <p className="muted small">
+                Paths are ranked by the least relationship free float to the
+                ending activity: path 1 drives it. Show the Float Path and Float
+                Path Order columns and group by Float Path to read them.
+              </p>
             </>,
           ],
         ]}
@@ -171,7 +334,11 @@ export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
   const report = useStore((s) => s.scheduleReport);
   const combined = !!schedule?.projects && schedule.projects.length > 1;
   const [own, setOwn] = useState(true);
-  const [dd, setDd] = useState(() => (schedule?.dataDate ? new Date(schedule.dataDate).toISOString().slice(0, 10) : ""));
+  const [dd, setDd] = useState(() =>
+    schedule?.dataDate
+      ? new Date(schedule.dataDate).toISOString().slice(0, 10)
+      : "",
+  );
   const [forecast, setForecast] = useState("");
   const [log, setLog] = useState(false);
   if (!schedule) return null;
@@ -180,15 +347,32 @@ export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
     let s = st.schedule!;
     const date = dd ? Date.parse(`${dd}T00:00:00Z`) : null;
     const time = (s.dataDate ?? 0) % 86_400_000 || 8 * 3_600_000;
-    if (date !== null && (!combined || !own)) s = { ...s, dataDate: date + time, projects: s.projects?.map((p) => ({ ...p, rest: { ...p.rest, dataDate: date + time } })) };
-    if (forecast) s = { ...s, plannedStart: Date.parse(`${forecast}T00:00:00Z`) + 8 * 3_600_000 };
+    if (date !== null && (!combined || !own))
+      s = {
+        ...s,
+        dataDate: date + time,
+        projects: s.projects?.map((p) => ({
+          ...p,
+          rest: { ...p.rest, dataDate: date + time },
+        })),
+      };
+    if (forecast)
+      s = {
+        ...s,
+        plannedStart: Date.parse(`${forecast}T00:00:00Z`) + 8 * 3_600_000,
+      };
     if (s !== st.schedule) commit(s, "Data date");
     close();
     onSchedule();
     if (log) {
       const r = useStore.getState().scheduleReport;
       const cur = useStore.getState().schedule;
-      if (r?.log && cur) download(`SchedLog-${cur.projectCode}.txt`, scheduleLogText(cur, r.log), "text/plain");
+      if (r?.log && cur)
+        download(
+          `SchedLog-${cur.projectCode}.txt`,
+          scheduleLogText(cur, r.log),
+          "text/plain",
+        );
     }
   };
   return (
@@ -200,9 +384,18 @@ export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
         <>
           <SideBtn kind="cancel" label="Cancel" onClick={close} />
           <SideBtn kind="run" label="Schedule" primary onClick={run} />
-          <SideBtn kind="modify" label="View Log" disabled={!report?.log} onClick={() => useP6.getState().open("scheduleLog")} />
+          <SideBtn
+            kind="modify"
+            label="View Log"
+            disabled={!report?.log}
+            onClick={() => useP6.getState().open("scheduleLog")}
+          />
           <SideHelp topic="schedule" />
-          <SideBtn kind="apply" label="Options..." onClick={() => useP6.getState().open("scheduleOptions")} />
+          <SideBtn
+            kind="apply"
+            label="Options..."
+            onClick={() => useP6.getState().open("scheduleOptions")}
+          />
         </>
       }
     >
@@ -211,21 +404,49 @@ export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
         <b>{combined ? schedule.projects!.length : 1}</b>
       </div>
       <label className="p6-check">
-        <input type="radio" checked={own} disabled={!combined} onChange={() => setOwn(true)} /> All Projects use their own data date
+        <input
+          type="radio"
+          checked={own}
+          disabled={!combined}
+          onChange={() => setOwn(true)}
+        />{" "}
+        All Projects use their own data date
       </label>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <label className="p6-check">
-          <input type="radio" checked={!own || !combined} onChange={() => setOwn(false)} /> {combined ? "Apply selected data date to all open projects" : "Current Data Date"}
+          <input
+            type="radio"
+            checked={!own || !combined}
+            onChange={() => setOwn(false)}
+          />{" "}
+          {combined
+            ? "Apply selected data date to all open projects"
+            : "Current Data Date"}
         </label>
-        <input type="date" value={dd} onChange={(e) => (setDd(e.target.value), setOwn(false))} aria-label="Data date" />
+        <input
+          type="date"
+          value={dd}
+          onChange={(e) => (setDd(e.target.value), setOwn(false))}
+          aria-label="Data date"
+        />
       </div>
       <div className="row" style={{ justifyContent: "space-between" }}>
         <span>Project Forecast Start Date</span>
-        <input type="date" value={forecast} onChange={(e) => setForecast(e.target.value)} aria-label="Project forecast start date" />
+        <input
+          type="date"
+          value={forecast}
+          onChange={(e) => setForecast(e.target.value)}
+          aria-label="Project forecast start date"
+        />
       </div>
       <hr />
       <label className="p6-check">
-        <input type="checkbox" checked={log} onChange={(e) => setLog(e.target.checked)} /> Log to file (saves the schedule log as a text file after scheduling)
+        <input
+          type="checkbox"
+          checked={log}
+          onChange={(e) => setLog(e.target.checked)}
+        />{" "}
+        Log to file (saves the schedule log as a text file after scheduling)
       </label>
     </P6Dlg>
   );
@@ -235,11 +456,49 @@ export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
 
 export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
   const schedule = useStore((s) => s.schedule);
-  const [o, setO] = useState<LevelingOptions>({ ...DEFAULT_LEVELING, ...(schedule?.levelingOptions ?? {}) });
-  const report = useMemo(() => (schedule ? overloads(schedule) : []), [schedule]);
+  const [o, setO] = useState<LevelingOptions>({
+    ...DEFAULT_LEVELING,
+    ...(schedule?.levelingOptions ?? {}),
+  });
+  const report = useMemo(
+    () => (schedule ? overloads(schedule) : []),
+    [schedule],
+  );
   if (!schedule) return null;
   const res = (schedule.resources ?? []).filter((r) => r.type !== "material");
-  const setLimit = (id: string, v: number | undefined) => commit({ ...schedule, resources: (schedule.resources ?? []).map((r) => (r.id === id ? { ...r, maxUnitsPerHour: v } : r)) }, "Resource limit");
+  const pri = o.priorities?.length ? o.priorities : [{ field: o.priority }];
+  const setPri = (priorities: { field: string; desc?: boolean }[]) =>
+    setO({ ...o, priorities });
+  const codeNames = [
+    ...new Set([
+      ...(schedule.codeTypes ?? []).map((c) => c.name),
+      ...schedule.activities.flatMap((a) => Object.keys(a.codes)),
+    ]),
+  ];
+  const udfNames = [
+    ...new Set([
+      ...(schedule.udfDefs ?? []).map((u) => u.name),
+      ...schedule.activities.flatMap((a) => Object.keys(a.userFields ?? {})),
+    ]),
+  ];
+  const priFields: [string, string][] = [
+    ...LEVEL_PRIORITY_FIELDS,
+    ...codeNames.map((n): [string, string] => [
+      `code:${n}`,
+      `Activity code: ${n}`,
+    ]),
+    ...udfNames.map((n): [string, string] => [`udf:${n}`, `UDF: ${n}`]),
+  ];
+  const setLimit = (id: string, v: number | undefined) =>
+    commit(
+      {
+        ...schedule,
+        resources: (schedule.resources ?? []).map((r) =>
+          r.id === id ? { ...r, maxUnitsPerHour: v } : r,
+        ),
+      },
+      "Resource limit",
+    );
   return (
     <Shell
       title="Level Resources"
@@ -247,7 +506,10 @@ export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
       onClose={close}
       foot={
         <>
-          <button onClick={onSchedule} title="Remove levelling delays by rescheduling from logic">
+          <button
+            onClick={onSchedule}
+            title="Remove levelling delays by rescheduling from logic"
+          >
             Schedule (undo levelling)
           </button>
           <span className="spacer" />
@@ -256,7 +518,9 @@ export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
             onClick={() => {
               const r = levelResources({ ...schedule, levelingOptions: o });
               commit({ ...r.schedule, levelingOptions: o }, "Level resources");
-              say(`Levelled: ${r.delayed} activities delayed${r.overloaded.length ? `, ${r.overloaded.length} still overloaded` : ""}. Finish ${fmtDate(r.projectFinish)}. ${r.warnings.join(" ")}`);
+              say(
+                `Levelled: ${r.delayed} activities delayed${r.overloaded.length ? `, ${r.overloaded.length} still overloaded` : ""}. Finish ${fmtDate(r.projectFinish)}. ${r.warnings.join(" ")}`,
+              );
               close();
             }}
           >
@@ -266,23 +530,131 @@ export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
         </>
       }
     >
-      <p>Delays activities, in priority order, until no resource is used beyond its limit. Only resources with a max units per hour take part. Schedule (F9) first so the logic dates are up to date.</p>
+      <p>
+        Delays activities, in priority order, until no resource is used beyond
+        its limit. Only resources with a max units per hour take part. Schedule
+        (F9) first so the logic dates are up to date.
+      </p>
       <div className="grid2">
-        <label>
-          Leveling priority
-          <select value={o.priority} onChange={(e) => setO({ ...o, priority: e.target.value as LevelingOptions["priority"] })}>
-            <option value="late-start">Late Start, then Total Float</option>
-            <option value="total-float">Total Float</option>
-            <option value="early-start">Early Start</option>
-            <option value="activity-id">Activity ID</option>
-          </select>
-        </label>
+        <div>
+          <div className="p6-listhead">▿ Leveling priorities</div>
+          <table className="p6-grid">
+            <thead>
+              <tr>
+                <td>Field Name</td>
+                <td>Sort Order</td>
+                <td />
+              </tr>
+            </thead>
+            <tbody>
+              {pri.map((p, i) => (
+                <tr key={i}>
+                  <td>
+                    <select
+                      style={{ minWidth: 170 }}
+                      value={p.field}
+                      onChange={(e) =>
+                        setPri(
+                          pri.map((x, k) =>
+                            k === i ? { ...x, field: e.target.value } : x,
+                          ),
+                        )
+                      }
+                    >
+                      {priFields.map(([v, label]) => (
+                        <option key={v} value={v}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <select
+                      style={{ minWidth: 100 }}
+                      value={p.desc ? "desc" : "asc"}
+                      onChange={(e) =>
+                        setPri(
+                          pri.map((x, k) =>
+                            k === i
+                              ? {
+                                  ...x,
+                                  desc: e.target.value === "desc" || undefined,
+                                }
+                              : x,
+                          ),
+                        )
+                      }
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </td>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button
+                      className="link"
+                      aria-label="Move up"
+                      disabled={i === 0}
+                      onClick={() =>
+                        setPri(
+                          pri.map((x, k) =>
+                            k === i - 1 ? pri[i] : k === i ? pri[i - 1] : x,
+                          ),
+                        )
+                      }
+                    >
+                      ↑
+                    </button>{" "}
+                    <button
+                      className="link"
+                      disabled={pri.length === 1}
+                      onClick={() => setPri(pri.filter((_, k) => k !== i))}
+                    >
+                      Delete
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          <button
+            className="link"
+            onClick={() =>
+              setPri([
+                ...pri,
+                {
+                  field:
+                    priFields.find(
+                      ([v]) => !pri.some((p) => p.field === v),
+                    )?.[0] ?? "activity-id",
+                },
+              ])
+            }
+          >
+            Add
+          </button>
+          <div className="muted small">
+            Activities that can start on the same day are placed in this order;
+            the first field decides, the next breaks ties.
+          </div>
+        </div>
         <div className="stack">
           <label className="p6-check">
-            <input type="checkbox" checked={o.preserveFinish} onChange={(e) => setO({ ...o, preserveFinish: e.target.checked })} /> Preserve scheduled early and late dates (do not extend the finish)
+            <input
+              type="checkbox"
+              checked={o.preserveFinish}
+              onChange={(e) => setO({ ...o, preserveFinish: e.target.checked })}
+            />{" "}
+            Preserve scheduled early and late dates (do not extend the finish)
           </label>
           <label className="p6-check">
-            <input type="checkbox" checked={o.levelWithinFloat} onChange={(e) => setO({ ...o, levelWithinFloat: e.target.checked })} /> Level resources only within activity Total Float
+            <input
+              type="checkbox"
+              checked={o.levelWithinFloat}
+              onChange={(e) =>
+                setO({ ...o, levelWithinFloat: e.target.checked })
+              }
+            />{" "}
+            Level resources only within activity Total Float
           </label>
         </div>
       </div>
@@ -308,11 +680,27 @@ export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
                       {r.code} <span className="muted">{r.name}</span>
                     </td>
                     <td>
-                      <input type="number" min={0} step={0.5} value={r.maxUnitsPerHour ?? ""} placeholder="no limit" onChange={(e) => setLimit(r.id, e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)))} />
+                      <input
+                        type="number"
+                        min={0}
+                        step={0.5}
+                        value={r.maxUnitsPerHour ?? ""}
+                        placeholder="no limit"
+                        onChange={(e) =>
+                          setLimit(
+                            r.id,
+                            e.target.value === ""
+                              ? undefined
+                              : Math.max(0, Number(e.target.value)),
+                          )
+                        }
+                      />
                     </td>
                     <td className="num">{x ? x.peak : ""}</td>
                     <td className="num">{x ? x.capacity : ""}</td>
-                    <td className={`num ${x?.days ? "bad" : ""}`}>{x ? x.days : ""}</td>
+                    <td className={`num ${x?.days ? "bad" : ""}`}>
+                      {x ? x.days : ""}
+                    </td>
                   </tr>
                 );
               })}
@@ -320,23 +708,39 @@ export function LevelDialog({ onSchedule }: { onSchedule: () => void }) {
           </table>
         </div>
       ) : (
-        <p className="muted">No labour or equipment resources in this project.</p>
+        <p className="muted">
+          No labour or equipment resources in this project.
+        </p>
       )}
-      <p className="muted small">A crew of 4 working 8 hours has max 4 units per hour. Leveling Delay shows how far each activity moved.</p>
+      <p className="muted small">
+        A crew of 4 working 8 hours has max 4 units per hour. Leveling Delay
+        shows how far each activity moved.
+      </p>
     </Shell>
   );
 }
 
 // ---------------------------------------------------------------- Calendars
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const hhmm = (h: number) => `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-const spansText = (sp: [number, number][]) => sp.map(([a, b]) => `${hhmm(a)}-${hhmm(b)}`).join(", ");
+const DAYS = [
+  "Sunday",
+  "Monday",
+  "Tuesday",
+  "Wednesday",
+  "Thursday",
+  "Friday",
+  "Saturday",
+];
+const hhmm = (h: number) =>
+  `${String(Math.floor(h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+const spansText = (sp: [number, number][]) =>
+  sp.map(([a, b]) => `${hhmm(a)}-${hhmm(b)}`).join(", ");
 function parseSpans(t: string): [number, number][] | null {
   if (!t.trim()) return [];
   const out: [number, number][] = [];
   for (const part of t.split(",")) {
-    const m = /^\s*(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*$/.exec(part);
+    const m =
+      /^\s*(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*$/.exec(part);
     if (!m) return null;
     const a = Number(m[1]) + Number(m[2] ?? 0) / 60;
     const b = Number(m[3]) + Number(m[4] ?? 0) / 60;
@@ -346,7 +750,13 @@ function parseSpans(t: string): [number, number][] | null {
   return out.sort((x, y) => x[0] - y[0]);
 }
 
-function SpanInput({ spans, onChange }: { spans: [number, number][]; onChange: (s: [number, number][]) => void }) {
+function SpanInput({
+  spans,
+  onChange,
+}: {
+  spans: [number, number][];
+  onChange: (s: [number, number][]) => void;
+}) {
   const [t, setT] = useState(spansText(spans));
   const [bad, setBad] = useState(false);
   return (
@@ -366,18 +776,63 @@ function SpanInput({ spans, onChange }: { spans: [number, number][]; onChange: (
 
 export function CalendarsDialog() {
   const schedule = useStore((s) => s.schedule);
-  const [sel, setSel] = useState<string | null>(schedule?.defaultCalendarId ?? schedule?.calendars?.[0]?.id ?? null);
+  const [sel, setSel] = useState<string | null>(
+    schedule?.defaultCalendarId ?? schedule?.calendars?.[0]?.id ?? null,
+  );
   const [newDate, setNewDate] = useState("");
-  const [newWork, setNewWork] = useState({ date: "", spans: "08:00-12:00, 13:00-17:00" });
+  const [newWork, setNewWork] = useState({
+    date: "",
+    spans: "08:00-12:00, 13:00-17:00",
+  });
   if (!schedule) return null;
   const cals = schedule.calendars ?? [];
   const cal = cals.find((c) => c.id === sel) ?? null;
   const used = new Map<string, number>();
-  for (const a of schedule.activities) if (a.calendarId) used.set(a.calendarId, (used.get(a.calendarId) ?? 0) + 1);
-  const put = (c: Calendar, label = "Edit calendar") => commit({ ...schedule, calendars: cals.map((x) => (x.id === c.id ? c : x)) }, label);
+  for (const a of schedule.activities)
+    if (a.calendarId) used.set(a.calendarId, (used.get(a.calendarId) ?? 0) + 1);
+  const put = (c: Calendar, label = "Edit calendar") =>
+    commit(
+      { ...schedule, calendars: cals.map((x) => (x.id === c.id ? c : x)) },
+      label,
+    );
   const add = () => {
     const base = cal ?? cals[0];
-    const c: Calendar = base ? { ...structuredClone(base), id: uid("cal"), name: `${base.name} (copy)` } : { id: uid("cal"), name: "New calendar", week: [[], [[8, 12], [13, 17]], [[8, 12], [13, 17]], [[8, 12], [13, 17]], [[8, 12], [13, 17]], [[8, 12], [13, 17]], []], holidays: [], hoursPerDay: 8 };
+    const c: Calendar = base
+      ? {
+          ...structuredClone(base),
+          id: uid("cal"),
+          name: `${base.name} (copy)`,
+        }
+      : {
+          id: uid("cal"),
+          name: "New calendar",
+          week: [
+            [],
+            [
+              [8, 12],
+              [13, 17],
+            ],
+            [
+              [8, 12],
+              [13, 17],
+            ],
+            [
+              [8, 12],
+              [13, 17],
+            ],
+            [
+              [8, 12],
+              [13, 17],
+            ],
+            [
+              [8, 12],
+              [13, 17],
+            ],
+            [],
+          ],
+          holidays: [],
+          hoursPerDay: 8,
+        };
     commit({ ...schedule, calendars: [...cals, c] }, "Add calendar");
     setSel(c.id);
   };
@@ -388,24 +843,57 @@ export function CalendarsDialog() {
           <div className="p6-list-head">Project calendars</div>
           <div className="p6-list-body">
             {cals.map((c) => (
-              <button key={c.id} className={sel === c.id ? "on" : ""} onClick={() => setSel(c.id)}>
+              <button
+                key={c.id}
+                className={sel === c.id ? "on" : ""}
+                onClick={() => setSel(c.id)}
+              >
                 {c.name}
-                {c.id === schedule.defaultCalendarId ? " (default)" : ""} <span className="muted small">{used.get(c.id) ?? 0} act.</span>
+                {c.id === schedule.defaultCalendarId ? " (default)" : ""}{" "}
+                <span className="muted small">{used.get(c.id) ?? 0} act.</span>
               </button>
             ))}
           </div>
           <div className="row" style={{ padding: 6 }}>
             <button onClick={add}>Add (copy)</button>
-            <button disabled={!cal || cal.id === schedule.defaultCalendarId} onClick={() => cal && commit({ ...schedule, defaultCalendarId: cal.id }, "Default calendar")}>
+            <button
+              disabled={!cal || cal.id === schedule.defaultCalendarId}
+              onClick={() =>
+                cal &&
+                commit(
+                  { ...schedule, defaultCalendarId: cal.id },
+                  "Default calendar",
+                )
+              }
+            >
               Set default
             </button>
             <button
               disabled={!cal || cals.length <= 1}
               onClick={() => {
-                if (!cal || !window.confirm(`Delete ${cal.name}? Its ${used.get(cal.id) ?? 0} activities move to the default calendar.`)) return;
+                if (
+                  !cal ||
+                  !window.confirm(
+                    `Delete ${cal.name}? Its ${used.get(cal.id) ?? 0} activities move to the default calendar.`,
+                  )
+                )
+                  return;
                 const rest = cals.filter((x) => x.id !== cal.id);
-                const def = schedule.defaultCalendarId === cal.id ? rest[0].id : schedule.defaultCalendarId;
-                commit({ ...schedule, calendars: rest, defaultCalendarId: def, activities: schedule.activities.map((a) => (a.calendarId === cal.id ? { ...a, calendarId: null } : a)) }, "Delete calendar");
+                const def =
+                  schedule.defaultCalendarId === cal.id
+                    ? rest[0].id
+                    : schedule.defaultCalendarId;
+                commit(
+                  {
+                    ...schedule,
+                    calendars: rest,
+                    defaultCalendarId: def,
+                    activities: schedule.activities.map((a) =>
+                      a.calendarId === cal.id ? { ...a, calendarId: null } : a,
+                    ),
+                  },
+                  "Delete calendar",
+                );
                 setSel(def ?? null);
               }}
             >
@@ -417,11 +905,35 @@ export function CalendarsDialog() {
           <div className="stack" key={cal.id}>
             <div className="grid2">
               <label>
-                Calendar name <input value={cal.name} onChange={(e) => put({ ...cal, name: e.target.value }, `Calendar name ${cal.id}`)} />
+                Calendar name{" "}
+                <input
+                  value={cal.name}
+                  onChange={(e) =>
+                    put(
+                      { ...cal, name: e.target.value },
+                      `Calendar name ${cal.id}`,
+                    )
+                  }
+                />
               </label>
               <label>
                 Hours per day (for days ↔ hours)
-                <input type="number" min={1} max={24} step={0.5} value={cal.hoursPerDay} onChange={(e) => put({ ...cal, hoursPerDay: Math.max(1, Number(e.target.value) || 8) }, `Calendar hours ${cal.id}`)} />
+                <input
+                  type="number"
+                  min={1}
+                  max={24}
+                  step={0.5}
+                  value={cal.hoursPerDay}
+                  onChange={(e) =>
+                    put(
+                      {
+                        ...cal,
+                        hoursPerDay: Math.max(1, Number(e.target.value) || 8),
+                      },
+                      `Calendar hours ${cal.id}`,
+                    )
+                  }
+                />
               </label>
             </div>
             <h4>Standard work week</h4>
@@ -431,7 +943,18 @@ export function CalendarsDialog() {
                   <tr key={d}>
                     <td style={{ width: 110 }}>{d}</td>
                     <td>
-                      <SpanInput spans={cal.week[i] ?? []} onChange={(sp) => put({ ...cal, week: cal.week.map((w, k) => (k === i ? sp : w)) }, `Calendar week ${cal.id}`)} />
+                      <SpanInput
+                        spans={cal.week[i] ?? []}
+                        onChange={(sp) =>
+                          put(
+                            {
+                              ...cal,
+                              week: cal.week.map((w, k) => (k === i ? sp : w)),
+                            },
+                            `Calendar week ${cal.id}`,
+                          )
+                        }
+                      />
                     </td>
                     <td className="num" style={{ width: 60 }}>
                       {(cal.week[i] ?? []).reduce((t, [a, b]) => t + b - a, 0)}h
@@ -440,17 +963,33 @@ export function CalendarsDialog() {
                 ))}
               </tbody>
             </table>
-            <p className="muted small">Working hours as 08:00-12:00, 13:00-17:00. Leave empty for a non-working day.</p>
+            <p className="muted small">
+              Working hours as 08:00-12:00, 13:00-17:00. Leave empty for a
+              non-working day.
+            </p>
             <div className="grid2">
               <div>
                 <h4>Holidays (non-work days) · {cal.holidays.length}</h4>
                 <div className="row">
-                  <input type="date" value={newDate} onChange={(e) => setNewDate(e.target.value)} />
+                  <input
+                    type="date"
+                    value={newDate}
+                    onChange={(e) => setNewDate(e.target.value)}
+                  />
                   <button
                     disabled={!newDate}
                     onClick={() => {
                       const t = Date.parse(`${newDate}T00:00:00Z`);
-                      if (!cal.holidays.includes(t)) put({ ...cal, holidays: [...cal.holidays, t].sort((x, y) => x - y) }, "Add holiday");
+                      if (!cal.holidays.includes(t))
+                        put(
+                          {
+                            ...cal,
+                            holidays: [...cal.holidays, t].sort(
+                              (x, y) => x - y,
+                            ),
+                          },
+                          "Add holiday",
+                        );
                       setNewDate("");
                     }}
                   >
@@ -461,8 +1000,21 @@ export function CalendarsDialog() {
                   {cal.holidays.map((h) => (
                     <div key={h} className="row">
                       <span style={{ width: 110 }}>{fmtDate(h)}</span>
-                      <span className="muted small">{DAYS[new Date(h).getUTCDay()]}</span>
-                      <button className="link" onClick={() => put({ ...cal, holidays: cal.holidays.filter((x) => x !== h) }, "Remove holiday")}>
+                      <span className="muted small">
+                        {DAYS[new Date(h).getUTCDay()]}
+                      </span>
+                      <button
+                        className="link"
+                        onClick={() =>
+                          put(
+                            {
+                              ...cal,
+                              holidays: cal.holidays.filter((x) => x !== h),
+                            },
+                            "Remove holiday",
+                          )
+                        }
+                      >
                         ✕
                       </button>
                     </div>
@@ -472,14 +1024,36 @@ export function CalendarsDialog() {
               <div>
                 <h4>Working exceptions · {(cal.workdays ?? []).length}</h4>
                 <div className="row">
-                  <input type="date" value={newWork.date} onChange={(e) => setNewWork({ ...newWork, date: e.target.value })} />
-                  <input value={newWork.spans} onChange={(e) => setNewWork({ ...newWork, spans: e.target.value })} style={{ width: 170 }} />
+                  <input
+                    type="date"
+                    value={newWork.date}
+                    onChange={(e) =>
+                      setNewWork({ ...newWork, date: e.target.value })
+                    }
+                  />
+                  <input
+                    value={newWork.spans}
+                    onChange={(e) =>
+                      setNewWork({ ...newWork, spans: e.target.value })
+                    }
+                    style={{ width: 170 }}
+                  />
                   <button
                     disabled={!newWork.date || !parseSpans(newWork.spans)}
                     onClick={() => {
                       const t = Date.parse(`${newWork.date}T00:00:00Z`);
                       const spans = parseSpans(newWork.spans)!;
-                      put({ ...cal, workdays: [...(cal.workdays ?? []).filter((w) => w.date !== t), { date: t, spans }].sort((x, y) => x.date - y.date), holidays: cal.holidays.filter((h) => h !== t) }, "Add work exception");
+                      put(
+                        {
+                          ...cal,
+                          workdays: [
+                            ...(cal.workdays ?? []).filter((w) => w.date !== t),
+                            { date: t, spans },
+                          ].sort((x, y) => x.date - y.date),
+                          holidays: cal.holidays.filter((h) => h !== t),
+                        },
+                        "Add work exception",
+                      );
                     }}
                   >
                     Add
@@ -490,7 +1064,20 @@ export function CalendarsDialog() {
                     <div key={w.date} className="row">
                       <span style={{ width: 110 }}>{fmtDate(w.date)}</span>
                       <span className="muted small">{spansText(w.spans)}</span>
-                      <button className="link" onClick={() => put({ ...cal, workdays: (cal.workdays ?? []).filter((x) => x.date !== w.date) }, "Remove work exception")}>
+                      <button
+                        className="link"
+                        onClick={() =>
+                          put(
+                            {
+                              ...cal,
+                              workdays: (cal.workdays ?? []).filter(
+                                (x) => x.date !== w.date,
+                              ),
+                            },
+                            "Remove work exception",
+                          )
+                        }
+                      >
                         ✕
                       </button>
                     </div>
@@ -498,7 +1085,9 @@ export function CalendarsDialog() {
                 </div>
               </div>
             </div>
-            <p className="muted small">Calendar changes take effect when you schedule (F9).</p>
+            <p className="muted small">
+              Calendar changes take effect when you schedule (F9).
+            </p>
           </div>
         ) : (
           <p className="muted">No calendars. Add one.</p>
@@ -512,26 +1101,47 @@ export function CalendarsDialog() {
 
 /** Code types: the dictionary plus any code names found on activities. */
 function codeTypesOf(s: Schedule): CodeType[] {
-  const map = new Map<string, CodeType>((s.codeTypes ?? []).map((t) => [t.name, { name: t.name, values: [...t.values] }]));
+  const map = new Map<string, CodeType>(
+    (s.codeTypes ?? []).map((t) => [
+      t.name,
+      { name: t.name, values: [...t.values] },
+    ]),
+  );
   for (const a of s.activities)
     for (const k in a.codes) {
       const t = map.get(k) ?? map.set(k, { name: k, values: [] }).get(k)!;
-      if (!t.values.some((v) => v.value === a.codes[k])) t.values.push({ value: a.codes[k] });
+      if (!t.values.some((v) => v.value === a.codes[k]))
+        t.values.push({ value: a.codes[k] });
     }
-  for (const t of map.values()) t.values.sort((x, y) => x.value.localeCompare(y.value, undefined, { numeric: true }));
+  for (const t of map.values())
+    t.values.sort((x, y) =>
+      x.value.localeCompare(y.value, undefined, { numeric: true }),
+    );
   return [...map.values()].sort((x, y) => x.name.localeCompare(y.name));
 }
 
 export function ActivityCodesDialog() {
   const schedule = useStore((s) => s.schedule);
-  const types = useMemo(() => (schedule ? codeTypesOf(schedule) : []), [schedule]);
+  const types = useMemo(
+    () => (schedule ? codeTypesOf(schedule) : []),
+    [schedule],
+  );
   const [sel, setSel] = useState<string | null>(types[0]?.name ?? null);
   const [newType, setNewType] = useState("");
   const [newVal, setNewVal] = useState({ value: "", description: "" });
   if (!schedule) return null;
   const t = types.find((x) => x.name === sel) ?? null;
-  const count = (name: string, value?: string) => schedule.activities.filter((a) => (value === undefined ? a.codes[name] !== undefined : a.codes[name] === value)).length;
-  const save = (next: CodeType[], acts = schedule.activities, label = "Activity codes") => commit({ ...schedule, codeTypes: next, activities: acts }, label);
+  const count = (name: string, value?: string) =>
+    schedule.activities.filter((a) =>
+      value === undefined
+        ? a.codes[name] !== undefined
+        : a.codes[name] === value,
+    ).length;
+  const save = (
+    next: CodeType[],
+    acts = schedule.activities,
+    label = "Activity codes",
+  ) => commit({ ...schedule, codeTypes: next, activities: acts }, label);
   const renameType = (from: string, to: string) => {
     if (!to.trim() || types.some((x) => x.name === to)) return;
     save(
@@ -548,8 +1158,21 @@ export function ActivityCodesDialog() {
   };
   const renameValue = (type: string, from: string, to: string) =>
     save(
-      types.map((x) => (x.name === type ? { ...x, values: x.values.map((v) => (v.value === from ? { ...v, value: to } : v)) } : x)),
-      schedule.activities.map((a) => (a.codes[type] === from ? { ...a, codes: { ...a.codes, [type]: to } } : a)),
+      types.map((x) =>
+        x.name === type
+          ? {
+              ...x,
+              values: x.values.map((v) =>
+                v.value === from ? { ...v, value: to } : v,
+              ),
+            }
+          : x,
+      ),
+      schedule.activities.map((a) =>
+        a.codes[type] === from
+          ? { ...a, codes: { ...a.codes, [type]: to } }
+          : a,
+      ),
       `Code value ${type}`,
     );
   return (
@@ -559,15 +1182,27 @@ export function ActivityCodesDialog() {
           <div className="p6-list-head">Code types</div>
           <div className="p6-list-body">
             {types.map((x) => (
-              <button key={x.name} className={sel === x.name ? "on" : ""} onClick={() => setSel(x.name)}>
-                {x.name} <span className="muted small">{x.values.length} values</span>
+              <button
+                key={x.name}
+                className={sel === x.name ? "on" : ""}
+                onClick={() => setSel(x.name)}
+              >
+                {x.name}{" "}
+                <span className="muted small">{x.values.length} values</span>
               </button>
             ))}
           </div>
           <div className="row" style={{ padding: 6 }}>
-            <input placeholder="New code type" value={newType} onChange={(e) => setNewType(e.target.value)} style={{ width: 130 }} />
+            <input
+              placeholder="New code type"
+              value={newType}
+              onChange={(e) => setNewType(e.target.value)}
+              style={{ width: 130 }}
+            />
             <button
-              disabled={!newType.trim() || types.some((x) => x.name === newType.trim())}
+              disabled={
+                !newType.trim() || types.some((x) => x.name === newType.trim())
+              }
               onClick={() => {
                 save([...types, { name: newType.trim(), values: [] }]);
                 setSel(newType.trim());
@@ -582,12 +1217,21 @@ export function ActivityCodesDialog() {
           <div className="stack" key={t.name}>
             <div className="row">
               <label>
-                Code type name <input defaultValue={t.name} onBlur={(e) => e.target.value !== t.name && renameType(t.name, e.target.value.trim())} />
+                Code type name{" "}
+                <input
+                  defaultValue={t.name}
+                  onBlur={(e) =>
+                    e.target.value !== t.name &&
+                    renameType(t.name, e.target.value.trim())
+                  }
+                />
               </label>
               <span className="spacer" />
               <button
                 onClick={() =>
-                  window.confirm(`Delete code type ${t.name}? It is assigned to ${count(t.name)} activities.`) &&
+                  window.confirm(
+                    `Delete code type ${t.name}? It is assigned to ${count(t.name)} activities.`,
+                  ) &&
                   save(
                     types.filter((x) => x.name !== t.name),
                     schedule.activities.map((a) => {
@@ -617,13 +1261,63 @@ export function ActivityCodesDialog() {
                 {t.values.map((v) => (
                   <tr key={v.value}>
                     <td>
-                      <input className="cell" defaultValue={v.value} onBlur={(e) => e.target.value.trim() && e.target.value !== v.value && renameValue(t.name, v.value, e.target.value.trim())} />
+                      <input
+                        className="cell"
+                        defaultValue={v.value}
+                        onBlur={(e) =>
+                          e.target.value.trim() &&
+                          e.target.value !== v.value &&
+                          renameValue(t.name, v.value, e.target.value.trim())
+                        }
+                      />
                     </td>
                     <td>
-                      <input className="cell" value={v.description ?? ""} onChange={(e) => save(types.map((x) => (x.name === t.name ? { ...x, values: x.values.map((y) => (y.value === v.value ? { ...y, description: e.target.value } : y)) } : x)), schedule.activities, `Code desc ${t.name}`)} />
+                      <input
+                        className="cell"
+                        value={v.description ?? ""}
+                        onChange={(e) =>
+                          save(
+                            types.map((x) =>
+                              x.name === t.name
+                                ? {
+                                    ...x,
+                                    values: x.values.map((y) =>
+                                      y.value === v.value
+                                        ? { ...y, description: e.target.value }
+                                        : y,
+                                    ),
+                                  }
+                                : x,
+                            ),
+                            schedule.activities,
+                            `Code desc ${t.name}`,
+                          )
+                        }
+                      />
                     </td>
                     <td>
-                      <input type="color" value={v.color ?? "#cccccc"} onChange={(e) => save(types.map((x) => (x.name === t.name ? { ...x, values: x.values.map((y) => (y.value === v.value ? { ...y, color: e.target.value } : y)) } : x)), schedule.activities, `Code color ${t.name}`)} />
+                      <input
+                        type="color"
+                        value={v.color ?? "#cccccc"}
+                        onChange={(e) =>
+                          save(
+                            types.map((x) =>
+                              x.name === t.name
+                                ? {
+                                    ...x,
+                                    values: x.values.map((y) =>
+                                      y.value === v.value
+                                        ? { ...y, color: e.target.value }
+                                        : y,
+                                    ),
+                                  }
+                                : x,
+                            ),
+                            schedule.activities,
+                            `Code color ${t.name}`,
+                          )
+                        }
+                      />
                     </td>
                     <td className="num">{count(t.name, v.value)}</td>
                     <td>
@@ -631,7 +1325,16 @@ export function ActivityCodesDialog() {
                         className="link"
                         onClick={() =>
                           save(
-                            types.map((x) => (x.name === t.name ? { ...x, values: x.values.filter((y) => y.value !== v.value) } : x)),
+                            types.map((x) =>
+                              x.name === t.name
+                                ? {
+                                    ...x,
+                                    values: x.values.filter(
+                                      (y) => y.value !== v.value,
+                                    ),
+                                  }
+                                : x,
+                            ),
                             schedule.activities.map((a) => {
                               if (a.codes[t.name] !== v.value) return a;
                               const codes = { ...a.codes };
@@ -650,22 +1353,59 @@ export function ActivityCodesDialog() {
               </tbody>
             </table>
             <div className="row">
-              <input placeholder="Code value" value={newVal.value} onChange={(e) => setNewVal({ ...newVal, value: e.target.value })} style={{ width: 120 }} />
-              <input placeholder="Description" value={newVal.description} onChange={(e) => setNewVal({ ...newVal, description: e.target.value })} />
+              <input
+                placeholder="Code value"
+                value={newVal.value}
+                onChange={(e) =>
+                  setNewVal({ ...newVal, value: e.target.value })
+                }
+                style={{ width: 120 }}
+              />
+              <input
+                placeholder="Description"
+                value={newVal.description}
+                onChange={(e) =>
+                  setNewVal({ ...newVal, description: e.target.value })
+                }
+              />
               <button
-                disabled={!newVal.value.trim() || t.values.some((v) => v.value === newVal.value.trim())}
+                disabled={
+                  !newVal.value.trim() ||
+                  t.values.some((v) => v.value === newVal.value.trim())
+                }
                 onClick={() => {
-                  save(types.map((x) => (x.name === t.name ? { ...x, values: [...x.values, { value: newVal.value.trim(), description: newVal.description || undefined }] } : x)));
+                  save(
+                    types.map((x) =>
+                      x.name === t.name
+                        ? {
+                            ...x,
+                            values: [
+                              ...x.values,
+                              {
+                                value: newVal.value.trim(),
+                                description: newVal.description || undefined,
+                              },
+                            ],
+                          }
+                        : x,
+                    ),
+                  );
                   setNewVal({ value: "", description: "" });
                 }}
               >
                 Add value
               </button>
             </div>
-            <p className="muted small">Assign codes from Edit → Assign Activity Codes, the Codes tab, or a code column in the table. Group by a code in Group and Sort.</p>
+            <p className="muted small">
+              Assign codes from Edit → Assign Activity Codes, the Codes tab, or
+              a code column in the table. Group by a code in Group and Sort.
+            </p>
           </div>
         ) : (
-          <p className="muted">No activity codes yet. Add a code type such as Area, Discipline or Phase.</p>
+          <p className="muted">
+            No activity codes yet. Add a code type such as Area, Discipline or
+            Phase.
+          </p>
         )}
       </div>
     </Shell>
@@ -680,9 +1420,14 @@ export function UdfDialog() {
   const [type, setType] = useState<UdfDef["type"]>("text");
   if (!schedule) return null;
   const defs = new Map((schedule.udfDefs ?? []).map((d) => [d.name, d]));
-  for (const a of schedule.activities) for (const k in a.userFields ?? {}) if (!defs.has(k)) defs.set(k, { name: k, type: "text" });
+  for (const a of schedule.activities)
+    for (const k in a.userFields ?? {})
+      if (!defs.has(k)) defs.set(k, { name: k, type: "text" });
   const list = [...defs.values()].sort((x, y) => x.name.localeCompare(y.name));
-  const used = (n: string) => schedule.activities.filter((a) => a.userFields?.[n] !== undefined && a.userFields[n] !== "").length;
+  const used = (n: string) =>
+    schedule.activities.filter(
+      (a) => a.userFields?.[n] !== undefined && a.userFields[n] !== "",
+    ).length;
   return (
     <Shell title="User Defined Fields – Activities" onClose={close}>
       <table className="p6-grid">
@@ -699,7 +1444,22 @@ export function UdfDialog() {
             <tr key={d.name}>
               <td>{d.name}</td>
               <td>
-                <select value={d.type} onChange={(e) => commit({ ...schedule, udfDefs: list.map((x) => (x.name === d.name ? { ...x, type: e.target.value as UdfDef["type"] } : x)) }, "UDF type")}>
+                <select
+                  value={d.type}
+                  onChange={(e) =>
+                    commit(
+                      {
+                        ...schedule,
+                        udfDefs: list.map((x) =>
+                          x.name === d.name
+                            ? { ...x, type: e.target.value as UdfDef["type"] }
+                            : x,
+                        ),
+                      },
+                      "UDF type",
+                    )
+                  }
+                >
                   {["text", "number", "date", "cost", "indicator"].map((t) => (
                     <option key={t}>{t}</option>
                   ))}
@@ -710,7 +1470,9 @@ export function UdfDialog() {
                 <button
                   className="link"
                   onClick={() =>
-                    window.confirm(`Delete ${d.name} and its values on ${used(d.name)} activities?`) &&
+                    window.confirm(
+                      `Delete ${d.name} and its values on ${used(d.name)} activities?`,
+                    ) &&
                     commit(
                       {
                         ...schedule,
@@ -734,8 +1496,15 @@ export function UdfDialog() {
         </tbody>
       </table>
       <div className="row">
-        <input placeholder="New field title" value={name} onChange={(e) => setName(e.target.value)} />
-        <select value={type} onChange={(e) => setType(e.target.value as UdfDef["type"])}>
+        <input
+          placeholder="New field title"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <select
+          value={type}
+          onChange={(e) => setType(e.target.value as UdfDef["type"])}
+        >
           {["text", "number", "date", "cost", "indicator"].map((t) => (
             <option key={t}>{t}</option>
           ))}
@@ -743,14 +1512,20 @@ export function UdfDialog() {
         <button
           disabled={!name.trim() || defs.has(name.trim())}
           onClick={() => {
-            commit({ ...schedule, udfDefs: [...list, { name: name.trim(), type }] }, "Add UDF");
+            commit(
+              { ...schedule, udfDefs: [...list, { name: name.trim(), type }] },
+              "Add UDF",
+            );
             setName("");
           }}
         >
           Add
         </button>
       </div>
-      <p className="muted small">New fields appear in Columns, Filters, Group and Sort and Global Change under User Defined Fields.</p>
+      <p className="muted small">
+        New fields appear in Columns, Filters, Group and Sort and Global Change
+        under User Defined Fields.
+      </p>
     </Shell>
   );
 }
@@ -762,7 +1537,9 @@ export function ClaimDiggerDialog() {
   const [report, setReport] = useState<ClaimDiggerReport | null>(null);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
-  const [tab, setTab] = useState<"changed" | "added" | "deleted" | "rels">("changed");
+  const [tab, setTab] = useState<"changed" | "added" | "deleted" | "rels">(
+    "changed",
+  );
   if (!schedule) return null;
   const pick = async (f: File | undefined) => {
     if (!f) return;
@@ -771,7 +1548,8 @@ export function ClaimDiggerDialog() {
     try {
       const buf = new Uint8Array(await f.arrayBuffer());
       let text = new TextDecoder("utf-8", { fatal: false }).decode(buf);
-      if (text.includes("�")) text = new TextDecoder("windows-1252").decode(buf);
+      if (text.includes("�"))
+        text = new TextDecoder("windows-1252").decode(buf);
       const base = /\.xml$/i.test(f.name) ? parseMspdi(text) : parseXer(text);
       setReport(claimDigger(base, schedule));
     } catch (e) {
@@ -787,13 +1565,23 @@ export function ClaimDiggerDialog() {
       ...schedule,
       projectCode: b.name,
       dataDate: b.dataDate,
-      activities: schedule.activities.filter((a) => b.dates[a.code]).map((a) => ({ ...a, start: b.dates[a.code][0], finish: b.dates[a.code][1] })),
+      activities: schedule.activities
+        .filter((a) => b.dates[a.code])
+        .map((a) => ({
+          ...a,
+          start: b.dates[a.code][0],
+          finish: b.dates[a.code][1],
+        })),
     };
     setReport(claimDigger(base, schedule));
   };
   const download = () => {
     if (!report) return;
-    saveFile(`claim-digger-${schedule.projectCode}.csv`, claimDiggerCsv(report), "text/csv");
+    saveFile(
+      `claim-digger-${schedule.projectCode}.csv`,
+      claimDiggerCsv(report),
+      "text/csv",
+    );
   };
   return (
     <Shell
@@ -810,16 +1598,28 @@ export function ClaimDiggerDialog() {
         </>
       }
     >
-      <p>Compares the open project with an earlier version, field by field: activities added, deleted and changed (names, durations, dates, status, constraints, calendars, float) and relationships added, deleted or changed.</p>
+      <p>
+        Compares the open project with an earlier version, field by field:
+        activities added, deleted and changed (names, durations, dates, status,
+        constraints, calendars, float) and relationships added, deleted or
+        changed.
+      </p>
       <div className="row">
         <label className="p6-drop">
           Compare with a file (XER / XML)
-          <input type="file" accept=".xer,.xml" onChange={(e) => pick(e.target.files?.[0])} />
+          <input
+            type="file"
+            accept=".xer,.xml"
+            onChange={(e) => pick(e.target.files?.[0])}
+          />
         </label>
         {(schedule.baselines ?? []).length > 0 && (
           <label>
             or a stored baseline{" "}
-            <select value="" onChange={(e) => e.target.value && fromStored(e.target.value)}>
+            <select
+              value=""
+              onChange={(e) => e.target.value && fromStored(e.target.value)}
+            >
               <option value="">Choose…</option>
               {schedule.baselines!.map((b) => (
                 <option key={b.id} value={b.id}>
@@ -849,7 +1649,12 @@ export function ClaimDiggerDialog() {
                 <td>DD {fmtDate(report.current.dataDate)}</td>
                 <td>
                   Finish {fmtDate(report.current.finish)}{" "}
-                  {report.finishShiftDays ? <b className={report.finishShiftDays > 0 ? "bad" : "good"}>({report.finishShiftDays > 0 ? "+" : ""}{report.finishShiftDays}d)</b> : null}
+                  {report.finishShiftDays ? (
+                    <b className={report.finishShiftDays > 0 ? "bad" : "good"}>
+                      ({report.finishShiftDays > 0 ? "+" : ""}
+                      {report.finishShiftDays}d)
+                    </b>
+                  ) : null}
                 </td>
                 <td>{report.current.activities} activities</td>
               </tr>
@@ -864,7 +1669,11 @@ export function ClaimDiggerDialog() {
                 ["rels", `Relationships (${report.relationships.length})`],
               ] as const
             ).map(([k, l]) => (
-              <button key={k} className={tab === k ? "active" : ""} onClick={() => setTab(k)}>
+              <button
+                key={k}
+                className={tab === k ? "active" : ""}
+                onClick={() => setTab(k)}
+              >
                 {l}
               </button>
             ))}
@@ -886,12 +1695,19 @@ export function ClaimDiggerDialog() {
                       </tr>
                     )),
                   )}
-                {(tab === "added" ? report.added : tab === "deleted" ? report.deleted : []).slice(0, 2000).map((a) => (
-                  <tr key={a.code}>
-                    <td>{a.code}</td>
-                    <td>{a.name}</td>
-                  </tr>
-                ))}
+                {(tab === "added"
+                  ? report.added
+                  : tab === "deleted"
+                    ? report.deleted
+                    : []
+                )
+                  .slice(0, 2000)
+                  .map((a) => (
+                    <tr key={a.code}>
+                      <td>{a.code}</td>
+                      <td>{a.name}</td>
+                    </tr>
+                  ))}
                 {tab === "rels" &&
                   report.relationships.slice(0, 2000).map((r) => (
                     <tr key={`${r.pred}>${r.succ}`}>

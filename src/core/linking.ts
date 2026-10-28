@@ -1,8 +1,19 @@
 // Linking model elements to schedule activities, by rules or by hand.
 
-import type { Activity, Link, LinkMatch, LinkRule, ModelElement, Schedule } from "./types";
+import type {
+  Activity,
+  Link,
+  LinkMatch,
+  LinkRule,
+  ModelElement,
+  Schedule,
+} from "./types";
 
-export function activityFieldValue(activity: Activity, field: string, schedule: Schedule): string | null {
+export function activityFieldValue(
+  activity: Activity,
+  field: string,
+  schedule: Schedule,
+): string | null {
   if (field === "code") return activity.code;
   if (field === "name") return activity.name;
   if (field === "wbs") {
@@ -10,20 +21,33 @@ export function activityFieldValue(activity: Activity, field: string, schedule: 
     return node ? node.code : null;
   }
   if (field.startsWith("code:")) return activity.codes[field.slice(5)] ?? null;
-  if (field.startsWith("user:")) return activity.userFields?.[field.slice(5)] ?? null;
+  if (field.startsWith("user:"))
+    return activity.userFields?.[field.slice(5)] ?? null;
   return null;
 }
 
-export function elementPropertyValue(element: ModelElement, key: string): string | null {
+export function elementPropertyValue(
+  element: ModelElement,
+  key: string,
+): string | null {
   if (key === "Name") return element.name;
   if (key === "IfcType") return element.ifcType;
   if (key === "GlobalId") return element.id;
   return element.properties[key] ?? null;
 }
 
-function matches(elementValue: string, activityValue: string, mode: LinkMatch, caseSensitive: boolean): boolean {
-  const a = caseSensitive ? elementValue.trim() : elementValue.trim().toLowerCase();
-  const b = caseSensitive ? activityValue.trim() : activityValue.trim().toLowerCase();
+function matches(
+  elementValue: string,
+  activityValue: string,
+  mode: LinkMatch,
+  caseSensitive: boolean,
+): boolean {
+  const a = caseSensitive
+    ? elementValue.trim()
+    : elementValue.trim().toLowerCase();
+  const b = caseSensitive
+    ? activityValue.trim()
+    : activityValue.trim().toLowerCase();
   if (!a || !b) return false;
   switch (mode) {
     case "equals":
@@ -39,9 +63,15 @@ function matches(elementValue: string, activityValue: string, mode: LinkMatch, c
  * Apply link rules. Each rule compares one element property against one activity
  * field. "equals" rules use a lookup table, so large models stay fast.
  */
-export function applyRules(rules: LinkRule[], elements: ModelElement[], schedule: Schedule): Link[] {
+export function applyRules(
+  rules: LinkRule[],
+  elements: ModelElement[],
+  schedule: Schedule,
+): Link[] {
   const out: Link[] = [];
-  const linkable = schedule.activities.filter((a) => a.type !== "wbs-summary" && a.type !== "loe");
+  const linkable = schedule.activities.filter(
+    (a) => a.type !== "wbs-summary" && a.type !== "loe",
+  );
   for (const rule of rules) {
     if (rule.match === "equals") {
       const index = new Map<string, Activity[]>();
@@ -57,17 +87,33 @@ export function applyRules(rules: LinkRule[], elements: ModelElement[], schedule
         const v = elementPropertyValue(el, rule.elementProperty);
         if (!v) continue;
         const key = rule.caseSensitive ? v.trim() : v.trim().toLowerCase();
-        for (const act of index.get(key) ?? []) out.push({ elementId: el.id, activityId: act.id, profileId: rule.profileId });
+        for (const act of index.get(key) ?? [])
+          out.push({
+            elementId: el.id,
+            activityId: act.id,
+            profileId: rule.profileId,
+          });
       }
     } else {
       const values = linkable
-        .map((act) => [act, activityFieldValue(act, rule.activityField, schedule)] as const)
+        .map(
+          (act) =>
+            [
+              act,
+              activityFieldValue(act, rule.activityField, schedule),
+            ] as const,
+        )
         .filter((p): p is readonly [Activity, string] => !!p[1]);
       for (const el of elements) {
         const v = elementPropertyValue(el, rule.elementProperty);
         if (!v) continue;
         for (const [act, av] of values) {
-          if (matches(v, av, rule.match, rule.caseSensitive)) out.push({ elementId: el.id, activityId: act.id, profileId: rule.profileId });
+          if (matches(v, av, rule.match, rule.caseSensitive))
+            out.push({
+              elementId: el.id,
+              activityId: act.id,
+              profileId: rule.profileId,
+            });
         }
       }
     }
@@ -95,8 +141,18 @@ export function mergeLinks(existing: Link[], added: Link[]): Link[] {
   return [...map.values()];
 }
 
-export function unlink(links: Link[], elementIds: Set<string>, activityId?: string): Link[] {
-  return links.filter((l) => !(elementIds.has(l.elementId) && (activityId === undefined || l.activityId === activityId)));
+export function unlink(
+  links: Link[],
+  elementIds: Set<string>,
+  activityId?: string,
+): Link[] {
+  return links.filter(
+    (l) =>
+      !(
+        elementIds.has(l.elementId) &&
+        (activityId === undefined || l.activityId === activityId)
+      ),
+  );
 }
 
 export interface RuleSuggestion {
@@ -114,8 +170,14 @@ export interface RuleSuggestion {
  * return the best pairs. This turns the usual "which parameter holds the
  * activity ID?" hunt into one click.
  */
-export function suggestRules(elements: ModelElement[], schedule: Schedule, limit = 5): RuleSuggestion[] {
-  const linkable = schedule.activities.filter((a) => a.type !== "wbs-summary" && a.type !== "loe");
+export function suggestRules(
+  elements: ModelElement[],
+  schedule: Schedule,
+  limit = 5,
+): RuleSuggestion[] {
+  const linkable = schedule.activities.filter(
+    (a) => a.type !== "wbs-summary" && a.type !== "loe",
+  );
   const fields = activityFields(schedule).map((f) => f.value);
   const fieldIndex = new Map<string, Map<string, Set<string>>>();
   for (const f of fields) {
@@ -144,22 +206,35 @@ export function suggestRules(elements: ModelElement[], schedule: Schedule, limit
           for (const id of hit) acts.add(id);
         }
       }
-      if (elementMatches > 0) out.push({ elementProperty: key, activityField: field, elementMatches, activityMatches: acts.size });
+      if (elementMatches > 0)
+        out.push({
+          elementProperty: key,
+          activityField: field,
+          elementMatches,
+          activityMatches: acts.size,
+        });
     }
   }
   // Prefer pairs that spread across many activities; a single activity matching everything is rarely useful.
-  out.sort((a, b) => b.activityMatches - a.activityMatches || b.elementMatches - a.elementMatches);
+  out.sort(
+    (a, b) =>
+      b.activityMatches - a.activityMatches ||
+      b.elementMatches - a.elementMatches,
+  );
   return out.slice(0, limit);
 }
 
 /** All distinct property keys across elements, for rule-builder dropdowns. */
 export function propertyKeys(elements: ModelElement[]): string[] {
   const keys = new Set<string>(["Name", "IfcType", "GlobalId"]);
-  for (const el of elements) for (const k of Object.keys(el.properties)) keys.add(k);
+  for (const el of elements)
+    for (const k of Object.keys(el.properties)) keys.add(k);
   return [...keys].sort((a, b) => a.localeCompare(b));
 }
 
-export function activityFields(schedule: Schedule | null): { value: string; label: string }[] {
+export function activityFields(
+  schedule: Schedule | null,
+): { value: string; label: string }[] {
   const base = [
     { value: "code", label: "Activity ID" },
     { value: "name", label: "Activity Name" },
@@ -174,7 +249,11 @@ export function activityFields(schedule: Schedule | null): { value: string; labe
   }
   return [
     ...base,
-    ...[...types].sort().map((t) => ({ value: `code:${t}`, label: `Activity Code: ${t}` })),
-    ...[...user].sort().map((t) => ({ value: `user:${t}`, label: `User Field: ${t}` })),
+    ...[...types]
+      .sort()
+      .map((t) => ({ value: `code:${t}`, label: `Activity Code: ${t}` })),
+    ...[...user]
+      .sort()
+      .map((t) => ({ value: `user:${t}`, label: `User Field: ${t}` })),
   ];
 }

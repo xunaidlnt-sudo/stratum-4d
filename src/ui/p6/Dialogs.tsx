@@ -36,12 +36,12 @@ import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog
 import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, ScheduleRunDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_GROUP_OPTIONS, DEFAULT_LAYOUT, P6_CLASSIC_BANDS, SOFT_BANDS, STOCK_LAYOUTS, useLayout, type BandStyle, type GroupOptions, type TimescaleUnit } from "./layout";
 
-export function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
+export function Shell({ title, children, foot, wide, width, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; width?: number; onClose: () => void }) {
   // Every dialog uses P6's frame: content on the left, command buttons in a column on the right.
   return (
     <P6Dlg
       title={title}
-      width={wide ? 900 : 620}
+      width={width ?? (wide ? 900 : 620)}
       onClose={onClose}
       side={
         <>

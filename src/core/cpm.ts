@@ -16,8 +16,22 @@
 // Level-of-effort and WBS-summary activities do not drive anything; their
 // dates are derived from the activities around them after the passes.
 
-import { addWorkHours, continuousCalendar, nextWorkStart, prevWorkEnd, standardCalendar, subtractWorkHours, workHoursBetween } from "./calendar";
-import type { Activity, Calendar, Relationship, Schedule, ScheduleOptions } from "./types";
+import {
+  addWorkHours,
+  continuousCalendar,
+  nextWorkStart,
+  prevWorkEnd,
+  standardCalendar,
+  subtractWorkHours,
+  workHoursBetween,
+} from "./calendar";
+import type {
+  Activity,
+  Calendar,
+  Relationship,
+  Schedule,
+  ScheduleOptions,
+} from "./types";
 
 export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
   outOfSequence: "retained-logic",
@@ -49,7 +63,9 @@ export interface CpmResult {
 
 export class ScheduleLoopError extends Error {
   constructor(public activityCodes: string[]) {
-    super(`Logic loop between: ${activityCodes.slice(0, 12).join(", ")}${activityCodes.length > 12 ? " …" : ""}`);
+    super(
+      `Logic loop between: ${activityCodes.slice(0, 12).join(", ")}${activityCodes.length > 12 ? " …" : ""}`,
+    );
   }
 }
 
@@ -73,29 +89,88 @@ function durationOf(a: Activity, cal: Calendar): number {
   if (a.type === "milestone" || a.type === "finish-milestone") return 0;
   const d = a.remainingDurationHours ?? a.originalDurationHours;
   if (d !== null && d !== undefined) return Math.max(0, d);
-  if (a.start !== null && a.finish !== null) return Math.max(0, workHoursBetween(cal, a.start, a.finish));
+  if (a.start !== null && a.finish !== null)
+    return Math.max(0, workHoursBetween(cal, a.start, a.finish));
   return 0;
 }
 
-export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResult {
+/** Working hours in a calendar's standard week. */
+const weekHours = (c: Calendar) =>
+  c.week.reduce((t, day) => t + day.reduce((d, [a, b]) => d + (b - a), 0), 0);
+
+/**
+ * Resource-dependent activities (P6) are scheduled on the calendars of the
+ * resources that drive their dates rather than the activity calendar. When
+ * driving resources work different calendars, the one with the fewest weekly
+ * hours governs, since the activity is not finished until its slowest
+ * resource is.
+ */
+export function resourceDependentCalendars(
+  s: Schedule,
+  calendars: Map<string, Calendar>,
+): Map<string, Calendar> {
+  const out = new Map<string, Calendar>();
+  const rd = new Set(
+    s.activities
+      .filter((a) => a.type === "resource-dependent")
+      .map((a) => a.id),
+  );
+  if (!rd.size) return out;
+  const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
+  for (const x of s.assignments ?? []) {
+    if (!rd.has(x.activityId) || x.drivesDates === false) continue;
+    const r = res.get(x.resourceId);
+    if (!r || r.type === "material" || !r.calendarId) continue;
+    const cal = calendars.get(r.calendarId);
+    if (!cal) continue;
+    const cur = out.get(x.activityId);
+    if (!cur || weekHours(cal) < weekHours(cur)) out.set(x.activityId, cal);
+  }
+  return out;
+}
+
+export function scheduleCpm(
+  input: Schedule,
+  options: CpmOptions = {},
+): CpmResult {
   // Copy what CPM writes (activities); relationships, WBS, calendars and the
   // raw XER tables are read-only here, so they are shared, not cloned.
-  const schedule: Schedule = { ...input, activities: input.activities.map((a) => ({ ...a })) };
-  const opt: ScheduleOptions = { ...DEFAULT_SCHEDULE_OPTIONS, ...(input.scheduleOptions ?? {}), ...(options.settings ?? {}) };
+  const schedule: Schedule = {
+    ...input,
+    activities: input.activities.map((a) => ({ ...a })),
+  };
+  const opt: ScheduleOptions = {
+    ...DEFAULT_SCHEDULE_OPTIONS,
+    ...(input.scheduleOptions ?? {}),
+    ...(options.settings ?? {}),
+  };
   const warnings: string[] = [];
   const calendars = new Map((schedule.calendars ?? []).map((c) => [c.id, c]));
   const fallback =
-    (schedule.defaultCalendarId && calendars.get(schedule.defaultCalendarId)) || schedule.calendars?.[0] || standardCalendar();
-  const calOf = (a: Activity) => (a.calendarId && calendars.get(a.calendarId)) || fallback;
+    (schedule.defaultCalendarId && calendars.get(schedule.defaultCalendarId)) ||
+    schedule.calendars?.[0] ||
+    standardCalendar();
+  const rdCal = resourceDependentCalendars(schedule, calendars);
+  const calOf = (a: Activity) =>
+    rdCal.get(a.id) ??
+    ((a.calendarId && calendars.get(a.calendarId)) || fallback);
 
-  const starts = schedule.activities.map((a) => a.actualStart ?? a.start).filter((x): x is number => x !== null);
-  const dataDate = options.dataDate ?? schedule.dataDate ?? (starts.length ? Math.min(...starts) : Date.now());
+  const starts = schedule.activities
+    .map((a) => a.actualStart ?? a.start)
+    .filter((x): x is number => x !== null);
+  const dataDate =
+    options.dataDate ??
+    schedule.dataDate ??
+    (starts.length ? Math.min(...starts) : Date.now());
 
   const work = schedule.activities.filter((a) => !isDerived(a));
   const nodes = new Map<string, Node>();
   for (const a of work) {
     const cal = calOf(a);
-    const fixed = a.status === "complete" && a.actualStart !== null && a.actualFinish !== null;
+    const fixed =
+      a.status === "complete" &&
+      a.actualStart !== null &&
+      a.actualFinish !== null;
     nodes.set(a.id, {
       a,
       cal,
@@ -106,7 +181,12 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       LF: 0,
       remES: 0,
       fixed,
-      milestone: a.type === "milestone" ? "start" : a.type === "finish-milestone" ? "finish" : null,
+      milestone:
+        a.type === "milestone"
+          ? "start"
+          : a.type === "finish-milestone"
+            ? "finish"
+            : null,
     });
   }
 
@@ -119,12 +199,25 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   });
   // Calendar for relationship lags: predecessor (P6 default), successor, 24-hour or the project default.
   const h24 = continuousCalendar();
-  const lagCal = (p: Node, s: Node): Calendar => (opt.lagCalendar === "successor" ? s.cal : opt.lagCalendar === "24h" ? h24 : opt.lagCalendar === "project" ? fallback : p.cal);
+  const lagCal = (p: Node, s: Node): Calendar =>
+    opt.lagCalendar === "successor"
+      ? s.cal
+      : opt.lagCalendar === "24h"
+        ? h24
+        : opt.lagCalendar === "project"
+          ? fallback
+          : p.cal;
   const preds = new Map<string, Relationship[]>();
   const succs = new Map<string, Relationship[]>();
   for (const r of rels) {
-    (preds.get(r.successorId) ?? preds.set(r.successorId, []).get(r.successorId)!).push(r);
-    (succs.get(r.predecessorId) ?? succs.set(r.predecessorId, []).get(r.predecessorId)!).push(r);
+    (
+      preds.get(r.successorId) ??
+      preds.set(r.successorId, []).get(r.successorId)!
+    ).push(r);
+    (
+      succs.get(r.predecessorId) ??
+      succs.set(r.predecessorId, []).get(r.predecessorId)!
+    ).push(r);
   }
 
   // Topological order (Kahn). Anything left over sits on a loop.
@@ -143,7 +236,9 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   }
   if (order.length < nodes.size) {
     const done = new Set(order);
-    const stuck = [...nodes.keys()].filter((id) => !done.has(id)).map((id) => nodes.get(id)!.a.code);
+    const stuck = [...nodes.keys()]
+      .filter((id) => !done.has(id))
+      .map((id) => nodes.get(id)!.a.code);
     throw new ScheduleLoopError(stuck);
   }
 
@@ -169,16 +264,28 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       const pStart = opt.ssLagFrom === "early-start" ? p.remES : p.ES;
       switch (r.type) {
         case "FS":
-          startBound = Math.max(startBound, addWorkHours(lagCal(p, n), p.EF, r.lagHours));
+          startBound = Math.max(
+            startBound,
+            addWorkHours(lagCal(p, n), p.EF, r.lagHours),
+          );
           break;
         case "SS":
-          startBound = Math.max(startBound, addWorkHours(lagCal(p, n), pStart, r.lagHours));
+          startBound = Math.max(
+            startBound,
+            addWorkHours(lagCal(p, n), pStart, r.lagHours),
+          );
           break;
         case "FF":
-          finishBound = Math.max(finishBound, addWorkHours(lagCal(p, n), p.EF, r.lagHours));
+          finishBound = Math.max(
+            finishBound,
+            addWorkHours(lagCal(p, n), p.EF, r.lagHours),
+          );
           break;
         case "SF":
-          finishBound = Math.max(finishBound, addWorkHours(lagCal(p, n), pStart, r.lagHours));
+          finishBound = Math.max(
+            finishBound,
+            addWorkHours(lagCal(p, n), pStart, r.lagHours),
+          );
           break;
       }
     }
@@ -191,24 +298,41 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       if (a.resumeDate != null) es = Math.max(es, a.resumeDate);
       else warnings.push(`${a.code}: suspended with no resume date`);
     }
-    if (c?.date != null && (c.type === "start-on-or-after" || c.type === "start-on")) es = Math.max(es, c.date);
-    if (finishBound > -Infinity) es = Math.max(es, subtractWorkHours(cal, finishBound, n.dur));
-    if (c?.date != null && (c.type === "finish-on-or-after" || c.type === "finish-on")) es = Math.max(es, subtractWorkHours(cal, c.date, n.dur));
+    if (
+      c?.date != null &&
+      (c.type === "start-on-or-after" || c.type === "start-on")
+    )
+      es = Math.max(es, c.date);
+    if (finishBound > -Infinity)
+      es = Math.max(es, subtractWorkHours(cal, finishBound, n.dur));
+    if (
+      c?.date != null &&
+      (c.type === "finish-on-or-after" || c.type === "finish-on")
+    )
+      es = Math.max(es, subtractWorkHours(cal, c.date, n.dur));
     if (c?.date != null && c.type === "mandatory-start") es = c.date;
-    if (c?.date != null && c.type === "mandatory-finish") es = subtractWorkHours(cal, c.date, n.dur);
+    if (c?.date != null && c.type === "mandatory-finish")
+      es = subtractWorkHours(cal, c.date, n.dur);
 
     // Expected Finish: the remaining work is re-estimated to end on that date.
     if (opt.useExpectedFinish && a.expectedFinish != null && !n.milestone) {
       const from = nextWorkStart(cal, es);
-      n.dur = a.expectedFinish > from ? workHoursBetween(cal, from, a.expectedFinish) : 0;
+      n.dur =
+        a.expectedFinish > from
+          ? workHoursBetween(cal, from, a.expectedFinish)
+          : 0;
       a.remainingDurationHours = Math.round(n.dur * 100) / 100;
     }
     if (n.milestone === "finish") {
       // A finish milestone sits at the finish of what drives it (e.g. 17:00), not the next morning.
       const t = Math.max(es, finishBound);
-      n.ES = n.EF = n.remES = prevWorkEnd(cal, t) >= dataDate ? prevWorkEnd(cal, t) : t;
+      n.ES =
+        n.EF =
+        n.remES =
+          prevWorkEnd(cal, t) >= dataDate ? prevWorkEnd(cal, t) : t;
     } else {
-      const remStart = n.dur > 0 || n.milestone === "start" ? nextWorkStart(cal, es) : es;
+      const remStart =
+        n.dur > 0 || n.milestone === "start" ? nextWorkStart(cal, es) : es;
       n.remES = remStart;
       n.ES = inProgress ? a.actualStart! : remStart;
       n.EF = addWorkHours(cal, remStart, n.dur);
@@ -229,11 +353,18 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   // Float on each project's own finish (P6 default) or on the finish of all open projects.
   const finishByProject = new Map<string, number>();
   if (opt.floatBasis !== "opened-projects")
-    for (const n of nodes.values()) if (n.a.projectId) finishByProject.set(n.a.projectId, Math.max(finishByProject.get(n.a.projectId) ?? -Infinity, n.EF));
+    for (const n of nodes.values())
+      if (n.a.projectId)
+        finishByProject.set(
+          n.a.projectId,
+          Math.max(finishByProject.get(n.a.projectId) ?? -Infinity, n.EF),
+        );
   for (let i = order.length - 1; i >= 0; i--) {
     const n = nodes.get(order[i])!;
     const { a, cal } = n;
-    let lf = schedule.mustFinishBy ?? (a.projectId ? finishByProject.get(a.projectId) ?? lateEnd : lateEnd);
+    let lf =
+      schedule.mustFinishBy ??
+      (a.projectId ? (finishByProject.get(a.projectId) ?? lateEnd) : lateEnd);
     for (const r of succs.get(a.id) ?? []) {
       const s = nodes.get(r.successorId)!;
       switch (r.type) {
@@ -241,20 +372,44 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
           lf = Math.min(lf, subtractWorkHours(lagCal(n, s), s.LS, r.lagHours));
           break;
         case "SS":
-          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(lagCal(n, s), s.LS, r.lagHours), n.dur));
+          lf = Math.min(
+            lf,
+            addWorkHours(
+              cal,
+              subtractWorkHours(lagCal(n, s), s.LS, r.lagHours),
+              n.dur,
+            ),
+          );
           break;
         case "FF":
           lf = Math.min(lf, subtractWorkHours(lagCal(n, s), s.LF, r.lagHours));
           break;
         case "SF":
-          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(lagCal(n, s), s.LF, r.lagHours), n.dur));
+          lf = Math.min(
+            lf,
+            addWorkHours(
+              cal,
+              subtractWorkHours(lagCal(n, s), s.LF, r.lagHours),
+              n.dur,
+            ),
+          );
           break;
       }
     }
     const c = a.constraint;
     if (c?.date != null) {
-      if (c.type === "finish-on-or-before" || c.type === "finish-on" || c.type === "mandatory-finish") lf = Math.min(lf, c.date);
-      if (c.type === "start-on-or-before" || c.type === "start-on" || c.type === "mandatory-start") lf = Math.min(lf, addWorkHours(cal, c.date, n.dur));
+      if (
+        c.type === "finish-on-or-before" ||
+        c.type === "finish-on" ||
+        c.type === "mandatory-finish"
+      )
+        lf = Math.min(lf, c.date);
+      if (
+        c.type === "start-on-or-before" ||
+        c.type === "start-on" ||
+        c.type === "mandatory-start"
+      )
+        lf = Math.min(lf, addWorkHours(cal, c.date, n.dur));
     }
     if (n.fixed) {
       n.LF = n.EF;
@@ -262,13 +417,20 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       continue;
     }
     n.LF = n.milestone ? lf : prevWorkEnd(cal, lf);
-    n.LS = n.milestone === "start" ? nextWorkStart(cal, n.LF) : subtractWorkHours(cal, n.LF, n.dur);
+    n.LS =
+      n.milestone === "start"
+        ? nextWorkStart(cal, n.LF)
+        : subtractWorkHours(cal, n.LF, n.dur);
     if (n.milestone) n.LS = n.LF;
   }
 
   // As-late-as-possible: push to the late dates.
   for (const n of nodes.values()) {
-    if (!n.fixed && n.a.constraint?.type === "as-late-as-possible" && n.a.actualStart === null) {
+    if (
+      !n.fixed &&
+      n.a.constraint?.type === "as-late-as-possible" &&
+      n.a.actualStart === null
+    ) {
       n.ES = n.LS;
       n.EF = n.LF;
     }
@@ -279,12 +441,28 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   for (const n of nodes.values()) {
     const { a, cal } = n;
     if (n.fixed) {
-      Object.assign(a, { start: a.actualStart, finish: a.actualFinish, lateStart: null, lateFinish: null, totalFloatHours: null, freeFloatHours: null, critical: false });
+      Object.assign(a, {
+        start: a.actualStart,
+        finish: a.actualFinish,
+        lateStart: null,
+        lateFinish: null,
+        totalFloatHours: null,
+        freeFloatHours: null,
+        critical: false,
+      });
       continue;
     }
     const finishFloat = workHoursBetween(cal, n.EF, n.LF);
-    const startFloat = n.remES <= n.LS ? workHoursBetween(cal, n.remES, n.LS) : -workHoursBetween(cal, n.LS, n.remES);
-    const tfRaw = opt.floatType === "start" ? startFloat : opt.floatType === "smallest" ? Math.min(startFloat, finishFloat) : finishFloat;
+    const startFloat =
+      n.remES <= n.LS
+        ? workHoursBetween(cal, n.remES, n.LS)
+        : -workHoursBetween(cal, n.LS, n.remES);
+    const tfRaw =
+      opt.floatType === "start"
+        ? startFloat
+        : opt.floatType === "smallest"
+          ? Math.min(startFloat, finishFloat)
+          : finishFloat;
     const tf = Math.round(tfRaw * 100) / 100;
     let ff = tf;
     for (const r of succs.get(a.id) ?? []) {
@@ -292,16 +470,32 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       let slack: number;
       switch (r.type) {
         case "FS":
-          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.EF, r.lagHours), s.ES);
+          slack = workHoursBetween(
+            cal,
+            addWorkHours(lagCal(n, s), n.EF, r.lagHours),
+            s.ES,
+          );
           break;
         case "SS":
-          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.ES, r.lagHours), s.ES);
+          slack = workHoursBetween(
+            cal,
+            addWorkHours(lagCal(n, s), n.ES, r.lagHours),
+            s.ES,
+          );
           break;
         case "FF":
-          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.EF, r.lagHours), s.EF);
+          slack = workHoursBetween(
+            cal,
+            addWorkHours(lagCal(n, s), n.EF, r.lagHours),
+            s.EF,
+          );
           break;
         case "SF":
-          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.ES, r.lagHours), s.EF);
+          slack = workHoursBetween(
+            cal,
+            addWorkHours(lagCal(n, s), n.ES, r.lagHours),
+            s.EF,
+          );
           break;
       }
       relFloat.set(r, s.fixed ? null : Math.round(slack * 100) / 100);
@@ -328,11 +522,18 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   const driving = new Set<Relationship>();
   for (const [r, f] of relFloat) if (f !== null && f <= 0.01) driving.add(r);
   const drivingPreds = new Map<string, string[]>();
-  for (const r of driving) (drivingPreds.get(r.successorId) ?? drivingPreds.set(r.successorId, []).get(r.successorId)!).push(r.predecessorId);
+  for (const r of driving)
+    (
+      drivingPreds.get(r.successorId) ??
+      drivingPreds.set(r.successorId, []).get(r.successorId)!
+    ).push(r.predecessorId);
   {
     let latest = -Infinity;
-    for (const n of nodes.values()) if (!n.fixed && n.EF > latest) latest = n.EF;
-    const stack = [...nodes.values()].filter((n) => !n.fixed && n.EF === latest).map((n) => n.a.id);
+    for (const n of nodes.values())
+      if (!n.fixed && n.EF > latest) latest = n.EF;
+    const stack = [...nodes.values()]
+      .filter((n) => !n.fixed && n.EF === latest)
+      .map((n) => n.a.id);
     const seen = new Set<string>();
     while (stack.length) {
       const id = stack.pop()!;
@@ -346,20 +547,31 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   }
   schedule.relationships = schedule.relationships.map((r) => {
     const f = relFloat.get(r);
-    return f === undefined ? (r.driving || r.freeFloatHours != null ? { ...r, driving: false, freeFloatHours: null } : r) : { ...r, driving: driving.has(r), freeFloatHours: f };
+    return f === undefined
+      ? r.driving || r.freeFloatHours != null
+        ? { ...r, driving: false, freeFloatHours: null }
+        : r
+      : { ...r, driving: driving.has(r), freeFloatHours: f };
   });
 
   // ---- Critical: by float threshold or by longest path; optionally open ends ----
   for (const n of nodes.values()) {
     if (n.fixed) continue;
     if (opt.criticalBy === "longest-path") n.a.critical = !!n.a.longestPath;
-    if (opt.openEndsCritical && (!(preds.get(n.a.id) ?? []).length || !(succs.get(n.a.id) ?? []).length)) n.a.critical = true;
+    if (
+      opt.openEndsCritical &&
+      (!(preds.get(n.a.id) ?? []).length || !(succs.get(n.a.id) ?? []).length)
+    )
+      n.a.critical = true;
   }
 
   // ---- Multiple float paths to an end activity ----
   // Path float = least sum of relationship free float along any chain to the end activity;
   // path 1 is the driving path, path 2 the next least float, and so on.
-  if (opt.floatPaths?.endActivityId && nodes.has(opt.floatPaths.endActivityId)) {
+  if (
+    opt.floatPaths?.endActivityId &&
+    nodes.has(opt.floatPaths.endActivityId)
+  ) {
     const pf = new Map<string, number>([[opt.floatPaths.endActivityId, 0]]);
     for (let i = order.length - 1; i >= 0; i--) {
       const id = order[i];
@@ -373,7 +585,9 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       }
       if (Number.isFinite(best)) pf.set(id, Math.round(best * 100) / 100);
     }
-    const levels = [...new Set([...pf.values()])].sort((x, y) => x - y).slice(0, Math.max(1, opt.floatPaths.count));
+    const levels = [...new Set([...pf.values()])]
+      .sort((x, y) => x - y)
+      .slice(0, Math.max(1, opt.floatPaths.count));
     const pathOf = new Map(levels.map((v, i) => [v, i + 1]));
     const members = new Map<number, Node[]>();
     for (const [id, v] of pf) {
@@ -383,7 +597,10 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       n.a.floatPath = k;
       (members.get(k) ?? members.set(k, []).get(k)!).push(n);
     }
-    for (const list of members.values()) list.sort((x, y) => x.ES - y.ES).forEach((n, i) => (n.a.floatPathOrder = i + 1));
+    for (const list of members.values())
+      list
+        .sort((x, y) => x.ES - y.ES)
+        .forEach((n, i) => (n.a.floatPathOrder = i + 1));
   }
 
   // ---- Derived activities: LOE spans its neighbours, WBS summaries span their WBS ----
@@ -393,10 +610,19 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   const relsOf = new Map<string, Relationship[]>();
   if (derived.some((a) => a.type === "loe"))
     for (const r of schedule.relationships) {
-      (relsOf.get(r.successorId) ?? relsOf.set(r.successorId, []).get(r.successorId)!).push(r);
-      if (r.predecessorId !== r.successorId) (relsOf.get(r.predecessorId) ?? relsOf.set(r.predecessorId, []).get(r.predecessorId)!).push(r);
+      (
+        relsOf.get(r.successorId) ??
+        relsOf.set(r.successorId, []).get(r.successorId)!
+      ).push(r);
+      if (r.predecessorId !== r.successorId)
+        (
+          relsOf.get(r.predecessorId) ??
+          relsOf.set(r.predecessorId, []).get(r.predecessorId)!
+        ).push(r);
     }
-  const wbsSpan = derived.some((a) => a.type === "wbs-summary") ? spansByWbs(schedule) : new Map<string, [number, number]>();
+  const wbsSpan = derived.some((a) => a.type === "wbs-summary")
+    ? spansByWbs(schedule)
+    : new Map<string, [number, number]>();
   for (const a of derived) {
     let s = Infinity;
     let f = -Infinity;
@@ -404,11 +630,13 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       for (const r of relsOf.get(a.id) ?? []) {
         if (r.successorId === a.id) {
           const p = byId.get(r.predecessorId);
-          if (p?.start != null && p.finish != null) s = Math.min(s, r.type === "FS" ? p.finish : p.start);
+          if (p?.start != null && p.finish != null)
+            s = Math.min(s, r.type === "FS" ? p.finish : p.start);
         }
         if (r.predecessorId === a.id) {
           const q = byId.get(r.successorId);
-          if (q?.start != null && q.finish != null) f = Math.max(f, r.type === "FS" ? q.start : q.finish);
+          if (q?.start != null && q.finish != null)
+            f = Math.max(f, r.type === "FS" ? q.start : q.finish);
         }
       }
     } else {
@@ -422,7 +650,9 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       a.start = a.actualStart ?? s;
       a.finish = a.actualFinish ?? f;
     } else {
-      warnings.push(`${a.code}: ${a.type === "loe" ? "level-of-effort has no predecessor and successor to span" : "summary has no activities below it"}`);
+      warnings.push(
+        `${a.code}: ${a.type === "loe" ? "level-of-effort has no predecessor and successor to span" : "summary has no activities below it"}`,
+      );
     }
     a.totalFloatHours = null;
     a.critical = false;
@@ -431,10 +661,13 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   // Open ends are allowed but usually a mistake.
   for (const n of nodes.values()) {
     if (n.fixed) continue;
-    const hasPred = (preds.get(n.a.id) ?? []).length > 0 || n.a.constraint?.date != null;
+    const hasPred =
+      (preds.get(n.a.id) ?? []).length > 0 || n.a.constraint?.date != null;
     const hasSucc = (succs.get(n.a.id) ?? []).length > 0;
-    if (!hasPred && n.a.type !== "milestone") warnings.push(`${n.a.code}: no predecessor`);
-    if (!hasSucc && n.a.type !== "finish-milestone") warnings.push(`${n.a.code}: no successor`);
+    if (!hasPred && n.a.type !== "milestone")
+      warnings.push(`${n.a.code}: no predecessor`);
+    if (!hasSucc && n.a.type !== "finish-milestone")
+      warnings.push(`${n.a.code}: no successor`);
   }
 
   const criticalPath = [...nodes.values()]
@@ -452,7 +685,11 @@ function spansByWbs(schedule: Schedule): Map<string, [number, number]> {
   const out = new Map<string, [number, number]>();
   for (const b of schedule.activities) {
     if (isDerived(b) || !b.wbsId) continue;
-    for (let id: string | null | undefined = b.wbsId, guard = 0; id && guard < 64; id = parent.get(id), guard++) {
+    for (
+      let id: string | null | undefined = b.wbsId, guard = 0;
+      id && guard < 64;
+      id = parent.get(id), guard++
+    ) {
       const cur = out.get(id) ?? [Infinity, -Infinity];
       if (b.start != null) cur[0] = Math.min(cur[0], b.start);
       if (b.finish != null) cur[1] = Math.max(cur[1], b.finish);

@@ -21,7 +21,11 @@ export interface Slice {
 
 const DAY = 86_400_000;
 
-const isWork = (a: Activity) => a.type !== "wbs-summary" && a.type !== "loe" && a.type !== "milestone" && a.type !== "finish-milestone";
+const isWork = (a: Activity) =>
+  a.type !== "wbs-summary" &&
+  a.type !== "loe" &&
+  a.type !== "milestone" &&
+  a.type !== "finish-milestone";
 
 function linear(t: number, a: number | null, b: number | null): number {
   if (a === null || b === null) return 0;
@@ -35,30 +39,51 @@ export function weights(s: Schedule, basis: WeightBasis): Map<string, number> {
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
   if (basis === "cost" || basis === "hours") {
     for (const x of s.assignments ?? []) {
-      const v = basis === "cost" ? x.budgetCost : res.get(x.resourceId)?.type === "labor" ? x.budgetQty : 0;
+      const v =
+        basis === "cost"
+          ? x.budgetCost
+          : res.get(x.resourceId)?.type === "labor"
+            ? x.budgetQty
+            : 0;
       out.set(x.activityId, (out.get(x.activityId) ?? 0) + v);
     }
     // No cost/hours loaded at all: fall back to duration so the report still works.
     if ([...out.values()].every((v) => !v)) return weights(s, "duration");
     return out;
   }
-  for (const a of s.activities) if (isWork(a)) out.set(a.id, basis === "equal" ? 1 : Math.max(0, a.originalDurationHours ?? 0));
+  for (const a of s.activities)
+    if (isWork(a))
+      out.set(
+        a.id,
+        basis === "equal" ? 1 : Math.max(0, a.originalDurationHours ?? 0),
+      );
   return out;
 }
 
 /** Group label of an activity for a dimension. */
-export function groupOf(a: Activity, dim: Dimension, s: Schedule, wbsIndex?: Map<string, { parentId: string | null; name: string; code: string }>): string {
+export function groupOf(
+  a: Activity,
+  dim: Dimension,
+  s: Schedule,
+  wbsIndex?: Map<
+    string,
+    { parentId: string | null; name: string; code: string }
+  >,
+): string {
   if (dim.startsWith("code:")) return a.codes[dim.slice(5)] ?? "(none)";
   if (dim.startsWith("user:")) return a.userFields?.[dim.slice(5)] ?? "(none)";
   const idx = wbsIndex ?? new Map(s.wbs.map((w) => [w.id, w]));
   const level = dim === "wbs2" ? 2 : 1;
   const chain: string[] = [];
-  for (let id = a.wbsId; id; id = idx.get(id)?.parentId ?? null) chain.unshift(id);
+  for (let id = a.wbsId; id; id = idx.get(id)?.parentId ?? null)
+    chain.unshift(id);
   const node = idx.get(chain[Math.min(level, chain.length) - 1] ?? "");
   return node ? node.name : "(no WBS)";
 }
 
-export function dimensions(s: Schedule | null): { value: Dimension; label: string }[] {
+export function dimensions(
+  s: Schedule | null,
+): { value: Dimension; label: string }[] {
   const out = [
     { value: "wbs1", label: "WBS level 1" },
     { value: "wbs2", label: "WBS level 2" },
@@ -70,32 +95,50 @@ export function dimensions(s: Schedule | null): { value: Dimension; label: strin
     Object.keys(a.codes).forEach((k) => codes.add(k));
     Object.keys(a.userFields ?? {}).forEach((k) => udfs.add(k));
   }
-  return [...out, ...[...codes].sort().map((c) => ({ value: `code:${c}`, label: `Activity code: ${c}` })), ...[...udfs].sort().map((c) => ({ value: `user:${c}`, label: `User field: ${c}` }))];
+  return [
+    ...out,
+    ...[...codes]
+      .sort()
+      .map((c) => ({ value: `code:${c}`, label: `Activity code: ${c}` })),
+    ...[...udfs]
+      .sort()
+      .map((c) => ({ value: `user:${c}`, label: `User field: ${c}` })),
+  ];
 }
 
 export function groupValues(s: Schedule, dim: Dimension): string[] {
   const idx = new Map(s.wbs.map((w) => [w.id, w]));
   const seen = new Set<string>();
-  for (const a of s.activities) if (isWork(a)) seen.add(groupOf(a, dim, s, idx));
+  for (const a of s.activities)
+    if (isWork(a)) seen.add(groupOf(a, dim, s, idx));
   // Keep WBS order for WBS dimensions; alphabetical for codes.
   if (dim.startsWith("wbs")) {
     const order = new Map(s.wbs.map((w, i) => [w.name, i]));
-    return [...seen].sort((a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9));
+    return [...seen].sort(
+      (a, b) => (order.get(a) ?? 1e9) - (order.get(b) ?? 1e9),
+    );
   }
   return [...seen].sort();
 }
 
 /** Keep only activities that match every slicer selection. */
-export function applySlices(s: Schedule, slices: Slice[] | undefined): Schedule {
+export function applySlices(
+  s: Schedule,
+  slices: Slice[] | undefined,
+): Schedule {
   const active = (slices ?? []).filter((x) => x.values.length);
   if (!active.length) return s;
   const idx = new Map(s.wbs.map((w) => [w.id, w]));
-  const keep = s.activities.filter((a) => active.every((sl) => sl.values.includes(groupOf(a, sl.dimension, s, idx))));
+  const keep = s.activities.filter((a) =>
+    active.every((sl) => sl.values.includes(groupOf(a, sl.dimension, s, idx))),
+  );
   const ids = new Set(keep.map((a) => a.id));
   return {
     ...s,
     activities: keep,
-    relationships: s.relationships.filter((r) => ids.has(r.predecessorId) && ids.has(r.successorId)),
+    relationships: s.relationships.filter(
+      (r) => ids.has(r.predecessorId) && ids.has(r.successorId),
+    ),
     assignments: (s.assignments ?? []).filter((x) => ids.has(x.activityId)),
   };
 }
@@ -128,12 +171,20 @@ function forecastFrac(a: Activity, t: number) {
 
 export function progressTable(
   s: Schedule,
-  opts: { dimension: Dimension; basis: WeightBasis; weightage?: Record<string, number>; at?: number },
+  opts: {
+    dimension: Dimension;
+    basis: WeightBasis;
+    weightage?: Record<string, number>;
+    at?: number;
+  },
 ): ProgressTable {
   const at = opts.at ?? s.dataDate ?? Date.now();
   const w = weights(s, opts.basis);
   const idx = new Map(s.wbs.map((x) => [x.id, x]));
-  const groups = new Map<string, { w: number; plan: number; actual: number; forecast: number }>();
+  const groups = new Map<
+    string,
+    { w: number; plan: number; actual: number; forecast: number }
+  >();
   let totalW = 0;
   for (const a of s.activities) {
     const wa = w.get(a.id) ?? 0;
@@ -148,18 +199,36 @@ export function progressTable(
     totalW += wa;
   }
   const order = groupValues(s, opts.dimension);
-  const manual = opts.weightage && Object.keys(opts.weightage).length ? opts.weightage : null;
-  const manualSum = manual ? Object.values(manual).reduce((t, v) => t + (Number(v) || 0), 0) : 0;
+  const manual =
+    opts.weightage && Object.keys(opts.weightage).length
+      ? opts.weightage
+      : null;
+  const manualSum = manual
+    ? Object.values(manual).reduce((t, v) => t + (Number(v) || 0), 0)
+    : 0;
   const rows: ProgressRow[] = order
     .filter((k) => groups.has(k))
     .map((k) => {
       const g = groups.get(k)!;
-      const weightage = manual ? (Number(manual[k]) || 0) / (manualSum || 1) : totalW ? g.w / totalW : 0;
+      const weightage = manual
+        ? (Number(manual[k]) || 0) / (manualSum || 1)
+        : totalW
+          ? g.w / totalW
+          : 0;
       const plan = g.w ? g.plan / g.w : 0;
       const actual = g.w ? g.actual / g.w : 0;
-      return { key: k, label: k, weightage, plan, actual, forecast: g.w ? g.forecast / g.w : 0, variance: actual - plan };
+      return {
+        key: k,
+        label: k,
+        weightage,
+        plan,
+        actual,
+        forecast: g.w ? g.forecast / g.w : 0,
+        variance: actual - plan,
+      };
     });
-  const sum = (f: (r: ProgressRow) => number) => rows.reduce((t, r) => t + r.weightage * f(r), 0);
+  const sum = (f: (r: ProgressRow) => number) =>
+    rows.reduce((t, r) => t + r.weightage * f(r), 0);
   const total: ProgressRow = {
     key: "__total",
     label: "TOTAL",
@@ -189,7 +258,10 @@ export interface ProgressPoint {
  * Cumulative progress S-curve by month (or week). Actual progress accrues
  * linearly over each activity's actual period up to the data date.
  */
-export function progressCurve(s: Schedule, opts: { basis: WeightBasis; step?: "month" | "week" }): ProgressPoint[] {
+export function progressCurve(
+  s: Schedule,
+  opts: { basis: WeightBasis; step?: "month" | "week" },
+): ProgressPoint[] {
   const w = weights(s, opts.basis);
   const acts = s.activities.filter((a) => isWork(a) && (w.get(a.id) ?? 0) > 0);
   const total = acts.reduce((t, a) => t + (w.get(a.id) ?? 0), 0);
@@ -198,17 +270,28 @@ export function progressCurve(s: Schedule, opts: { basis: WeightBasis; step?: "m
   let lo = Infinity;
   let hi = -Infinity;
   for (const a of acts) {
-    for (const t of [a.baselineStart, a.start, a.actualStart]) if (t != null) lo = Math.min(lo, t);
-    for (const t of [a.baselineFinish, a.finish]) if (t != null) hi = Math.max(hi, t);
+    for (const t of [a.baselineStart, a.start, a.actualStart])
+      if (t != null) lo = Math.min(lo, t);
+    for (const t of [a.baselineFinish, a.finish])
+      if (t != null) hi = Math.max(hi, t);
   }
   if (!Number.isFinite(lo)) return [];
   const pts: number[] = [];
   if (opts.step === "week") {
-    for (let t = Math.floor(lo / DAY) * DAY + 7 * DAY; t < hi + 7 * DAY; t += 7 * DAY) pts.push(t);
+    for (
+      let t = Math.floor(lo / DAY) * DAY + 7 * DAY;
+      t < hi + 7 * DAY;
+      t += 7 * DAY
+    )
+      pts.push(t);
   } else {
     const d = new Date(lo);
     // Month ends.
-    for (let m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1)); ; m.setUTCMonth(m.getUTCMonth() + 1)) {
+    for (
+      let m = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 1));
+      ;
+      m.setUTCMonth(m.getUTCMonth() + 1)
+    ) {
       pts.push(m.getTime() - 1);
       if (m.getTime() > hi) break;
     }
@@ -221,12 +304,25 @@ export function progressCurve(s: Schedule, opts: { basis: WeightBasis; step?: "m
     for (const a of acts) {
       const wa = w.get(a.id)!;
       plan += wa * planFrac(a, t);
-      if (a.actualStart !== null) actual += wa * (a.percentComplete / 100) * linear(ta, a.actualStart, a.actualFinish ?? dd);
+      if (a.actualStart !== null)
+        actual +=
+          wa *
+          (a.percentComplete / 100) *
+          linear(ta, a.actualStart, a.actualFinish ?? dd);
       // Forecast: actual to date, then remaining work spread over the remaining dates.
       const done = a.percentComplete / 100;
-      const doneByT = a.actualStart !== null ? done * linear(ta, a.actualStart, a.actualFinish ?? dd) : 0;
+      const doneByT =
+        a.actualStart !== null
+          ? done * linear(ta, a.actualStart, a.actualFinish ?? dd)
+          : 0;
       const remStart = Math.max(a.start ?? dd, dd);
-      fc += wa * (doneByT + (1 - done) * (a.status === "complete" ? 0 : linear(t, remStart, a.finish ?? remStart)));
+      fc +=
+        wa *
+        (doneByT +
+          (1 - done) *
+            (a.status === "complete"
+              ? 0
+              : linear(t, remStart, a.finish ?? remStart)));
     }
     return { plan: plan / total, actual: actual / total, forecast: fc / total };
   };

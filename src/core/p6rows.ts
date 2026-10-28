@@ -1,12 +1,33 @@
 // Rows for the P6 activity table: filter, group (by WBS or any field) and
 // sort, with band rows that roll up dates the way P6's group totals do.
 
-import { fieldText, filterMatches, type FieldCtx, type FieldDef, type FilterDef } from "./fields";
+import {
+  fieldText,
+  filterMatches,
+  type FieldCtx,
+  type FieldDef,
+  type FilterDef,
+} from "./fields";
 import type { Activity, Schedule } from "./types";
 
 export type P6Row =
-  | { kind: "band"; id: string; depth: number; label: string; start: number | null; finish: number | null; count: number; wbsId: string | null }
-  | { kind: "activity"; id: string; depth: number; activity: Activity; dim: boolean };
+  | {
+      kind: "band";
+      id: string;
+      depth: number;
+      label: string;
+      start: number | null;
+      finish: number | null;
+      count: number;
+      wbsId: string | null;
+    }
+  | {
+      kind: "activity";
+      id: string;
+      depth: number;
+      activity: Activity;
+      dim: boolean;
+    };
 
 export interface RowOptions {
   groupBy: string;
@@ -36,9 +57,17 @@ export interface RowOptions {
   label?: { title?: boolean; code?: boolean; name?: boolean };
 }
 
-function comparator(sort: RowOptions["sort"], fields: Map<string, FieldDef>, c: FieldCtx) {
-  const keys = sort.map((s) => ({ f: fields.get(s.field), desc: !!s.desc })).filter((k) => k.f);
-  if (!keys.length) return (a: Activity, b: Activity) => a.code.localeCompare(b.code, undefined, { numeric: true });
+function comparator(
+  sort: RowOptions["sort"],
+  fields: Map<string, FieldDef>,
+  c: FieldCtx,
+) {
+  const keys = sort
+    .map((s) => ({ f: fields.get(s.field), desc: !!s.desc }))
+    .filter((k) => k.f);
+  if (!keys.length)
+    return (a: Activity, b: Activity) =>
+      a.code.localeCompare(b.code, undefined, { numeric: true });
   // Cache values: sorting 25k rows calls the comparator ~400k times.
   const cache = keys.map(() => new Map<string, unknown>());
   const val = (i: number, a: Activity) => {
@@ -59,7 +88,8 @@ function comparator(sort: RowOptions["sort"], fields: Map<string, FieldDef>, c: 
       if (ye) return -1;
       let d = 0;
       if (typeof x === "number" && typeof y === "number") d = x - y;
-      else if (typeof x === "boolean" || typeof y === "boolean") d = Number(x) - Number(y);
+      else if (typeof x === "boolean" || typeof y === "boolean")
+        d = Number(x) - Number(y);
       else d = String(x).localeCompare(String(y), undefined, { numeric: true });
       if (d !== 0) return keys[i].desc ? -d : d;
     }
@@ -67,13 +97,21 @@ function comparator(sort: RowOptions["sort"], fields: Map<string, FieldDef>, c: 
   };
 }
 
-export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: FieldCtx, o: RowOptions): { rows: P6Row[]; shown: number } {
+export function buildP6Rows(
+  s: Schedule,
+  fields: Map<string, FieldDef>,
+  c: FieldCtx,
+  o: RowOptions,
+): { rows: P6Row[]; shown: number } {
   const text = o.text.trim().toLowerCase();
   const pass = (a: Activity) => {
-    if (text && !`${a.code} ${a.name}`.toLowerCase().includes(text)) return false;
+    if (text && !`${a.code} ${a.name}`.toLowerCase().includes(text))
+      return false;
     if (o.quick && !filterMatches(o.quick, a, fields, c)) return false;
     if (!o.filters.length) return true;
-    return o.filterMatch === "all" ? o.filters.every((f) => filterMatches(f, a, fields, c)) : o.filters.some((f) => filterMatches(f, a, fields, c));
+    return o.filterMatch === "all"
+      ? o.filters.every((f) => filterMatches(f, a, fields, c))
+      : o.filters.some((f) => filterMatches(f, a, fields, c));
   };
   const cmp = comparator(o.sort, fields, c);
   const rows: P6Row[] = [];
@@ -92,21 +130,45 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
       if (a.start !== null && a.start < st) st = a.start;
       if (a.finish !== null && a.finish > fi) fi = a.finish;
     }
-    return { start: Number.isFinite(st) ? st : null, finish: Number.isFinite(fi) ? fi : null };
+    return {
+      start: Number.isFinite(st) ? st : null,
+      finish: Number.isFinite(fi) ? fi : null,
+    };
   };
 
   const showCode = o.label?.code ?? true;
   const showName = o.label?.name ?? true;
-  const bandText = (title: string, code: string, name: string) => [o.label?.title ? `${title}:` : "", showCode ? code : "", showName && name !== code ? name : showCode ? "" : name].filter(Boolean).join(" ").trim() || code || name;
+  const bandText = (title: string, code: string, name: string) =>
+    [
+      o.label?.title ? `${title}:` : "",
+      showCode ? code : "",
+      showName && name !== code ? name : showCode ? "" : name,
+    ]
+      .filter(Boolean)
+      .join(" ")
+      .trim() ||
+    code ||
+    name;
 
   // Nested grouping of a list of activities by fields[0], then fields[1]…; returns [start, finish, count].
-  const groupItems = (items: { a: Activity; dim: boolean }[], fieldIds: string[], depth: number, prefix: string): [number, number, number] => {
+  const groupItems = (
+    items: { a: Activity; dim: boolean }[],
+    fieldIds: string[],
+    depth: number,
+    prefix: string,
+  ): [number, number, number] => {
     let st = Infinity;
     let fi = -Infinity;
     if (!fieldIds.length) {
       items.sort((x, y) => cmp(x.a, y.a));
       for (const k of items) {
-        rows.push({ kind: "activity", id: k.a.id, depth, activity: k.a, dim: k.dim });
+        rows.push({
+          kind: "activity",
+          id: k.a.id,
+          depth,
+          activity: k.a,
+          dim: k.dim,
+        });
         if (k.a.start !== null && k.a.start < st) st = k.a.start;
         if (k.a.finish !== null && k.a.finish > fi) fi = k.a.finish;
       }
@@ -118,14 +180,34 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
       const key = f ? fieldText(f, k.a, c) || "(none)" : "(none)";
       (groups.get(key) ?? groups.set(key, []).get(key)!).push(k);
     }
-    const keys = [...groups.keys()].sort((x, y) => (x === "(none)" ? 1 : y === "(none)" ? -1 : x.localeCompare(y, undefined, { numeric: true })));
+    const keys = [...groups.keys()].sort((x, y) =>
+      x === "(none)"
+        ? 1
+        : y === "(none)"
+          ? -1
+          : x.localeCompare(y, undefined, { numeric: true }),
+    );
     let n = 0;
     for (const key of keys) {
       const id = `${prefix}g:${fieldIds[0]}:${key}`;
       const idx = rows.length;
-      rows.push({ kind: "band", id, depth, label: bandText(f?.label ?? fieldIds[0], key, ""), start: null, finish: null, count: 0, wbsId: null });
+      rows.push({
+        kind: "band",
+        id,
+        depth,
+        label: bandText(f?.label ?? fieldIds[0], key, ""),
+        start: null,
+        finish: null,
+        count: 0,
+        wbsId: null,
+      });
       const before = rows.length;
-      const [s2, f2, n2] = groupItems(groups.get(key)!, fieldIds.slice(1), depth + 1, `${id}/`);
+      const [s2, f2, n2] = groupItems(
+        groups.get(key)!,
+        fieldIds.slice(1),
+        depth + 1,
+        `${id}/`,
+      );
       const band = rows[idx] as Extract<P6Row, { kind: "band" }>;
       band.start = Number.isFinite(s2) ? s2 : null;
       band.finish = Number.isFinite(f2) ? f2 : null;
@@ -139,8 +221,20 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
   };
 
   const finish = () => {
-    if (o.grandTotal && keep.length) rows.unshift({ kind: "band", id: "grand-total", depth: 0, label: "Grand Total", ...roll(keep), count: shown, wbsId: null });
-    return { rows: o.summariesOnly ? rows.filter((r) => r.kind === "band") : rows, shown };
+    if (o.grandTotal && keep.length)
+      rows.unshift({
+        kind: "band",
+        id: "grand-total",
+        depth: 0,
+        label: "Grand Total",
+        ...roll(keep),
+        count: shown,
+        wbsId: null,
+      });
+    return {
+      rows: o.summariesOnly ? rows.filter((r) => r.kind === "band") : rows,
+      shown,
+    };
   };
 
   if (o.groupBy === "none") {
@@ -155,28 +249,52 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
 
   // Group by WBS: P6 keeps the WBS tree, hides branches with nothing shown and sorts activities inside each node.
   const kids = new Map<string | null, typeof s.wbs>();
-  for (const w of s.wbs) (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
-  for (const list of kids.values()) list.sort(o.sortBandsAlpha ? (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true }) : (a, b) => a.seq - b.seq || a.code.localeCompare(b.code, undefined, { numeric: true }));
+  for (const w of s.wbs)
+    (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
+  for (const list of kids.values())
+    list.sort(
+      o.sortBandsAlpha
+        ? (a, b) => a.code.localeCompare(b.code, undefined, { numeric: true })
+        : (a, b) =>
+            a.seq - b.seq ||
+            a.code.localeCompare(b.code, undefined, { numeric: true }),
+    );
   const wbsIds = new Set(s.wbs.map((w) => w.id));
   const acts = new Map<string | null, { a: Activity; dim: boolean }[]>();
   for (const k of keep) {
     const w = k.a.wbsId && wbsIds.has(k.a.wbsId) ? k.a.wbsId : null;
     (acts.get(w) ?? acts.set(w, []).get(w)!).push(k);
   }
-  const filtered = o.filterMode === "replace" && (text !== "" || o.filters.length > 0 || !!o.quick);
+  const filtered =
+    o.filterMode === "replace" &&
+    (text !== "" || o.filters.length > 0 || !!o.quick);
   const dropEmpty = filtered || !!o.hideEmpty;
   const toLevel = o.wbsToLevel && o.wbsToLevel > 0 ? o.wbsToLevel : Infinity;
-  const subtreeActs = (id: string): { a: Activity; dim: boolean }[] => [...(acts.get(id) ?? []), ...(kids.get(id) ?? []).flatMap((w) => subtreeActs(w.id))];
+  const subtreeActs = (id: string): { a: Activity; dim: boolean }[] => [
+    ...(acts.get(id) ?? []),
+    ...(kids.get(id) ?? []).flatMap((w) => subtreeActs(w.id)),
+  ];
   const then = o.thenBy ?? [];
 
   // Returns [start, finish, count] for the subtree, emitting rows as it goes.
-  const visit = (parent: string | null, depth: number): [number, number, number] => {
+  const visit = (
+    parent: string | null,
+    depth: number,
+  ): [number, number, number] => {
     let st = Infinity;
     let fi = -Infinity;
     let n = 0;
-    const own = parent !== null && depth >= toLevel ? subtreeActs(parent) : acts.get(parent) ?? [];
+    const own =
+      parent !== null && depth >= toLevel
+        ? subtreeActs(parent)
+        : (acts.get(parent) ?? []);
     if (own.length) {
-      const [s1, f1, n1] = groupItems([...own], then, depth, `${parent ?? "root"}|`);
+      const [s1, f1, n1] = groupItems(
+        [...own],
+        then,
+        depth,
+        `${parent ?? "root"}|`,
+      );
       st = s1;
       fi = f1;
       n = n1;
@@ -184,7 +302,20 @@ export function buildP6Rows(s: Schedule, fields: Map<string, FieldDef>, c: Field
     if (parent !== null && depth >= toLevel) return [st, fi, n];
     for (const w of kids.get(parent) ?? []) {
       const idx = rows.length;
-      rows.push({ kind: "band", id: w.id, depth, label: bandText("WBS", o.wbsPathLabels ? c.wbsPath(w.id) : w.code, w.name), start: null, finish: null, count: 0, wbsId: w.id });
+      rows.push({
+        kind: "band",
+        id: w.id,
+        depth,
+        label: bandText(
+          "WBS",
+          o.wbsPathLabels ? c.wbsPath(w.id) : w.code,
+          w.name,
+        ),
+        start: null,
+        finish: null,
+        count: 0,
+        wbsId: w.id,
+      });
       const before = rows.length;
       const [s2, f2, n2] = visit(w.id, depth + 1);
       if (dropEmpty && n2 === 0) {

@@ -23,9 +23,15 @@ const TYPE_OUT: Record<Activity["type"], string> = {
   "wbs-summary": "TT_WBS",
   "resource-dependent": "TT_Rsrc",
 };
-const STATUS_OUT: Record<Activity["status"], string> = { "not-started": "TK_NotStart", "in-progress": "TK_Active", complete: "TK_Complete" };
+const STATUS_OUT: Record<Activity["status"], string> = {
+  "not-started": "TK_NotStart",
+  "in-progress": "TK_Active",
+  complete: "TK_Complete",
+};
 const REL_OUT = { FS: "PR_FS", SS: "PR_SS", FF: "PR_FF", SF: "PR_SF" } as const;
-const CONSTRAINT_OUT = Object.fromEntries(Object.entries(CONSTRAINT_MAP).map(([k, v]) => [v, k])) as Record<string, string>;
+const CONSTRAINT_OUT = Object.fromEntries(
+  Object.entries(CONSTRAINT_MAP).map(([k, v]) => [v, k]),
+) as Record<string, string>;
 
 export function formatXerDate(t: number | null | undefined): string {
   if (t === null || t === undefined) return "";
@@ -34,7 +40,8 @@ export function formatXerDate(t: number | null | undefined): string {
   return `${d.getUTCFullYear()}-${p(d.getUTCMonth() + 1)}-${p(d.getUTCDate())} ${p(d.getUTCHours())}:${p(d.getUTCMinutes())}`;
 }
 
-const hrs = (h: number | null | undefined) => (h === null || h === undefined ? "" : String(Math.round(h * 100) / 100));
+const hrs = (h: number | null | undefined) =>
+  h === null || h === undefined ? "" : String(Math.round(h * 100) / 100);
 
 function nextId(rows: Record<string, string>[], key: string): () => string {
   let max = 0;
@@ -46,7 +53,10 @@ function nextId(rows: Record<string, string>[], key: string): () => string {
 }
 
 function minimalTables(s: Schedule): XerTables {
-  const cal = s.calendars?.find((c) => c.id === s.defaultCalendarId) ?? s.calendars?.[0] ?? standardCalendar("1");
+  const cal =
+    s.calendars?.find((c) => c.id === s.defaultCalendarId) ??
+    s.calendars?.[0] ??
+    standardCalendar("1");
   const calendars = (s.calendars?.length ? s.calendars : [cal]).map((c) => ({
     clndr_id: c.id,
     default_flag: c.id === cal.id ? "Y" : "N",
@@ -70,11 +80,21 @@ function minimalTables(s: Schedule): XerTables {
         proj_short_name: s.projectCode,
         clndr_id: cal.id,
         last_recalc_date: formatXerDate(s.dataDate),
-        plan_start_date: formatXerDate(Math.min(...s.activities.map((a) => a.start ?? Infinity))),
+        plan_start_date: formatXerDate(
+          Math.min(...s.activities.map((a) => a.start ?? Infinity)),
+        ),
       },
     ],
     PROJWBS: [
-      { wbs_id: `${s.projectId}-root`, proj_id: s.projectId, parent_wbs_id: "", wbs_short_name: s.projectCode, wbs_name: s.projectName, seq_num: "0", proj_node_flag: "Y" },
+      {
+        wbs_id: `${s.projectId}-root`,
+        proj_id: s.projectId,
+        parent_wbs_id: "",
+        wbs_short_name: s.projectCode,
+        wbs_name: s.projectName,
+        seq_num: "0",
+        proj_node_flag: "Y",
+      },
       ...s.wbs.map((w) => ({
         wbs_id: w.id,
         proj_id: s.projectId,
@@ -91,15 +111,22 @@ function minimalTables(s: Schedule): XerTables {
 }
 
 export function scheduleToXerTables(s: Schedule): XerTables {
-  const t: XerTables = s.sourceXer ? structuredClone(s.sourceXer) : minimalTables(s);
+  const t: XerTables = s.sourceXer
+    ? structuredClone(s.sourceXer)
+    : minimalTables(s);
   t.TASK ??= [];
   t.TASKPRED ??= [];
   const projId = s.projectId;
-  const rootWbs = (t.PROJWBS ?? []).find((w) => w.proj_id === projId && w.proj_node_flag === "Y")?.wbs_id ?? "";
+  const rootWbs =
+    (t.PROJWBS ?? []).find(
+      (w) => w.proj_id === projId && w.proj_node_flag === "Y",
+    )?.wbs_id ?? "";
   const defaultCal = s.defaultCalendarId ?? t.CALENDAR?.[0]?.clndr_id ?? "";
 
   const keep = new Set(s.activities.map((a) => a.id));
-  const existing = new Map(t.TASK.filter((r) => r.proj_id === projId).map((r) => [r.task_id, r]));
+  const existing = new Map(
+    t.TASK.filter((r) => r.proj_id === projId).map((r) => [r.task_id, r]),
+  );
   const template = t.TASK[0] ?? {};
   const newTaskId = nextId(t.TASK, "task_id");
 
@@ -118,9 +145,18 @@ export function scheduleToXerTables(s: Schedule): XerTables {
     let row = existing.get(a.id);
     if (!row) {
       row = Object.fromEntries(Object.keys(template).map((k) => [k, ""]));
-      const id = /^\d+$/.test(a.id) && !t.TASK.some((r) => r.task_id === a.id) ? a.id : newTaskId();
+      const id =
+        /^\d+$/.test(a.id) && !t.TASK.some((r) => r.task_id === a.id)
+          ? a.id
+          : newTaskId();
       idMap.set(a.id, id);
-      Object.assign(row, { task_id: id, proj_id: projId, guid: "", duration_type: "DT_FixedDUR2", complete_pct_type: "CP_Phys" });
+      Object.assign(row, {
+        task_id: id,
+        proj_id: projId,
+        guid: "",
+        duration_type: "DT_FixedDUR2",
+        complete_pct_type: "CP_Phys",
+      });
       t.TASK.push(row);
     } else idMap.set(a.id, a.id);
     const started = a.actualStart !== null;
@@ -130,10 +166,24 @@ export function scheduleToXerTables(s: Schedule): XerTables {
       task_code: a.code,
       task_name: a.name,
       task_type: TYPE_OUT[a.type],
+      ...(a.levelingPriority
+        ? {
+            priority_type: [
+              "",
+              "PT_Top",
+              "PT_High",
+              "PT_Normal",
+              "PT_Low",
+              "PT_Lowest",
+            ][a.levelingPriority],
+          }
+        : {}),
       status_code: STATUS_OUT[a.status],
       phys_complete_pct: String(Math.round(a.percentComplete)),
       target_drtn_hr_cnt: hrs(a.originalDurationHours),
-      remain_drtn_hr_cnt: hrs(a.status === "complete" ? 0 : a.remainingDurationHours),
+      remain_drtn_hr_cnt: hrs(
+        a.status === "complete" ? 0 : a.remainingDurationHours,
+      ),
       total_float_hr_cnt: hrs(a.totalFloatHours),
       free_float_hr_cnt: hrs(a.freeFloatHours),
       act_start_date: formatXerDate(a.actualStart),
@@ -142,10 +192,16 @@ export function scheduleToXerTables(s: Schedule): XerTables {
       early_end_date: formatXerDate(a.finish),
       late_start_date: formatXerDate(a.lateStart ?? null),
       late_end_date: formatXerDate(a.lateFinish ?? null),
-      restart_date: started && a.status !== "complete" ? formatXerDate(a.start) : row.restart_date ?? "",
-      reend_date: a.status !== "complete" ? formatXerDate(a.finish) : row.reend_date ?? "",
+      restart_date:
+        started && a.status !== "complete"
+          ? formatXerDate(a.start)
+          : (row.restart_date ?? ""),
+      reend_date:
+        a.status !== "complete"
+          ? formatXerDate(a.finish)
+          : (row.reend_date ?? ""),
       driving_path_flag: a.critical ? "Y" : "N",
-      cstr_type: a.constraint ? CONSTRAINT_OUT[a.constraint.type] ?? "" : "",
+      cstr_type: a.constraint ? (CONSTRAINT_OUT[a.constraint.type] ?? "") : "",
       cstr_date: formatXerDate(a.constraint?.date ?? null),
     });
     // New activities have no baseline in P6; give them their planned dates.
@@ -156,7 +212,12 @@ export function scheduleToXerTables(s: Schedule): XerTables {
   }
 
   // Relationships: rebuild this project's set, keeping ids where they exist.
-  const oldRels = new Map(t.TASKPRED.filter((r) => r.proj_id === projId).map((r) => [`${r.pred_task_id}|${r.task_id}|${r.pred_type}`, r]));
+  const oldRels = new Map(
+    t.TASKPRED.filter((r) => r.proj_id === projId).map((r) => [
+      `${r.pred_task_id}|${r.task_id}|${r.pred_type}`,
+      r,
+    ]),
+  );
   const relTemplate = t.TASKPRED[0] ?? {};
   const newRelId = nextId(t.TASKPRED, "task_pred_id");
   t.TASKPRED = t.TASKPRED.filter((r) => r.proj_id !== projId);
@@ -165,19 +226,34 @@ export function scheduleToXerTables(s: Schedule): XerTables {
     const succ = idMap.get(r.successorId);
     if (!pred || !succ) continue;
     const key = `${pred}|${succ}|${REL_OUT[r.type]}`;
-    const row = oldRels.get(key) ?? { ...Object.fromEntries(Object.keys(relTemplate).map((k) => [k, ""])), task_pred_id: newRelId() };
-    Object.assign(row, { task_id: succ, pred_task_id: pred, proj_id: projId, pred_proj_id: projId, pred_type: REL_OUT[r.type], lag_hr_cnt: hrs(r.lagHours) });
+    const row = oldRels.get(key) ?? {
+      ...Object.fromEntries(Object.keys(relTemplate).map((k) => [k, ""])),
+      task_pred_id: newRelId(),
+    };
+    Object.assign(row, {
+      task_id: succ,
+      pred_task_id: pred,
+      proj_id: projId,
+      pred_proj_id: projId,
+      pred_type: REL_OUT[r.type],
+      lag_hr_cnt: hrs(r.lagHours),
+    });
     t.TASKPRED.push(row);
   }
 
-  for (const p of t.PROJECT ?? []) if (p.proj_id === projId && s.dataDate !== null) p.last_recalc_date = formatXerDate(s.dataDate);
+  for (const p of t.PROJECT ?? [])
+    if (p.proj_id === projId && s.dataDate !== null)
+      p.last_recalc_date = formatXerDate(s.dataDate);
   writeDictionaries(t, s, idMap);
   return t;
 }
 
 /** Serialise tables to XER text (tab-delimited, CRLF). */
 export function writeXer(tables: XerTables, header?: string): string {
-  const out: string[] = [header ?? `ERMHDR\t21.12\t${formatXerDate(Date.now()).slice(0, 10)}\tProject\tadmin\tStratum\tdbxDatabaseNoName\tProject Management\tUSD`];
+  const out: string[] = [
+    header ??
+      `ERMHDR\t21.12\t${formatXerDate(Date.now()).slice(0, 10)}\tProject\tadmin\tStratum\tdbxDatabaseNoName\tProject Management\tUSD`,
+  ];
   const clean = (v: string | undefined) => (v ?? "").replace(/[\t\r\n]+/g, " ");
   for (const [name, rows] of Object.entries(tables)) {
     const seen = new Set<string>();
@@ -185,7 +261,8 @@ export function writeXer(tables: XerTables, header?: string): string {
     const fields = [...seen];
     if (!fields.length) continue;
     out.push(`%T\t${name}`, `%F\t${fields.join("\t")}`);
-    for (const r of rows) out.push(`%R\t${fields.map((f) => clean(r[f])).join("\t")}`);
+    for (const r of rows)
+      out.push(`%R\t${fields.map((f) => clean(r[f])).join("\t")}`);
   }
   out.push("%E");
   return out.join("\r\n") + "\r\n";
@@ -193,11 +270,13 @@ export function writeXer(tables: XerTables, header?: string): string {
 
 /** Encode as Windows-1252 (what P6 writes and expects); unmappable characters become "?". */
 export function encodeWindows1252(text: string): Uint8Array {
-  const special: Record<number, number> = Object.fromEntries(Object.entries(CP1252_HIGH).map(([b, cp]) => [cp, Number(b)]));
+  const special: Record<number, number> = Object.fromEntries(
+    Object.entries(CP1252_HIGH).map(([b, cp]) => [cp, Number(b)]),
+  );
   const out = new Uint8Array(text.length);
   for (let i = 0; i < text.length; i++) {
     const c = text.charCodeAt(i);
-    out[i] = c < 0x80 || (c >= 0xa0 && c <= 0xff) ? c : special[c] ?? 0x3f;
+    out[i] = c < 0x80 || (c >= 0xa0 && c <= 0xff) ? c : (special[c] ?? 0x3f);
   }
   return out;
 }
@@ -209,15 +288,49 @@ export function exportXer(s: Schedule): Uint8Array {
 /** Plain CSV of the schedule for Excel. */
 export function exportCsv(s: Schedule): string {
   const wbs = new Map(s.wbs.map((w) => [w.id, w.code]));
-  const head = ["Activity ID", "Activity Name", "WBS", "Type", "Status", "% Complete", "Start", "Finish", "Baseline Start", "Baseline Finish", "Late Start", "Late Finish", "Total Float (h)", "Free Float (h)", "Critical", "Original Duration (h)", "Remaining Duration (h)"];
-  const q = (v: string) => (/[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v);
+  const head = [
+    "Activity ID",
+    "Activity Name",
+    "WBS",
+    "Type",
+    "Status",
+    "% Complete",
+    "Start",
+    "Finish",
+    "Baseline Start",
+    "Baseline Finish",
+    "Late Start",
+    "Late Finish",
+    "Total Float (h)",
+    "Free Float (h)",
+    "Critical",
+    "Original Duration (h)",
+    "Remaining Duration (h)",
+  ];
+  const q = (v: string) =>
+    /[",\n]/.test(v) ? `"${v.replace(/"/g, '""')}"` : v;
   const rows = s.activities.map((a) =>
     [
-      a.code, a.name, wbs.get(a.wbsId ?? "") ?? "", a.type, a.status, String(a.percentComplete),
-      formatXerDate(a.start), formatXerDate(a.finish), formatXerDate(a.baselineStart), formatXerDate(a.baselineFinish),
-      formatXerDate(a.lateStart ?? null), formatXerDate(a.lateFinish ?? null), hrs(a.totalFloatHours), hrs(a.freeFloatHours ?? null),
-      a.critical ? "Yes" : "No", hrs(a.originalDurationHours), hrs(a.remainingDurationHours),
-    ].map(q).join(","),
+      a.code,
+      a.name,
+      wbs.get(a.wbsId ?? "") ?? "",
+      a.type,
+      a.status,
+      String(a.percentComplete),
+      formatXerDate(a.start),
+      formatXerDate(a.finish),
+      formatXerDate(a.baselineStart),
+      formatXerDate(a.baselineFinish),
+      formatXerDate(a.lateStart ?? null),
+      formatXerDate(a.lateFinish ?? null),
+      hrs(a.totalFloatHours),
+      hrs(a.freeFloatHours ?? null),
+      a.critical ? "Yes" : "No",
+      hrs(a.originalDurationHours),
+      hrs(a.remainingDurationHours),
+    ]
+      .map(q)
+      .join(","),
   );
   return [head.join(","), ...rows].join("\r\n");
 }

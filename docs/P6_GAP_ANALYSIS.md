@@ -52,7 +52,7 @@ Last updated for release 0.6.
 | Relationships in the Activity Network | Done | Drag from one box to another to link (FS) |
 | Trace Logic | Done | |
 | Assign resources, recalc costs | Done | |
-| Assign by role, rate types, rate source | Partial | Assign Roles, staff from the Assignments window; one rate type |
+| Assign by role, rate types, rate source | Done (0.9) | Price/Unit 1-5 on resources, roles and dated rates; Rate Type and Rate Source (Resource / Role / Override) per assignment, used by Recalculate Assignment Costs; read from and written to XER |
 | Resource curves on assignments | Done | Spread usage profiles and recalculated costs |
 | Budgeting: budget log, funding sources, spending plan | Done | Budgets dialog per WBS: original, changes (approved / pending), distributed, funding, monthly spending and benefit plan against schedule cost |
 | Future period bucket planning | Done | Remaining units per future period on each assignment |
@@ -77,7 +77,8 @@ Last updated for release 0.6.
 | Check out / check in | Out of scope | |
 | Schedule, schedule automatically, multiple float paths, critical paths | Done | Schedule Options; "schedule automatically" from 0.6 |
 | Check Schedule | Done | DCMA 14-point |
-| Level resources, leveling priorities | Partial | Serial levelling by priority |
+| Resource-dependent activities | Done (0.9) | Scheduled and levelled on the driving resources' calendars (Drive Activity Dates per assignment); with several, the calendar with the fewest weekly hours governs |
+| Level resources, leveling priorities | Done (0.9) | Serial levelling with P6's multi-field Leveling Priorities grid (Activity Leveling Priority, float, dates, durations, project priority, activity codes, UDFs; ascending or descending); Activity Leveling Priority column, from and to XER |
 | Issues: add, responsibility, history | Done | Issues register with a change history and notes |
 | Thresholds and threshold monitoring | Done (0.6) | Monitor creates issues |
 | Risks: create, assign, respond, scoring matrix | Done | Risks register with score and level from the scoring matrix, heat map |
