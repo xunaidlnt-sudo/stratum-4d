@@ -23,6 +23,8 @@ export interface ClassicActions {
   schedule: () => void;
   exportXer: () => void;
   exportCsv: () => void;
+  /** Microsoft Project XML (MSPDI). */
+  exportMspdi: () => void;
   openFile: () => void;
   saveFile: () => void;
   sample: (kind: "gis" | "rc") => void;

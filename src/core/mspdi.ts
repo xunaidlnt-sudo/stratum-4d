@@ -14,6 +14,7 @@ import type {
   RelationshipType,
   Resource,
   Schedule,
+  StoredBaseline,
   WbsNode,
 } from "./types";
 
@@ -132,6 +133,8 @@ export function parseMspdi(xml: string): Schedule {
   const wbs: WbsNode[] = [];
   const activities: Activity[] = [];
   const relationships: Relationship[] = [];
+  // MS Project Baseline1-10 become stored baselines named "Baseline 1" … "Baseline 10".
+  const numbered = new Map<number, StoredBaseline["dates"]>();
   let seq = 0;
   for (const t of tasks) {
     const uid = str(t.UID);
@@ -150,9 +153,19 @@ export function parseMspdi(xml: string): Schedule {
     const dur = parseMspDuration(t.Duration);
     const ct = CONSTRAINT[str(t.ConstraintType)] ?? null;
     const totalSlack = n(t.TotalSlack); // tenths of a minute
+    const code = str(t.ID) ? `T${str(t.ID)}` : `UID${uid}`;
+    for (const bl of arr(t.Baseline)) {
+      const k = n(bl.Number);
+      if (k === null || k < 1 || k > 10) continue;
+      const d = numbered.get(k) ?? {};
+      d[code] = [parseMspDate(bl.Start), parseMspDate(bl.Finish)];
+      numbered.set(k, d);
+    }
+    const ttype = str(t.Type);
+    const manual = str(t.Manual) === "1";
     activities.push({
       id: uid,
-      code: str(t.ID) ? `T${str(t.ID)}` : `UID${uid}`,
+      code,
       name: str(t.Name),
       wbsId: parentId,
       type: milestone ? "milestone" : "task",
@@ -171,6 +184,15 @@ export function parseMspdi(xml: string): Schedule {
       calendarId: str(t.CalendarUID) && str(t.CalendarUID) !== "-1" ? str(t.CalendarUID) : null,
       codes: {},
       constraint: ct ? { type: ct, date: parseMspDate(t.ConstraintDate) } : null,
+      mspUid: Number(uid),
+      ...(manual ? { taskMode: "manual" as const } : {}),
+      ...(str(t.Active) === "0" ? { inactive: true } : {}),
+      ...(parseMspDate(t.Deadline) !== null ? { deadline: parseMspDate(t.Deadline) } : {}),
+      ...(n(t.Priority) !== null && n(t.Priority) !== 500 ? { priority: n(t.Priority)! } : {}),
+      ...(str(t.Estimated) === "1" ? { estimated: true } : {}),
+      ...(str(t.HideBar) === "1" ? { hideBar: true } : {}),
+      ...(str(t.Notes) ? { notes: str(t.Notes) } : {}),
+      ...(ttype === "1" ? { durationType: "fixed-duration-units" as const } : ttype === "2" ? { durationType: "fixed-units" as const } : ttype === "0" ? { durationType: "fixed-units-time" as const } : {}),
     });
     for (const l of arr(t.PredecessorLink)) {
       const lagTenthsMin = n(l.LinkLag) ?? 0;
@@ -196,6 +218,13 @@ export function parseMspdi(xml: string): Schedule {
       type: str(r.Type) === "0" ? "material" : "labor",
       unit: str(r.Type) === "0" ? str(r.MaterialLabel) || "unit" : "h",
       pricePerUnit: n(r.StandardRate) ?? 0,
+      ...(str(r.Group) ? { group: str(r.Group) } : {}),
+      ...(str(r.EmailAddress) ? { email: str(r.EmailAddress) } : {}),
+      ...(n(r.OvertimeRate) ? { overtimeRate: n(r.OvertimeRate)! } : {}),
+      ...(n(r.CostPerUse) ? { costPerUse: n(r.CostPerUse)! } : {}),
+      ...(str(r.AccrueAt) === "1" ? { accrueAt: "start" as const } : str(r.AccrueAt) === "2" ? { accrueAt: "end" as const } : {}),
+      ...(str(r.Type) !== "0" && n(r.MaxUnits) !== null ? { maxUnitsPerHour: n(r.MaxUnits)! } : {}),
+      ...(str(r.CalendarUID) && str(r.CalendarUID) !== "-1" && calendars.some((c) => c.id === str(r.CalendarUID)) ? { calendarId: str(r.CalendarUID) } : {}),
     }));
   const resIds = new Set(resources.map((r) => r.id));
   const assignments: Assignment[] = arr(((project.Assignments as X) ?? {}).Assignment)
@@ -210,6 +239,7 @@ export function parseMspdi(xml: string): Schedule {
       budgetCost: n(a.Cost) ?? 0,
       actualCost: n(a.ActualCost) ?? 0,
       remainingCost: n(a.RemainingCost) ?? 0,
+      ...(n(a.Units) !== null ? { units: n(a.Units)! } : {}),
     }));
 
   return {
@@ -226,5 +256,15 @@ export function parseMspdi(xml: string): Schedule {
     assignments,
     sourceXer: null,
     sourceFormat: "mspdi",
+    ...(str(project.ScheduleFromStart) === "0" ? { scheduleFrom: "finish" as const, mustFinishBy: parseMspDate(project.FinishDate) } : {}),
+    ...(parseMspDate(project.StartDate) !== null ? { plannedStart: parseMspDate(project.StartDate) } : {}),
+    ...(str(project.NewTasksAreManual) === "1" ? { newTaskMode: "manual" as const } : {}),
+    ...(numbered.size
+      ? {
+          baselines: [...numbered]
+            .sort((p, q) => p[0] - q[0])
+            .map(([k, dates]) => ({ id: `msp-bl${k}`, name: `Baseline ${k}`, createdAt: new Date(0).toISOString(), dataDate: null, dates })),
+        }
+      : {}),
   };
 }

@@ -64,10 +64,14 @@ interface Node {
   /** Early start of the remaining work (equals ES unless in progress). */
   remES: number;
   fixed: boolean; // complete
+  /** MS Project manually scheduled: keeps its typed dates, still drives its successors. */
+  manual: boolean;
   milestone: "start" | "finish" | null;
 }
 
 const isDerived = (a: Activity) => a.type === "loe" || a.type === "wbs-summary";
+/** Manually scheduled (MS Project) and not yet started: dates stay as entered. */
+const isManual = (a: Activity) => a.taskMode === "manual" && a.start !== null && a.status === "not-started";
 
 function durationOf(a: Activity, cal: Calendar): number {
   if (a.type === "milestone" || a.type === "finish-milestone") return 0;
@@ -119,7 +123,8 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   const starts = schedule.activities.map((a) => a.actualStart ?? a.start).filter((x): x is number => x !== null);
   const dataDate = options.dataDate ?? schedule.dataDate ?? (starts.length ? Math.min(...starts) : Date.now());
 
-  const work = schedule.activities.filter((a) => !isDerived(a));
+  // Inactive tasks (MS Project) stay in the plan but take no part in it.
+  const work = schedule.activities.filter((a) => !isDerived(a) && !a.inactive);
   const nodes = new Map<string, Node>();
   for (const a of work) {
     const cal = calOf(a);
@@ -134,6 +139,7 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       LF: 0,
       remES: 0,
       fixed,
+      manual: !fixed && isManual(a),
       milestone: a.type === "milestone" ? "start" : a.type === "finish-milestone" ? "finish" : null,
     });
   }
@@ -182,6 +188,11 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
     if (n.fixed) {
       n.ES = n.remES = a.actualStart!;
       n.EF = a.actualFinish!;
+      continue;
+    }
+    if (n.manual) {
+      n.ES = n.remES = a.start!;
+      n.EF = n.milestone ? a.start! : a.finish !== null && a.finish >= a.start! ? a.finish : addWorkHours(cal, a.start!, n.dur);
       continue;
     }
     // Driving times from predecessors (lags on the predecessor calendar).
@@ -280,6 +291,8 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       }
     }
     const c = a.constraint;
+    // MS Project deadline: late finish is held to it, so a task past its deadline shows negative slack.
+    if (a.deadline != null) lf = Math.min(lf, a.deadline);
     if (c?.date != null) {
       if (c.type === "finish-on-or-before" || c.type === "finish-on" || c.type === "mandatory-finish") lf = Math.min(lf, c.date);
       if (c.type === "start-on-or-before" || c.type === "start-on" || c.type === "mandatory-start") lf = Math.min(lf, addWorkHours(cal, c.date, n.dur));
@@ -290,13 +303,15 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       continue;
     }
     n.LF = n.milestone ? lf : prevWorkEnd(cal, lf);
-    n.LS = n.milestone === "start" ? nextWorkStart(cal, n.LF) : subtractWorkHours(cal, n.LF, n.dur);
+    const manualDur = n.manual && !n.milestone ? workHoursBetween(cal, n.ES, n.EF) : n.dur;
+    n.LS = n.milestone === "start" ? nextWorkStart(cal, n.LF) : subtractWorkHours(cal, n.LF, manualDur);
     if (n.milestone) n.LS = n.LF;
   }
 
   // As-late-as-possible: push to the late dates.
   for (const n of nodes.values()) {
-    if (!n.fixed && n.a.constraint?.type === "as-late-as-possible" && n.a.actualStart === null) {
+    const alap = n.a.constraint?.type === "as-late-as-possible" || (schedule.scheduleFrom === "finish" && !n.a.constraint);
+    if (!n.fixed && !n.manual && alap && n.a.actualStart === null) {
       n.ES = n.LS;
       n.EF = n.LF;
     }

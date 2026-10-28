@@ -510,6 +510,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Import…", onClick: a.importSchedule },
         { label: "Import from P6 Connection…", onClick: a.importP6 },
         { label: "Export… (XER)", onClick: a.exportXer, disabled: none },
+        { label: "Export… (Microsoft Project XML)", onClick: a.exportMspdi, disabled: none },
         { label: "Export to Excel (.xlsx) – current layout", onClick: () => void exportLayoutXlsx(), disabled: none },
         { label: "Import from Excel…", onClick: () => P.open("excelImport"), disabled: none },
         { label: "Export to CSV", onClick: a.exportCsv, disabled: none },

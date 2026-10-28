@@ -9,6 +9,7 @@ import { gisModel, gisPaths, gisProfileFor, gisXer } from "../core/demoGis";
 import { applyRules } from "../core/linking";
 import { motionAt } from "../core/motion";
 import { parseMspdi } from "../core/mspdi";
+import { writeMspdi } from "../core/mspdiWrite";
 import { DEFAULT_PROFILES } from "../core/profiles";
 import { parseProject, serializeProject, type StratumProject } from "../core/project";
 import { computeStates, scheduleRange } from "../core/simulation";
@@ -646,7 +647,7 @@ function Workspace() {
     }
   };
 
-  const exportSchedule = (kind: "xer" | "csv") => {
+  const exportSchedule = (kind: "xer" | "csv" | "mspdi") => {
     const s = useStore.getState().schedule;
     if (!s) return;
     if (kind === "xer") {
@@ -656,6 +657,9 @@ function Workspace() {
           ? "XER exported. In P6 use File > Import > XER and choose 'Update Existing Project' to bring the dates back."
           : "XER exported as a new P6 project.",
       );
+    } else if (kind === "mspdi") {
+      download(`${s.projectCode}.xml`, writeMspdi(s), "application/xml");
+      store.setStatus("Saved as Microsoft Project XML. In MS Project use File › Open, choose XML Format, and open it as a new project.");
     } else {
       download(`${s.projectCode}.csv`, exportCsv(s), "text/csv");
       store.setStatus("CSV exported.");
@@ -764,6 +768,7 @@ function Workspace() {
         <div className="menu-body" onClick={(e) => (e.currentTarget.parentElement as HTMLDetailsElement).removeAttribute("open")}>
           <button onClick={() => exportSchedule("xer")} disabled={!schedule}>P6 XER</button>
           <button onClick={() => exportSchedule("csv")} disabled={!schedule}>CSV (Excel)</button>
+          <button onClick={() => exportSchedule("mspdi")} disabled={!schedule}>MS Project XML</button>
           <button onClick={snapshot}>Snapshot PNG</button>
         </div>
       </details>
@@ -938,6 +943,7 @@ function Workspace() {
     schedule: runSchedule,
     exportXer: () => exportSchedule("xer"),
     exportCsv: () => exportSchedule("csv"),
+    exportMspdi: () => exportSchedule("mspdi"),
     openFile: openProject,
     saveFile: saveProject,
     sample: (k) => loadDemo(k),

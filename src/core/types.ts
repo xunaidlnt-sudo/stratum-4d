@@ -66,6 +66,21 @@ export interface Activity {
   resumeDate?: number | null;
   /** Set by levelling: the start was delayed for resources. */
   leveledDelayHours?: number | null;
+  /** MS Project Task Mode: manually scheduled tasks keep the dates typed in; auto (default) are scheduled by logic. */
+  taskMode?: "auto" | "manual";
+  /** MS Project Deadline: does not move the task, but late finish is held to it and a late task is flagged. */
+  deadline?: number | null;
+  /** MS Project Priority, 0-1000 (default 500); used by levelling. */
+  priority?: number;
+  /** MS Project Inactivate: kept in the plan but not scheduled and with no effect on other tasks. */
+  inactive?: boolean;
+  /** MS Project Estimated duration (shown with a "?"). */
+  estimated?: boolean;
+  /** MS Project Display on Timeline / Hide Bar. */
+  onTimeline?: boolean;
+  hideBar?: boolean;
+  /** Unique ID in MS Project (kept for MSPDI round trips). */
+  mspUid?: number;
 }
 
 export interface ActivityStep {
@@ -129,6 +144,12 @@ export interface Resource {
   codes?: Record<string, string>;
   /** Resource calendar (P6 resource Details › Calendar); null uses the project default. */
   calendarId?: string | null;
+  /** MS Project Resource Sheet fields. */
+  group?: string;
+  overtimeRate?: number;
+  costPerUse?: number;
+  accrueAt?: "start" | "end" | "prorated";
+  email?: string;
 }
 
 export interface Assignment {
@@ -155,6 +176,8 @@ export interface Assignment {
   rateType?: number;
   /** P6 Rate Source: price from the resource, the role, or the override price. */
   rateSource?: "resource" | "role" | "override";
+  /** MS Project assignment Units (1 = 100%). */
+  units?: number;
   /** Price per unit used when rateSource is "override". */
   priceOverride?: number;
 }
@@ -240,6 +263,10 @@ export interface Schedule {
   /** Original XER tables, kept so an exported XER round-trips everything Stratum does not edit. */
   sourceXer?: Record<string, Record<string, string>[]> | null;
   sourceFormat?: "xer" | "mspdi" | "stratum" | "p6-eppm" | "p6-db";
+  /** MS Project: mode for new tasks (status bar "New Tasks : Auto Scheduled"). */
+  newTaskMode?: "auto" | "manual";
+  /** MS Project Project Information: schedule from the project start (default) or back from the finish. */
+  scheduleFrom?: "start" | "finish";
   /** Where the schedule was pulled from, for refresh and push-back. */
   p6Source?: { connectionId: string; projectObjectId: string; kind: string; pulledAt: string } | null;
   /** The baseline the baseline dates came from, when assigned from another schedule. */
