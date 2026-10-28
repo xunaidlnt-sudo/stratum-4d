@@ -30,6 +30,7 @@ import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
+import { ExpenseCategoriesDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
@@ -1682,83 +1683,6 @@ function PageSetupDialog() {
 
 // ---------------------------------------------------------------- project details, spelling, periods
 
-function ProjectDialog() {
-  const schedule = useStore((s) => s.schedule);
-  const commit = useStore((s) => s.commit);
-  if (!schedule) return null;
-  const up = (patch: Partial<typeof schedule>) => commit({ ...schedule, ...patch }, "Project details");
-  const counts = {
-    total: schedule.activities.length,
-    ns: schedule.activities.filter((a) => a.status === "not-started").length,
-    ip: schedule.activities.filter((a) => a.status === "in-progress").length,
-    c: schedule.activities.filter((a) => a.status === "complete").length,
-  };
-  return (
-    <Shell title="Project Details" onClose={close}>
-      <div className="grid2">
-        <label>
-          Project ID <input value={schedule.projectCode} onChange={(e) => up({ projectCode: e.target.value })} />
-        </label>
-        <label>
-          Project Name <input value={schedule.projectName} onChange={(e) => up({ projectName: e.target.value })} />
-        </label>
-        <label>
-          Default calendar
-          <select value={schedule.defaultCalendarId ?? ""} onChange={(e) => up({ defaultCalendarId: e.target.value || null })}>
-            {(schedule.calendars ?? []).map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          Data date <input value={fmtDate(schedule.dataDate)} disabled />
-        </label>
-        <label>
-          Planned start
-          <input type="date" value={schedule.plannedStart != null ? new Date(schedule.plannedStart).toISOString().slice(0, 10) : ""} onChange={(e) => up({ plannedStart: e.target.value ? Date.parse(`${e.target.value}T08:00:00Z`) : null })} />
-        </label>
-        <label title="Late dates are calculated back from this date when it is set (F9).">
-          Must finish by
-          <input type="date" value={schedule.mustFinishBy != null ? new Date(schedule.mustFinishBy).toISOString().slice(0, 10) : ""} onChange={(e) => up({ mustFinishBy: e.target.value ? Date.parse(`${e.target.value}T17:00:00Z`) : null })} />
-        </label>
-      </div>
-      <table className="props">
-        <tbody>
-          <tr>
-            <td>Activities</td>
-            <td>
-              {counts.total.toLocaleString()} ({counts.ns} not started, {counts.ip} in progress, {counts.c} completed)
-            </td>
-          </tr>
-          <tr>
-            <td>Relationships</td>
-            <td>{schedule.relationships.length.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td>WBS elements</td>
-            <td>{schedule.wbs.length.toLocaleString()}</td>
-          </tr>
-          <tr>
-            <td>Resources / assignments</td>
-            <td>
-              {(schedule.resources ?? []).length} / {(schedule.assignments ?? []).length}
-            </td>
-          </tr>
-          <tr>
-            <td>Stored baselines</td>
-            <td>{(schedule.baselines ?? []).length}</td>
-          </tr>
-          <tr>
-            <td>Source</td>
-            <td>{schedule.sourceFormat ?? "—"}</td>
-          </tr>
-        </tbody>
-      </table>
-    </Shell>
-  );
-}
 
 /** Spell check uses the browser's own dictionary on every activity name shown. */
 function SpellingDialog() {
@@ -1889,7 +1813,10 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     assignRes: () => <AssignResDialog />,
     assignCode: () => <AssignCodeDialog />,
     pageSetup: () => <PageSetupDialog />,
-    projectInfo: () => <ProjectDialog />,
+    projectInfo: () => <ProjectDetailsDialog />,
+    projectCodes: () => <ProjectCodesDialog />,
+    resourceCodes: () => <ResourceCodesDialog />,
+    expenseCategories: () => <ExpenseCategoriesDialog />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,

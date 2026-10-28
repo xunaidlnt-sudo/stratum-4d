@@ -47,12 +47,20 @@ const DAY = 86_400_000;
 export type DateFormat = "dd-Mmm-yy" | "dd-Mmm-yyyy" | "dd/mm/yyyy" | "mm/dd/yyyy" | "yyyy-mm-dd";
 
 /** P6 User Preferences that change how values read: date format, time units and decimals. */
-export const displayPrefs: { dateFormat: DateFormat; showTime: boolean; durationUnit: "d" | "h"; decimals: number } = {
+export const displayPrefs: { dateFormat: DateFormat; showTime: boolean; durationUnit: "d" | "h"; decimals: number; currency: string; currencyDecimals: number } = {
   dateFormat: "dd-Mmm-yy",
   showTime: false,
   durationUnit: "d",
   decimals: 1,
+  currency: "",
+  currencyDecimals: 0,
 };
+
+/** A cost in the user's currency (P6 User Preferences › Currency). */
+export function fmtMoney(v: number): string {
+  const n = v.toLocaleString(undefined, { minimumFractionDigits: displayPrefs.currencyDecimals, maximumFractionDigits: displayPrefs.currencyDecimals });
+  return displayPrefs.currency ? `${displayPrefs.currency} ${n}` : n;
+}
 export function setDisplayPrefs(p: Partial<typeof displayPrefs>) {
   Object.assign(displayPrefs, p);
 }
@@ -509,6 +517,7 @@ export function fieldText(f: FieldDef, a: Activity, c: FieldCtx): string {
   if (f.type === "date") return fmtDay(v as number);
   if (f.type === "bool") return v ? "Yes" : "";
   if (f.type === "percent") return `${v}%`;
+  if (f.type === "number" && f.group === "Costs") return fmtMoney(Number(v));
   if (f.type === "number") return Number(v).toLocaleString(undefined, { maximumFractionDigits: 2 });
   return String(v);
 }

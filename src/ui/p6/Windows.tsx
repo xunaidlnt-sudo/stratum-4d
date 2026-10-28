@@ -172,6 +172,7 @@ export function ResourcesWindow() {
   for (const x of s.assignments ?? []) used.set(x.resourceId, (used.get(x.resourceId) ?? 0) + 1);
   const set = (id: string, patch: Partial<Resource>) => commit({ ...s, resources: res.map((r) => (r.id === id ? { ...r, ...patch } : r)) }, `Resource ${id}`);
   const roleCode = new Map((s.roles ?? []).map((r) => [r.id, r.code]));
+  const codeTypes = s.resourceCodeTypes ?? [];
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
@@ -189,7 +190,11 @@ export function ResourcesWindow() {
               <td>Unit</td>
               <td>Price / Unit</td>
               <td title="For levelling: how many units can work at once (crew size). Empty = no limit.">Max Units / h</td>
+              <td>Calendar</td>
               <td>Shift</td>
+              {codeTypes.map((t) => (
+                <td key={t.name}>{t.name}</td>
+              ))}
               <td>Roles</td>
               <td>Rates</td>
               <td>Assignments</td>
@@ -222,6 +227,16 @@ export function ResourcesWindow() {
                   <input className="cell num" type="number" min={0} step={0.5} placeholder="no limit" value={r.maxUnitsPerHour ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} style={{ width: 80 }} />
                 </td>
                 <td>
+                  <select value={r.calendarId ?? ""} onChange={(e) => set(r.id, { calendarId: e.target.value || null })} aria-label={`Calendar of ${r.code}`}>
+                    <option value="">Project default</option>
+                    {(s.calendars ?? []).map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
                   <select value={r.shiftId ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { shiftId: e.target.value || null })}>
                     <option value="">–</option>
                     {(s.shifts ?? []).map((x) => (
@@ -231,6 +246,18 @@ export function ResourcesWindow() {
                     ))}
                   </select>
                 </td>
+                {codeTypes.map((t) => (
+                  <td key={t.name}>
+                    <select value={r.codes?.[t.name] ?? ""} onChange={(e) => set(r.id, { codes: { ...(r.codes ?? {}), [t.name]: e.target.value } })} aria-label={`${t.name} of ${r.code}`}>
+                      <option value="">–</option>
+                      {t.values.map((v) => (
+                        <option key={v.value} value={v.value}>
+                          {v.value}
+                        </option>
+                      ))}
+                    </select>
+                  </td>
+                ))}
                 <td title={(r.roleIds ?? []).map((id) => roleCode.get(id)).join(", ")}>{(r.roleIds ?? []).map((id) => roleCode.get(id)).filter(Boolean).join(", ") || <span className="muted">–</span>}</td>
                 <td>
                   <button className="link" onClick={() => openRates(r.id)}>
@@ -475,6 +502,16 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
           {items.length} {def.title.toLowerCase()}
         </span>
       </div>
+      <datalist id="p6-exp-cats">
+        {(s.expenseCategories ?? []).map((c) => (
+          <option key={c} value={c} />
+        ))}
+      </datalist>
+      <datalist id="p6-accrual">
+        <option value="Start of Activity" />
+        <option value="End of Activity" />
+        <option value="Uniform Over Activity" />
+      </datalist>
       <div className="p6-win-body">
         <table className="p6-grid sticky">
           <thead>
@@ -497,7 +534,12 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
               <tr key={it.id}>
                 {def.cols.map((c) => (
                   <td key={c}>
-                    <input className="cell" value={it.values[c] ?? ""} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)} />
+                    <input
+                      className="cell"
+                      list={kind === "expenses" && c === "Category" ? "p6-exp-cats" : kind === "expenses" && c === "Accrual Type" ? "p6-accrual" : undefined}
+                      value={it.values[c] ?? ""}
+                      onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)}
+                    />
                   </td>
                 ))}
                 {kind === "risks" &&
@@ -559,7 +601,8 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState({ x: 20, y: 20, k: 1 });
   const [size, setSize] = useState({ w: 600, h: 400 });
-  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean } | null>(null);
+  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; from: string | null } | null>(null);
+  const [rubber, setRubber] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const layout = useMemo(() => (schedule ? networkLayout(schedule, only ?? undefined) : null), [schedule, only]);
   const byId = useMemo(() => new Map((schedule?.activities ?? []).map((a) => [a.id, a])), [schedule]);
 
@@ -671,25 +714,49 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
         const k = Math.max(0.08, Math.min(3, view.k * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
         setView({ k, x: cx - ((cx - view.x) * k) / view.k, y: cy - ((cy - view.y) * k) / view.k });
       }}
-      onMouseDown={(e) => (drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false })}
+      onMouseDown={(e) => {
+        const r = wrap.current!.getBoundingClientRect();
+        // Dragging from an activity box draws a relationship (P6); dragging empty space pans.
+        drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, from: hit(e.clientX - r.left, e.clientY - r.top) };
+      }}
       onMouseMove={(e) => {
         const d = drag.current;
         if (!d) return;
         if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true;
-        setView({ ...view, x: d.vx + e.clientX - d.x, y: d.vy + e.clientY - d.y });
+        const r = wrap.current!.getBoundingClientRect();
+        if (d.from) {
+          if (d.moved) setRubber({ x1: d.x - r.left, y1: d.y - r.top, x2: e.clientX - r.left, y2: e.clientY - r.top });
+        } else setView({ ...view, x: d.vx + e.clientX - d.x, y: d.vy + e.clientY - d.y });
       }}
       onMouseUp={(e) => {
         const d = drag.current;
         drag.current = null;
-        if (d && !d.moved) {
-          const r = wrap.current!.getBoundingClientRect();
-          const id = hit(e.clientX - r.left, e.clientY - r.top);
+        setRubber(null);
+        if (!d) return;
+        const r = wrap.current!.getBoundingClientRect();
+        const id = hit(e.clientX - r.left, e.clientY - r.top);
+        if (!d.moved) {
           if (id) selectActivity(id);
+          return;
+        }
+        if (d.from && id && id !== d.from) {
+          const st = useStore.getState();
+          const s = st.schedule!;
+          const p = byId.get(d.from)!;
+          const q = byId.get(id)!;
+          if (s.relationships.some((x) => x.predecessorId === d.from && x.successorId === id)) return st.setStatus(`${p.code} already drives ${q.code}.`);
+          st.commit({ ...s, relationships: [...s.relationships, { id: uid("rel"), predecessorId: d.from, successorId: id, type: "FS", lagHours: 0 }] }, `Link ${p.code} → ${q.code}`);
+          st.setStatus(`Linked ${p.code} → ${q.code} (FS). Press F9 to reschedule.`);
         }
       }}
-      onMouseLeave={() => (drag.current = null)}
+      onMouseLeave={() => ((drag.current = null), setRubber(null))}
     >
       <canvas ref={canvas} style={{ width: size.w, height: size.h }} />
+      {rubber && (
+        <svg className="p6-net-rubber" width={size.w} height={size.h} aria-hidden>
+          <line x1={rubber.x1} y1={rubber.y1} x2={rubber.x2} y2={rubber.y2} stroke="var(--accent)" strokeWidth={2} strokeDasharray="5 4" />
+        </svg>
+      )}
       <div className="p6-net-tools">
         <button onClick={() => setView({ ...view, k: Math.min(3, view.k * 1.3) })}>+</button>
         <button onClick={() => setView({ ...view, k: Math.max(0.08, view.k / 1.3) })}>−</button>

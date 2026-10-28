@@ -7,7 +7,7 @@
 import { addWorkHours, nextWorkStart, standardCalendar, workHoursBetween } from "./calendar";
 import { allCurves, costOverTime, curveCumulative } from "./resources";
 import { fieldCtx, fieldsFor, filterMatches, type FieldCtx, type FieldDef, type FilterDef } from "./fields";
-import type { Activity, Assignment, Calendar, Relationship, RelationshipType, Schedule, StoredBaseline } from "./types";
+import type { Activity, ActivityType, Assignment, Calendar, Relationship, RelationshipType, ProjectDefaults, Schedule, StoredBaseline } from "./types";
 
 const DAY = 86_400_000;
 export const uid = (p: string) => `${p}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
@@ -671,4 +671,38 @@ export function monitorThresholds(s: Schedule): { schedule: Schedule; created: n
     }
   }
   return { schedule: created ? { ...s, registers: { ...(s.registers ?? {}), issues } } : s, created, checked };
+}
+
+// ---------------------------------------------------------------- project defaults for new activities
+
+export const DEFAULT_PROJECT_DEFAULTS: ProjectDefaults = {
+  durationType: "fixed-duration-units-time",
+  pctType: "duration",
+  activityType: "task",
+  calendarId: null,
+  durationDays: 5,
+  idPrefix: "A",
+  idSuffix: 1000,
+  idIncrement: 10,
+  incrementFromSelected: true,
+};
+
+/** Activity ID, type, calendar and duration for a new activity, from the project's Defaults (P6 Project Details › Defaults). */
+export function newActivityDefaults(s: Schedule, selected: Activity | null): { code: string; type: ActivityType; calendarId: string | null; durationType: Activity["durationType"]; pctType: Activity["pctType"]; durationDays: number } {
+  const d = { ...DEFAULT_PROJECT_DEFAULTS, ...(s.projectDefaults ?? {}) };
+  const used = new Set(s.activities.map((a) => a.code));
+  let code: string;
+  if (d.incrementFromSelected && selected) code = nextCode(used, selected.code, d.idIncrement);
+  else {
+    // After the highest number already used with this prefix, else the starting number.
+    const re = new RegExp(`^${d.idPrefix.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}(\\d+)$`);
+    let hi = -Infinity;
+    let width = String(d.idSuffix).length;
+    for (const c of used) {
+      const m = re.exec(c);
+      if (m && Number(m[1]) > hi) (hi = Number(m[1])), (width = m[1].length);
+    }
+    code = Number.isFinite(hi) ? nextCode(used, `${d.idPrefix}${String(hi).padStart(width, "0")}`, d.idIncrement) : used.has(`${d.idPrefix}${d.idSuffix}`) ? nextCode(used, `${d.idPrefix}${d.idSuffix}`, d.idIncrement) : `${d.idPrefix}${d.idSuffix}`;
+  }
+  return { code, type: d.activityType, calendarId: selected?.calendarId ?? d.calendarId ?? s.defaultCalendarId ?? null, durationType: d.durationType, pctType: d.pctType, durationDays: d.durationDays };
 }

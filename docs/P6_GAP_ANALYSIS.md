@@ -17,7 +17,7 @@ Last updated for release 0.6.
 | Enter the same text in multiple rows (Fill Down) | Done | Ctrl+E |
 | Copy and paste a range of cells, paste from Excel | Done | Tab-separated cells both ways |
 | Hot keys and shortcut keys | Done | Ins, Del, F2, F9, F10, Ctrl+C/X/V/Z/Y/A/E/L/F |
-| User preferences: time units, dates, currency, codes | Partial | Durations in days or hours, decimals, date formats, time; currency symbol not yet |
+| User preferences: time units, dates, currency, codes | Done | Time Units, Dates and Currency tabs (symbol and decimals on cost columns) |
 | Startup filters, financial periods, resource analysis options | Missing | |
 | Wizards | Partial | Setup wizard; no new-activity / new-resource wizards |
 
@@ -28,16 +28,16 @@ Last updated for release 0.6.
 | EPS: structure, add/copy/delete nodes, project status | Done | EPS tree in the Projects window (Set EPS); open any set of projects together, scheduled as one network with cross-project relationships; Commit saves each back |
 | OBS | Done | OBS tree, project and WBS responsible managers (inherited down the WBS), Responsible Manager column; imported from XER |
 | Resources: add, details, shifts, multiple rates | Done | Rates and max units over time, shifts with per-period limits (used in costs and levelling); imported from XER RSRCRATE |
-| Roles: rates and limits over time, assign to activities and resources | Partial | Roles dictionary with price and limit, resources per role, role assignments and staffing; no role rates over time |
+| Roles: rates and limits over time, assign to activities and resources | Done | General, Resources, Units & Prices (prices and limits over time); role assignments and staffing; Del./Merge |
 | Resource curves | Done | 8 standard curves plus custom 21-point curves |
 | WBS: add, edit, copy, move, indent | Done | WBS window |
 | WBS weighted milestones, categories, status, earned value settings | Missing | |
-| Project codes, resource codes | Missing | Activity codes done |
+| Project codes, resource codes | Done | Project Codes and Resource Codes dictionaries; Project Details › Codes, Resources window columns; imported from XER |
 | Global / EPS / project activity codes and colours | Partial | Project-level codes with values, descriptions, colours |
 | User-defined fields, data types, indicator UDFs | Partial | Activity UDFs with types; no indicator icons or formulas |
 | Calendars: project, global, default hours per period | Done | Calendars dialog: work week, holidays, exceptions, hours per day |
-| Resource calendars | Missing | |
-| Project details: dates, must finish by, status, defaults | Partial | Planned start, must finish by, default calendar, name and ID |
+| Resource calendars | Done | Calendar per resource, used by levelling; imported from XER |
+| Project details: dates, must finish by, status, defaults | Done | General, Dates (anticipated), Defaults (duration/percent/activity type, calendar, Activity ID auto-numbering), Settings, Codes, Summary |
 
 ## Developing projects (Pro ch. 5)
 
@@ -49,14 +49,14 @@ Last updated for release 0.6.
 | Dissolve, renumber, copy/paste activities | Done | |
 | Milestones, float, summaries | Done | |
 | Relationships: predecessors, successors, in the Gantt chart | Done | Drag from bar to bar |
-| Relationships in the Activity Network | Partial | Shown; not drawn there |
+| Relationships in the Activity Network | Done | Drag from one box to another to link (FS) |
 | Trace Logic | Done | |
 | Assign resources, recalc costs | Done | |
 | Assign by role, rate types, rate source | Partial | Assign Roles, staff from the Assignments window; one rate type |
 | Resource curves on assignments | Done | Spread usage profiles and recalculated costs |
 | Budgeting: budget log, funding sources, spending plan | Done | Budgets dialog per WBS: original, changes (approved / pending), distributed, funding, monthly spending and benefit plan against schedule cost |
 | Future period bucket planning | Missing | |
-| Expenses and expense categories, accrual | Partial | Expenses register; costs included in cost columns from 0.6 |
+| Expenses and expense categories, accrual | Done | Expense Categories dictionary, accrual type, cost accounts; imported from XER PROJCOST |
 | Cost accounts | Done | Account tree, default account, assignment and expense booking, roll-up totals |
 | Top-down estimation | Missing | |
 | Notebooks and notebook topics | Done (0.6) | Notebook tab with topics |
@@ -97,7 +97,7 @@ Last updated for release 0.6.
 | Activity Network: display, layout, box templates | Partial | Canvas network; fixed box layout |
 | Usage profiles and spreadsheets | Done | |
 | Tracking layouts | Partial | Dashboards and Reports |
-| Grouping by field, hierarchy, WBS path; band formatting; hide empty bands | Partial | Field and WBS grouping; WBS-path labels from 0.6 |
+| Grouping by field, hierarchy, WBS path; band formatting; hide empty bands | Done | Several levels, To Level, grand totals, summaries only, hide if empty, font and colour per level |
 | Filters: default, custom, combine, lookahead | Done | Lookahead from 0.6 |
 | Summarizing | Out of scope | Summaries are computed live |
 | Publish project web site | Partial | Publish layout as HTML |
@@ -107,7 +107,7 @@ Last updated for release 0.6.
 
 | Topic | Status | Notes |
 |---|---|---|
-| Portfolios, capacity planning | Partial | Portfolio rows in dashboards |
+| Portfolios, capacity planning | Partial | Project Portfolios dialog and Projects window filter; no capacity planning |
 | Team Member status updates, timesheets, email statusing | Out of scope | |
 | Workflows, document repository and reviews | Out of scope | |
 | Risk scoring matrices, risk thresholds, response plans | Partial | Editable 5×5 matrix and thresholds; response text per risk, no response plan items |

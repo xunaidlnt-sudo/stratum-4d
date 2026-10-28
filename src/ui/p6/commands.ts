@@ -7,7 +7,7 @@ import { standardCalendar } from "../../core/calendar";
 import { fieldCtx, fieldsFor, fieldText } from "../../core/fields";
 import { parseTsv, pasteCells, toTsv } from "../../core/tableImport";
 import { useLayout } from "./layout";
-import { copyActivities, deleteActivities, dissolve, fillDown, linkActivities, nextCode, pasteActivities, uid, unlinkActivities } from "../../core/ops";
+import { copyActivities, deleteActivities, dissolve, fillDown, linkActivities, pasteActivities, uid, unlinkActivities, newActivityDefaults } from "../../core/ops";
 import type { Activity, RelationshipType } from "../../core/types";
 import { useStore } from "../store";
 
@@ -52,7 +52,10 @@ export type P6Dialog =
   | "riskMatrix"
   | "eps"
   | "portfolios"
-  | "scheduleRun";
+  | "scheduleRun"
+  | "projectCodes"
+  | "resourceCodes"
+  | "expenseCategories";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 
@@ -122,17 +125,20 @@ export function addActivity() {
   if (!s) return;
   const sel = s.activities.find((a) => a.id === st().selectedActivity) ?? null;
   const cals = s.calendars ?? [];
-  const cal = cals.find((c) => c.id === (sel?.calendarId ?? s.defaultCalendarId)) ?? cals[0] ?? standardCalendar();
+  const def = newActivityDefaults(s, sel);
+  const cal = cals.find((c) => c.id === def.calendarId) ?? cals[0] ?? standardCalendar();
   const hpd = cal.hoursPerDay || 8;
-  const used = new Set(s.activities.map((a) => a.code));
-  const code = nextCode(used, sel?.code ?? s.activities[s.activities.length - 1]?.code ?? "A1000");
+  const code = def.code;
+  const ms = def.type === "milestone" || def.type === "finish-milestone";
   const start = sel?.finish ?? s.dataDate ?? Date.now();
   const a: Activity = {
     id: uid("act"),
     code,
     name: "New Activity",
     wbsId: sel?.wbsId ?? s.wbs[0]?.id ?? null,
-    type: "task",
+    type: def.type,
+    durationType: def.durationType,
+    pctType: def.pctType,
     status: "not-started",
     percentComplete: 0,
     start,
@@ -142,10 +148,10 @@ export function addActivity() {
     actualStart: null,
     actualFinish: null,
     totalFloatHours: null,
-    originalDurationHours: 5 * hpd,
-    remainingDurationHours: 5 * hpd,
+    originalDurationHours: ms ? 0 : def.durationDays * hpd,
+    remainingDurationHours: ms ? 0 : def.durationDays * hpd,
     critical: false,
-    calendarId: sel?.calendarId ?? s.defaultCalendarId ?? null,
+    calendarId: def.calendarId,
     codes: {},
   };
   const relationships = sel ? [...s.relationships, { id: uid("rel"), predecessorId: sel.id, successorId: a.id, type: "FS" as RelationshipType, lagHours: 0 }] : s.relationships;

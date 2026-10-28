@@ -121,6 +121,10 @@ export interface Resource {
   shiftId?: string | null;
   /** Roles this resource can fill. */
   roleIds?: string[];
+  /** Resource code values by code type. */
+  codes?: Record<string, string>;
+  /** Resource calendar (P6 resource Details › Calendar); null uses the project default. */
+  calendarId?: string | null;
 }
 
 export interface Assignment {
@@ -264,12 +268,44 @@ export interface Schedule {
   eps?: string[];
   /** P6 strategic priority (1 highest – 10000, default 500). */
   strategicPriority?: number;
+  /** P6 project status. */
+  projectStatus?: "planned" | "active" | "inactive" | "what-if";
+  /** Anticipated start and finish (P6 Dates tab), used before the project is scheduled. */
+  anticipatedStart?: number | null;
+  anticipatedFinish?: number | null;
+  /** P6 Defaults tab: values new activities get, and Activity ID auto-numbering. */
+  projectDefaults?: ProjectDefaults;
+  /** Project code values, by project code type (P6 Project Details › Codes). */
+  projectCodes?: Record<string, string>;
+  /** Project code types that came with the project (e.g. from an XER). */
+  projectCodeTypes?: CodeType[];
+  /** P6 expense categories (Enterprise › Expense Categories). */
+  expenseCategories?: string[];
+  /** Resource code types (P6 Enterprise › Resource Codes); values sit on each resource. */
+  resourceCodeTypes?: CodeType[];
+  /** P6 Settings tab. */
+  projectSettings?: { wbsSeparator?: string; fiscalYearStartMonth?: number; evBaseline?: "project" | "bl2" | "bl3"; currency?: string };
   /** Projects open together: one entry per project in this combined view. */
   projects?: ProjectPart[];
   /** Relationships to activities of other projects, kept while the project is open alone. */
   externalRelationships?: ExternalRelationship[];
   /** Set on a reflection: the project it copies and the copy's starting point. */
   reflectionOf?: { dbId: string; code: string; createdAt: string } | null;
+}
+
+export interface ProjectDefaults {
+  durationType: NonNullable<Activity["durationType"]>;
+  pctType: NonNullable<Activity["pctType"]>;
+  activityType: ActivityType;
+  calendarId: string | null;
+  /** Original duration of a new activity, in days. */
+  durationDays: number;
+  /** Auto-numbering: prefix, starting number and increment. */
+  idPrefix: string;
+  idSuffix: number;
+  idIncrement: number;
+  /** Increment the ID from the selected activity instead of the last one. */
+  incrementFromSelected: boolean;
 }
 
 export interface ProjectPart {

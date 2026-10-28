@@ -12,11 +12,13 @@ import type {
   Assignment,
   BudgetChange,
   Calendar,
+  CodeType,
   ConstraintType,
   CostAccount,
   FundingAssignment,
   FundingSource,
   ObsNode,
+  RegisterItem,
   Relationship,
   RelationshipType,
   Resource,
@@ -272,6 +274,34 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
   const unitName = new Map((tables.UMEASURE ?? []).map((u) => [u.unit_id, u.unit_abbrev || u.unit_name]));
   const roleLinks = new Map<string, string[]>();
   for (const x of tables.RSRCROLE ?? []) (roleLinks.get(x.rsrc_id) ?? roleLinks.set(x.rsrc_id, []).get(x.rsrc_id)!).push(x.role_id);
+  // Resource codes (RCATTYPE / RCATVAL / RSRCRCAT) and project codes (PCATTYPE / PCATVAL / PROJPCAT).
+  const catTypes = (typeTable: string, idKey: string, nameKey: string, valTable: string, valTypeKey: string, valIdKey: string, shortKey: string, longKey: string) => {
+    const names = new Map((tables[typeTable] ?? []).map((t) => [t[idKey], t[nameKey] || t[idKey]]));
+    const vals = new Map<string, { type: string; value: string; description: string }>();
+    const types = new Map<string, CodeType>();
+    for (const v of tables[valTable] ?? []) {
+      const type = names.get(v[valTypeKey]);
+      if (!type) continue;
+      vals.set(v[valIdKey], { type, value: v[shortKey] || v[valIdKey], description: v[longKey] || "" });
+      const t = types.get(type) ?? (types.set(type, { name: type, values: [] }).get(type)!);
+      t.values.push({ value: v[shortKey] || v[valIdKey], description: v[longKey] || "" });
+    }
+    for (const n of names.values()) if (!types.has(n)) types.set(n, { name: n, values: [] });
+    return { types: [...types.values()], vals };
+  };
+  const rcat = catTypes("RCATTYPE", "rsrc_catg_type_id", "rsrc_catg_type", "RCATVAL", "rsrc_catg_type_id", "rsrc_catg_id", "rsrc_catg_short_name", "rsrc_catg_name");
+  const rsrcCodes = new Map<string, Record<string, string>>();
+  for (const x of tables.RSRCRCAT ?? []) {
+    const v = rcat.vals.get(x.rsrc_catg_id);
+    if (v) (rsrcCodes.get(x.rsrc_id) ?? rsrcCodes.set(x.rsrc_id, {}).get(x.rsrc_id)!)[v.type] = v.value;
+  }
+  const pcat = catTypes("PCATTYPE", "proj_catg_type_id", "proj_catg_type", "PCATVAL", "proj_catg_type_id", "proj_catg_id", "proj_catg_short_name", "proj_catg_name");
+  const projectCodes: Record<string, string> = {};
+  for (const x of tables.PROJPCAT ?? []) {
+    if (x.proj_id !== projId) continue;
+    const v = pcat.vals.get(x.proj_catg_id);
+    if (v) projectCodes[v.type] = v.value;
+  }
   const resources: Resource[] = (tables.RSRC ?? []).map((r) => {
     const rows = ratesOf.get(r.rsrc_id) ?? [];
     const levels = r.level_flag === "Y";
@@ -288,6 +318,9 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       res.rates = dated.map((x) => ({ from: parseXerDate(x.start_date)!, pricePerUnit: num(x.cost_per_qty) ?? 0, ...(levels && num(x.max_qty_per_hr) ? { maxUnitsPerHour: num(x.max_qty_per_hr)! } : {}) }));
     if (levels && num(dated[0]?.max_qty_per_hr)) res.maxUnitsPerHour = num(dated[0].max_qty_per_hr)!;
     if (r.shift_id) res.shiftId = r.shift_id;
+    if (r.clndr_id && calendars.some((c) => c.id === r.clndr_id)) res.calendarId = r.clndr_id;
+    const rc = rsrcCodes.get(r.rsrc_id);
+    if (rc) res.codes = rc;
     const roleIds = [...new Set([...(roleLinks.get(r.rsrc_id) ?? []), ...(r.role_id ? [r.role_id] : [])])];
     if (roleIds.length) res.roleIds = roleIds;
     return res;
@@ -349,6 +382,27 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       lagHours: num(r.lag_hr_cnt) ?? 0,
     }));
 
+  // Expenses (PROJCOST) with their categories (COSTTYPE) and cost accounts.
+  const costTypes = new Map((tables.COSTTYPE ?? []).map((c) => [c.cost_type_id, c.cost_type || c.cost_type_id]));
+  const acctCode = new Map((tables.ACCOUNT ?? []).map((a) => [a.acct_id, a.acct_short_name || a.acct_id]));
+  const ACCRUAL: Record<string, string> = { CL_Uniform: "Uniform Over Activity", CL_Start: "Start of Activity", CL_End: "End of Activity" };
+  const expenses: RegisterItem[] = (tables.PROJCOST ?? [])
+    .filter((c) => (!c.proj_id || c.proj_id === projId) && actIds.has(c.task_id))
+    .map((c) => ({
+      id: c.cost_item_id,
+      activityId: c.task_id,
+      values: {
+        "Expense Item": c.cost_name || "",
+        Category: costTypes.get(c.cost_type_id) ?? "",
+        Vendor: c.vendor_name || "",
+        "Budgeted Cost": c.target_cost || "0",
+        "Actual Cost": c.act_cost || "0",
+        "Remaining Cost": c.remain_cost || "0",
+        "Accrual Type": ACCRUAL[c.cost_load_type] ?? "",
+        ...(c.acct_id && acctCode.has(c.acct_id) ? { "Cost Account": acctCode.get(c.acct_id)! } : {}),
+      },
+    }));
+
   // OBS, budget log, funding and spending plan.
   const wbsIdOf = (id: string | undefined) => (!id || id === rootWbs?.wbs_id ? null : id);
   const obs: ObsNode[] = (tables.OBS ?? []).map((o) => ({ id: o.obs_id, parentId: o.parent_obs_id || null, name: o.obs_name || o.obs_id, ...(o.obs_descr && o.obs_descr !== o.obs_name ? { description: o.obs_descr } : {}) }));
@@ -384,6 +438,11 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     ...(curves.length ? { curves } : {}),
     ...(costAccounts.length ? { costAccounts } : {}),
     ...(obs.length ? { obs } : {}),
+    ...(costTypes.size ? { expenseCategories: [...new Set(costTypes.values())] } : {}),
+    ...(expenses.length ? { registers: { expenses } } : {}),
+    ...(rcat.types.length ? { resourceCodeTypes: rcat.types } : {}),
+    ...(pcat.types.length ? { projectCodeTypes: pcat.types } : {}),
+    ...(Object.keys(projectCodes).length ? { projectCodes } : {}),
     ...(rootWbs?.obs_id ? { obsId: rootWbs.obs_id } : {}),
     ...(num(rootWbs?.orig_cost) ? { originalBudget: num(rootWbs?.orig_cost)! } : {}),
     ...(budgetChanges.length ? { budgetChanges } : {}),

@@ -70,7 +70,8 @@ export function levelResources(input: Schedule, options: Partial<LevelingOptions
     if (hit !== undefined) return hit;
     const r = resById.get(rid)!;
     const sh = r.shiftId ? shifts.get(r.shiftId) : undefined;
-    const v = sh ? shiftCapacity(sh, def, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(def, day, day + DAY);
+    const rc = (r.calendarId && cals.get(r.calendarId)) || def;
+    const v = sh ? shiftCapacity(sh, rc, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(rc, day, day + DAY);
     capCache.set(k, v);
     return v;
   };
@@ -234,7 +235,8 @@ export function overloads(s: Schedule): { resourceId: string; peak: number; capa
     let days = 0;
     let capacity = 0;
     for (const [day, u] of use) {
-      const cap = sh ? shiftCapacity(sh, def, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(def, day, day + DAY);
+      const rc = (r.calendarId && cals.get(r.calendarId)) || def;
+      const cap = sh ? shiftCapacity(sh, rc, day) : (maxUnitsAt(r, day) ?? 0) * workHoursBetween(rc, day, day + DAY);
       capacity = Math.max(capacity, cap);
       if (u > cap + 1e-6) days++;
       peak = Math.max(peak, u);

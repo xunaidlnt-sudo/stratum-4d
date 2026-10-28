@@ -9,6 +9,7 @@ import { importTable, type Cell, type ImportResult } from "../../core/tableImpor
 import { useStore } from "../store";
 import { tableOrder } from "./commands";
 import { close, Shell } from "./Dialogs";
+import { DetailTabs, P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { useLayout } from "./layout";
 import { usePrefs } from "./prefs";
 
@@ -25,46 +26,94 @@ export function PreferencesDialog() {
     ["mm/dd/yyyy", "03/05/2026"],
     ["yyyy-mm-dd", "2026-03-05"],
   ];
+  const sample = 1234567.891;
   return (
-    <Shell title="User Preferences" onClose={close}>
-      <h4>Time Units</h4>
-      <div className="grid2">
-        <label>
-          Show durations, float and lags in
-          <select value={p.durationUnit} onChange={(e) => p.set({ durationUnit: e.target.value as "d" | "h" })}>
-            <option value="d">Days</option>
-            <option value="h">Hours</option>
-          </select>
-        </label>
-        <label>
-          Decimal places
-          <select value={p.decimals} onChange={(e) => p.set({ decimals: Number(e.target.value) })}>
-            {[0, 1, 2].map((n) => (
-              <option key={n} value={n}>
-                {n}
-              </option>
-            ))}
-          </select>
-        </label>
-      </div>
-      <h4>Dates</h4>
-      <div className="grid2">
-        <label>
-          Date format
-          <select value={p.dateFormat} onChange={(e) => p.set({ dateFormat: e.target.value as DateFormat })}>
-            {fmts.map(([v, l]) => (
-              <option key={v} value={v}>
-                {l}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="p6-check">
-          <input type="checkbox" checked={p.showTime} onChange={(e) => p.set({ showTime: e.target.checked })} /> Show time (08:00)
-        </label>
-      </div>
-      <p className="muted small">Typed values use the same units: with hours selected, 16 in Original Duration means 16 hours. Applies to the P6 activity table, filters and Global Change.</p>
-    </Shell>
+    <P6Dlg
+      title="User Preferences"
+      width={640}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideGap />
+          <SideHelp topic="user-preferences" />
+        </>
+      }
+    >
+      <DetailTabs
+        tabs={[
+          [
+            "Time Units",
+            <>
+              <fieldset className="p6-fieldset">
+                <legend>Units Format</legend>
+                <label>
+                  Show durations, float and lags in
+                  <select value={p.durationUnit} onChange={(e) => p.set({ durationUnit: e.target.value as "d" | "h" })}>
+                    <option value="d">Day</option>
+                    <option value="h">Hour</option>
+                  </select>
+                </label>
+                <label>
+                  Decimal places
+                  <select value={p.decimals} onChange={(e) => p.set({ decimals: Number(e.target.value) })}>
+                    {[0, 1, 2].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              </fieldset>
+              <p className="muted small">Typed values use the same units: with hours selected, 16 in Original Duration means 16 hours. Applies to the activity table, filters and Global Change.</p>
+            </>,
+          ],
+          [
+            "Dates",
+            <fieldset className="p6-fieldset">
+              <legend>Date Format</legend>
+              {fmts.map(([v, l]) => (
+                <label key={v} className="p6-check">
+                  <input type="radio" checked={p.dateFormat === v} onChange={() => p.set({ dateFormat: v })} /> {l}
+                </label>
+              ))}
+              <label className="p6-check">
+                <input type="checkbox" checked={p.showTime} onChange={(e) => p.set({ showTime: e.target.checked })} /> Show time (24-hour, 08:00)
+              </label>
+            </fieldset>,
+          ],
+          [
+            "Currency",
+            <>
+              <label>
+                View currency symbol
+                <select value={p.currency} onChange={(e) => p.set({ currency: e.target.value })}>
+                  <option value="">(none)</option>
+                  {["AED", "SAR", "QAR", "OMR", "KWD", "BHD", "USD", "$", "EUR", "€", "GBP", "£", "INR", "₹", "PKR"].map((c) => (
+                    <option key={c} value={c}>
+                      {c}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <label>
+                Decimal places
+                <select value={p.currencyDecimals} onChange={(e) => p.set({ currencyDecimals: Number(e.target.value) })}>
+                  {[0, 1, 2].map((n) => (
+                    <option key={n} value={n}>
+                      {n}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <p className="small">
+                Sample: <b>{(p.currency ? `${p.currency} ` : "") + sample.toLocaleString(undefined, { minimumFractionDigits: p.currencyDecimals, maximumFractionDigits: p.currencyDecimals })}</b>
+              </p>
+            </>,
+          ],
+        ]}
+      />
+    </P6Dlg>
   );
 }
 

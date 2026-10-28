@@ -9,6 +9,8 @@ export interface Prefs {
   showTime: boolean;
   durationUnit: "d" | "h";
   decimals: number;
+  currency: string;
+  currencyDecimals: number;
 }
 
 const KEY = "stratum.p6.prefs.v1";

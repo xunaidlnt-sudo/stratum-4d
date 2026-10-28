@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { standardCalendar } from "../core/calendar";
-import { applyStepTemplate, stepsPercent } from "../core/ops";
+import { applyStepTemplate, stepsPercent, newActivityDefaults } from "../core/ops";
 import type { Activity, ActivityStatus, ActivityType, ConstraintType, RelationshipType } from "../core/types";
 import { fmtNum } from "./charts";
 import { fmtDate, fromInputDate, toInputDate, useStore } from "./store";
@@ -37,18 +37,20 @@ export function addActivityAfterSelected() {
   if (!schedule) return;
   const act = schedule.activities.find((a) => a.id === st.selectedActivity) ?? null;
   const cals = schedule.calendars ?? [];
-  const cal = cals.find((c) => c.id === (act?.calendarId ?? schedule.defaultCalendarId)) ?? cals[0] ?? standardCalendar();
+  const def = newActivityDefaults(schedule, act);
+  const cal = cals.find((c) => c.id === def.calendarId) ?? cals[0] ?? standardCalendar();
   const hpd = cal.hoursPerDay || 8;
-  let n = schedule.activities.length + 1;
-  let code = `A${n * 10}`;
-  while (schedule.activities.some((a) => a.code === code)) code = `A${(n += 1) * 10}`;
+  const code = def.code;
+  const ms = def.type === "milestone" || def.type === "finish-milestone";
   const start = schedule.dataDate ?? Date.now();
   const a: Activity = {
     id: uid("new"),
     code,
     name: "New activity",
     wbsId: act?.wbsId ?? schedule.wbs[0]?.id ?? null,
-    type: "task",
+    type: def.type,
+    durationType: def.durationType,
+    pctType: def.pctType,
     status: "not-started",
     percentComplete: 0,
     start,
@@ -58,10 +60,10 @@ export function addActivityAfterSelected() {
     actualStart: null,
     actualFinish: null,
     totalFloatHours: null,
-    originalDurationHours: 5 * hpd,
-    remainingDurationHours: 5 * hpd,
+    originalDurationHours: ms ? 0 : def.durationDays * hpd,
+    remainingDurationHours: ms ? 0 : def.durationDays * hpd,
     critical: false,
-    calendarId: act?.calendarId ?? schedule.defaultCalendarId ?? null,
+    calendarId: def.calendarId,
     codes: {},
   };
   st.addActivity(a);
