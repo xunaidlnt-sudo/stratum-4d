@@ -1,7 +1,7 @@
 // Training mode UI: the lesson catalogue, the coach card that walks the
 // learner through a lesson on the live interface, and the top-bar button.
 
-import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, Clock, GraduationCap, Minimize2, Play, RotateCcw, Search, Sparkles, X } from "lucide-react";
+import { BookOpen, Check, ChevronLeft, ChevronRight, CircleCheck, GraduationCap, Minimize2, Play, RotateCcw, Search, Sparkles, X } from "lucide-react";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useConfig } from "../../backend/config";
 import { useStore } from "../store";
@@ -317,120 +317,191 @@ function Coach() {
 
 function Catalog() {
   const t = useTraining();
-  const [tab, setTab] = useState<"lessons" | "glossary">("lessons");
+  // "tours" = hands-on lessons on the live app; "course" = Planning & Controls course; "glossary".
+  const [view, setView] = useState<"tours" | "course" | "glossary">("tours");
   const [q, setQ] = useState("");
+  const [menu, setMenu] = useState(false);
   const total = LESSONS.length;
   const done = LESSONS.filter((l) => t.done[l.id]).length;
   const minutes = LESSONS.reduce((s, l) => s + l.minutes, 0);
   const terms = GLOSSARY.filter((g) => !q || `${g.term} ${g.alt ?? ""} ${g.def}`.toLowerCase().includes(q.toLowerCase()));
   useEffect(() => {
     const k = (e: KeyboardEvent) => e.key === "Escape" && t.openCatalog(false);
+    // The course page asks to close from its own "Back to Stratum" button.
+    const m = (e: MessageEvent) => e.origin === location.origin && (e.data as { stratumLearn?: string })?.stratumLearn === "close" && setView("tours");
     window.addEventListener("keydown", k);
-    return () => window.removeEventListener("keydown", k);
+    window.addEventListener("message", m);
+    return () => {
+      window.removeEventListener("keydown", k);
+      window.removeEventListener("message", m);
+    };
   }, [t]);
+  const go = (v: typeof view, anchor?: string) => {
+    setView(v);
+    setMenu(false);
+    if (anchor) setTimeout(() => document.getElementById(anchor)?.scrollIntoView({ block: "start" }), 30);
+  };
   return (
-    <div className="help-backdrop tr-backdrop" onClick={(e) => e.target === e.currentTarget && t.openCatalog(false)}>
-      <div className="help tr-catalog" role="dialog" aria-label="Training">
-        <div className="tr-cat-head">
-          <div className="tr-cat-icon">
-            <GraduationCap size={26} aria-hidden />
-          </div>
-          <div>
-            <h2>Training mode</h2>
-            <p className="muted">
-              Hands-on lessons on the live application, using the 220 kV GIS sample project. {total} lessons, about {minutes} minutes in all.
-            </p>
-          </div>
-          <span className="spacer" />
-          <button className="icon-only" title="Close (Esc)" onClick={() => t.openCatalog(false)}>
-            <X size={16} aria-hidden />
+    <div className="learn-shell" role="dialog" aria-label="Stratum Learn">
+      <nav className={`learn-side ${menu ? "open" : ""}`} aria-label="Learn navigation">
+        <div className="learn-brand">
+          <b>STRATUM LEARN</b>
+          <span>learning centre</span>
+        </div>
+        <div className="learn-grp">
+          <h5>Using Stratum</h5>
+          {COURSES.map((c, i) => {
+            const ls = LESSONS.filter((l) => l.course === c);
+            const n = ls.filter((l) => t.done[l.id]).length;
+            return (
+              <button key={c} className={`learn-navi ${view === "tours" ? "" : ""}`} onClick={() => go("tours", `learn-c${i}`)}>
+                <span className="ic">{i + 1}</span>
+                <span className="lbl">{c}</span>
+                <span className={`dot ${n === ls.length ? "done" : ""}`}>{n === ls.length ? "✓" : `${n}/${ls.length}`}</span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="learn-grp">
+          <h5>Planning &amp; Controls</h5>
+          <button className={`learn-navi ${view === "course" ? "on" : ""}`} onClick={() => go("course")}>
+            <span className="ic">P</span>
+            <span className="lbl">Course: 4 levels, 21 lessons</span>
           </button>
         </div>
-        <div className="tr-cat-progress">
-          <div className="tr-bar">
-            <span style={{ width: `${(done / total) * 100}%` }} />
-          </div>
-          <span className="muted">
-            {done} of {total} complete
+        <div className="learn-grp">
+          <h5>Reference</h5>
+          <button className={`learn-navi ${view === "glossary" ? "on" : ""}`} onClick={() => go("glossary")}>
+            <span className="ic">A</span>
+            <span className="lbl">Glossary ({GLOSSARY.length})</span>
+          </button>
+          <button className="learn-navi" onClick={() => t.openCatalog(false)}>
+            <span className="ic">←</span>
+            <span className="lbl">Back to the app</span>
+          </button>
+        </div>
+      </nav>
+      <div className="learn-main">
+        <header className="learn-top">
+          <button className="learn-menubtn" aria-label="Menu" onClick={() => setMenu(!menu)}>
+            ☰
+          </button>
+          <span className="learn-chip">
+            <span className="k">App tours</span>
+            <span className="v">
+              {done} / {total}
+            </span>
           </span>
-        </div>
-        <div className="tabs">
-          <button className={tab === "lessons" ? "active" : ""} onClick={() => setTab("lessons")}>
-            Lessons
-          </button>
-          <button className={tab === "glossary" ? "active" : ""} onClick={() => setTab("glossary")}>
-            Glossary ({GLOSSARY.length})
-          </button>
-        </div>
-        <div className="tr-cat-body">
-          {tab === "lessons" ? (
-            COURSES.map((course, ci) => (
-              <section key={course}>
-                <h4>
-                  {ci + 1}. {course}
-                </h4>
-                <div className="tr-lessons">
-                  {LESSONS.filter((l) => l.course === course).map((l) => {
-                    const isDone = !!t.done[l.id];
-                    const current = t.lessonId === l.id;
-                    return (
-                      <article key={l.id} className={`tr-lesson-card ${isDone ? "done" : ""} ${current ? "current" : ""}`}>
-                        <div className="tr-lc-top">
-                          <b>{l.title}</b>
-                          {isDone && <CircleCheck size={16} className="good" aria-label="Completed" />}
-                        </div>
-                        <div className="tr-lc-meta">
-                          <span className={`tr-level ${l.level.toLowerCase()}`}>{l.level}</span>
-                          <span>
-                            <Clock size={12} aria-hidden /> {l.minutes} min
-                          </span>
-                          <span>{l.steps.length + 2} steps</span>
-                        </div>
-                        <p>{l.summary}</p>
-                        <button className={current || !isDone ? "primary" : ""} onClick={() => (current ? t.openCatalog(false) : t.start(l.id))}>
-                          {current ? `Resume (step ${t.step + 1})` : isDone ? "Review" : "Start"}
-                        </button>
-                      </article>
-                    );
-                  })}
-                </div>
-              </section>
-            ))
-          ) : (
-            <>
-              <label className="tr-search">
-                <Search size={14} aria-hidden />
-                <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search terms, e.g. float" autoFocus />
-              </label>
-              <dl className="tr-glossary">
-                {terms.map((g) => (
-                  <div key={g.term}>
-                    <dt>
-                      {g.term}
-                      {g.alt && <span className="muted"> · {g.alt}</span>}
-                    </dt>
-                    <dd>{g.def}</dd>
-                  </div>
-                ))}
-                {!terms.length && <p className="muted">No term matches “{q}”.</p>}
-              </dl>
-            </>
-          )}
-        </div>
-        <div className="tr-cat-foot">
-          <span className="muted">Tip: the card moves out of the way of what it points at. Minimise it to see the whole screen.</span>
+          <div className="learn-prog">
+            <div className="lab">
+              <span>tours completed</span>
+              <span>{Math.round((done / total) * 100)}%</span>
+            </div>
+            <div className="learn-bar">
+              <i style={{ width: `${Math.max(2, (done / total) * 100)}%` }} />
+            </div>
+          </div>
           <span className="spacer" />
-          {done > 0 && (
-            <button
-              className="link"
-              onClick={() => {
-                if (window.confirm("Clear your training progress?")) t.reset();
-              }}
-            >
-              <RotateCcw size={13} aria-hidden /> Reset progress
-            </button>
-          )}
-        </div>
+          <button className="learn-btn gh" title="Close (Esc)" onClick={() => t.openCatalog(false)}>
+            <X size={15} aria-hidden /> Close
+          </button>
+        </header>
+        {view === "course" ? (
+          <iframe className="learn-course" src="./learn/index.html" title="Planning and Controls course" />
+        ) : (
+          <div className="learn-view">
+            {view === "tours" ? (
+              <>
+                <div className="learn-card accent">
+                  <h1>Learn Stratum on the live application</h1>
+                  <p className="muted">
+                    Each tour opens the 220 kV GIS sample and walks you through the real screens, one step at a time. {total} tours, about {minutes} minutes in all. For planning theory, from CPM to delay analysis, open the Planning &amp; Controls course.
+                  </p>
+                  <div className="learn-kpis">
+                    <div>
+                      <span>Tours</span>
+                      <b>
+                        {done}/{total}
+                      </b>
+                    </div>
+                    <div>
+                      <span>Minutes</span>
+                      <b>{minutes}</b>
+                    </div>
+                    <div>
+                      <span>Courses</span>
+                      <b>{COURSES.length}</b>
+                    </div>
+                  </div>
+                </div>
+                <button className="learn-card learn-course-card" onClick={() => go("course")}>
+                  <span className="learn-pill l3">Course</span>
+                  <h2>Planning &amp; Controls</h2>
+                  <p className="muted">Foundations, building the schedule, measure and control, commercial and forensic. 21 lessons with live tools, worked level reviews, a final assessment and a certificate of completion.</p>
+                </button>
+                {COURSES.map((course, ci) => (
+                  <section key={course} id={`learn-c${ci}`} className="learn-card">
+                    <h2>
+                      {ci + 1}. {course}
+                    </h2>
+                    <div className="learn-rows">
+                      {LESSONS.filter((l) => l.course === course).map((l) => {
+                        const isDone = !!t.done[l.id];
+                        const current = t.lessonId === l.id;
+                        return (
+                          <div key={l.id} className={`learn-row ${isDone ? "done" : ""} ${current ? "current" : ""}`}>
+                            <span className={`learn-pill ${l.level.toLowerCase()}`}>{l.level}</span>
+                            <div className="learn-row-text">
+                              <b>{l.title}</b>
+                              <span className="muted">{l.summary}</span>
+                            </div>
+                            <span className="learn-mono">
+                              {l.minutes} min · {l.steps.length + 2} steps
+                            </span>
+                            {isDone && <CircleCheck size={16} className="good" aria-label="Completed" />}
+                            <button className={`learn-btn ${current || !isDone ? "" : "sec"}`} onClick={() => (current ? t.openCatalog(false) : t.start(l.id))}>
+                              {current ? `Resume (step ${t.step + 1})` : isDone ? "Review" : "Start"}
+                            </button>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </section>
+                ))}
+                <div className="learn-card learn-foot">
+                  <span className="muted">The tour card moves out of the way of what it points at; minimise it to see the whole screen.</span>
+                  <span className="spacer" />
+                  {done > 0 && (
+                    <button className="learn-btn gh" onClick={() => window.confirm("Clear your tour progress?") && t.reset()}>
+                      <RotateCcw size={13} aria-hidden /> Reset tours
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <div className="learn-card">
+                <h1>Glossary</h1>
+                <label className="tr-search">
+                  <Search size={14} aria-hidden />
+                  <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search terms, e.g. float" autoFocus />
+                </label>
+                <dl className="tr-glossary learn-gloss">
+                  {terms.map((g) => (
+                    <div key={g.term}>
+                      <dt>
+                        {g.term}
+                        {g.alt && <span className="muted"> · {g.alt}</span>}
+                      </dt>
+                      <dd>{g.def}</dd>
+                    </div>
+                  ))}
+                  {!terms.length && <p className="muted">No term matches “{q}”.</p>}
+                </dl>
+                <p className="muted small">The Planning &amp; Controls course has its own glossary of 69 planning terms.</p>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );
