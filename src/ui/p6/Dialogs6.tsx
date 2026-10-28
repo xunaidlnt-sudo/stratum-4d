@@ -2,6 +2,7 @@
 // code dictionaries (Project Codes, Resource Codes, Activity Codes) in P6's
 // dialog layout.
 
+import { sharedGet, sharedSet } from "../shared";
 import { useState } from "react";
 import { create } from "zustand";
 import { fieldsFor } from "../../core/fields";
@@ -19,14 +20,7 @@ const fromDay = (v: string, hour: number) => (v ? Date.parse(`${v}T00:00:00Z`) +
 
 // ---------------------------------------------------------------- Project codes (enterprise, kept on this device)
 
-const PC_KEY = "stratum.projectcodes.v1";
-export const loadProjectCodeTypes = (): CodeType[] => {
-  try {
-    return JSON.parse(localStorage.getItem(PC_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-};
+export const loadProjectCodeTypes = (): CodeType[] => sharedGet<CodeType[]>("stratum.projectcodes.v1", []);
 /** Enterprise code types plus the ones a project brought with it, merged by name. */
 export function mergeCodeTypes(a: CodeType[], b: CodeType[]): CodeType[] {
   const m = new Map(a.map((t) => [t.name, { ...t, values: [...t.values] }]));
@@ -37,13 +31,7 @@ export function mergeCodeTypes(a: CodeType[], b: CodeType[]): CodeType[] {
   }
   return [...m.values()];
 }
-const saveProjectCodeTypes = (v: CodeType[]) => {
-  try {
-    localStorage.setItem(PC_KEY, JSON.stringify(v));
-  } catch {
-    /* ignore */
-  }
-};
+const saveProjectCodeTypes = (v: CodeType[]) => sharedSet("stratum.projectcodes.v1", v);
 
 // ---------------------------------------------------------------- Project Details
 

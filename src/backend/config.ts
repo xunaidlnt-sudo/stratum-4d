@@ -4,6 +4,9 @@
 import { create } from "zustand";
 import type { InterfaceMode, StorageKind } from "../core/reporting";
 import { browserBackend } from "./browser";
+import { cloudBackend } from "./cloud/drive";
+import { googleDrive } from "./cloud/google";
+import { oneDrive } from "./cloud/onedrive";
 import { desktopBackend } from "./desktop";
 import { serverBackend } from "./server";
 import type { Backend, SessionUser } from "./types";
@@ -23,6 +26,11 @@ export interface AppConfig {
   /** "mode" follows each interface mode's own look (4D dark, P6 and MS Project light). */
   theme: "mode" | "light" | "dark";
   density: "compact" | "comfortable";
+  /** Cloud folder used as the shared database (Google Drive or OneDrive). */
+  cloudFolder?: { id: string; name: string } | null;
+  /** OAuth client ids for the cloud drives (public values). */
+  googleClientId?: string;
+  msClientId?: string;
 }
 
 const KEY = "stratum.config.v1";
@@ -48,7 +56,21 @@ function save(c: AppConfig) {
 
 export const isDesktop = () => typeof window !== "undefined" && !!window.stratumDesktop?.invoke;
 
+const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
+export const googleClientIdOf = (c: AppConfig) => c.googleClientId || env.VITE_GOOGLE_CLIENT_ID || "";
+export const msClientIdOf = (c: AppConfig) => c.msClientId || env.VITE_MS_CLIENT_ID || "";
+
+// One drive object per provider and client id, so the sign-in lasts while the app runs.
+const drives = new Map<string, ReturnType<typeof googleDrive> | ReturnType<typeof oneDrive>>();
+export function cloudDrive(kind: "gdrive" | "onedrive", c: AppConfig) {
+  const id = kind === "gdrive" ? googleClientIdOf(c) : msClientIdOf(c);
+  const key = `${kind}|${id}`;
+  if (!drives.has(key)) drives.set(key, kind === "gdrive" ? googleDrive(id) : oneDrive(id));
+  return drives.get(key)!;
+}
+
 export function makeBackend(c: AppConfig): Backend {
+  if ((c.storage === "gdrive" || c.storage === "onedrive") && c.cloudFolder) return cloudBackend(cloudDrive(c.storage, c), c.cloudFolder, c.user);
   if (c.storage === "server" && c.serverUrl && c.token) return serverBackend(c.serverUrl, c.token, c.user, c.serverPdf);
   return isDesktop() ? desktopBackend() : browserBackend();
 }
@@ -70,7 +92,13 @@ export const useConfig = create<ConfigState>((set) => {
         const next = { ...st.config, ...patch };
         save(next);
         const backendChanged =
-          next.storage !== st.config.storage || next.serverUrl !== st.config.serverUrl || next.token !== st.config.token || next.user?.email !== st.config.user?.email;
+          next.storage !== st.config.storage ||
+          next.serverUrl !== st.config.serverUrl ||
+          next.token !== st.config.token ||
+          next.user?.email !== st.config.user?.email ||
+          next.cloudFolder?.id !== st.config.cloudFolder?.id ||
+          next.googleClientId !== st.config.googleClientId ||
+          next.msClientId !== st.config.msClientId;
         return { config: next, backend: backendChanged ? makeBackend(next) : st.backend };
       }),
     signOut: () =>

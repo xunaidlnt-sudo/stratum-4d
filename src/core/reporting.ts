@@ -289,7 +289,7 @@ export interface P6Connection {
 }
 
 export type InterfaceMode = "p6" | "msp" | "4d";
-export type StorageKind = "local" | "server";
+export type StorageKind = "local" | "server" | "gdrive" | "onedrive";
 
 export const uid = (prefix = "id") => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 

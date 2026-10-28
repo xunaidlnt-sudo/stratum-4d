@@ -85,6 +85,9 @@ export interface Backend {
   p6Projects(connectionId: string): Promise<P6ProjectInfo[]>;
   p6Import(connectionId: string, objectId: string): Promise<Schedule>;
   p6Push(connectionId: string, schedule: Schedule): Promise<{ updated: number; skipped: string[] }>;
+  /** Enterprise data shared by everyone using this store (EPS, portfolios, project codes). */
+  getShared?(key: string): Promise<unknown>;
+  setShared?(key: string, value: unknown): Promise<void>;
 }
 
 export const NOT_IN_BROWSER = "This needs the Stratum desktop app or a Stratum Server (browsers can't reach P6 or a mail server directly).";

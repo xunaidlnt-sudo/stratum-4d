@@ -13,7 +13,7 @@ export function SetupWizard({ onDone }: { onDone: (openSettings?: "p6" | "email"
   const { config, update } = useConfig();
   const [step, setStep] = useState<Step>("mode");
   const [mode, setMode] = useState<InterfaceMode>(config.mode);
-  const [storage, setStorage] = useState<"local" | "server">(config.storage);
+  const [storage, setStorage] = useState<"local" | "server">(config.storage === "server" ? "server" : "local");
   const [url, setUrl] = useState(config.serverUrl || (location.protocol.startsWith("http") ? location.origin : ""));
   const [email, setEmail] = useState("");
   const [name, setName] = useState("");

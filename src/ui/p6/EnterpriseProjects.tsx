@@ -1,6 +1,7 @@
 // P6 Projects window: the EPS tree of every project in the database, opening
 // several projects together, and reflections.
 
+import { sharedGet, sharedSet } from "../shared";
 import { Fragment, useEffect, useMemo, useState } from "react";
 import { useConfig } from "../../backend/config";
 import type { ProjectSummary } from "../../backend/types";
@@ -60,21 +61,9 @@ function openCombined(schedule: Schedule) {
 type Row = ProjectSummary & { eps: string[]; reflectionOf: string | null; activities: number; priority: number; baseline: string; baselineDate: number | null };
 
 // EPS nodes with no project yet live on this device (P6 keeps them in the EPS table).
-const EPS_KEY = "stratum.eps.v1";
-const loadEmptyEps = (): string[][] => {
-  try {
-    return JSON.parse(localStorage.getItem(EPS_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-};
-const saveEmptyEps = (v: string[][]) => {
-  try {
-    localStorage.setItem(EPS_KEY, JSON.stringify(v));
-  } catch {
-    /* ignore */
-  }
-};
+// EPS nodes with no project yet (P6 keeps them in the EPS table); shared through the store.
+const loadEmptyEps = (): string[][] => sharedGet<string[][]>("stratum.eps.v1", []);
+const saveEmptyEps = (v: string[][]) => sharedSet("stratum.eps.v1", v);
 
 export function EnterpriseProjectsWindow({ onOpenOne, onImportToDb, onSave }: { onOpenOne: (id: string) => Promise<void>; onImport?: () => void; onImportToDb?: (eps: string[]) => Promise<void>; onSave?: () => Promise<void> }) {
   const backend = useConfig((c) => c.backend);
@@ -458,14 +447,7 @@ async function rewriteEps(from: string[], to: string[]) {
   saveEmptyEps(loadEmptyEps().map((p) => (startsWith(p, from) ? [...to, ...p.slice(from.length)] : p)));
 }
 
-const OBS_KEY = "stratum.epsobs.v1";
-const readEpsObs = (): Record<string, string> => {
-  try {
-    return JSON.parse(localStorage.getItem(OBS_KEY) ?? "{}");
-  } catch {
-    return {};
-  }
-};
+const readEpsObs = (): Record<string, string> => sharedGet<Record<string, string>>("stratum.epsobs.v1", {});
 
 let epsClip: { path: string[]; cut: boolean } | null = null;
 
@@ -646,11 +628,7 @@ export function EpsDialog() {
                 onChange={(e) => {
                   const next = { ...obs, [cur.key]: e.target.value };
                   setObs(next);
-                  try {
-                    localStorage.setItem(OBS_KEY, JSON.stringify(next));
-                  } catch {
-                    /* ignore */
-                  }
+                  sharedSet("stratum.epsobs.v1", next);
                 }}
               >
                 <option value="">Enterprise</option>
@@ -677,20 +655,9 @@ export interface Portfolio {
   description: string;
   projectIds: string[];
 }
-const PF_KEY = "stratum.portfolios.v1";
-export const loadPortfolios = (): Portfolio[] => {
-  try {
-    return JSON.parse(localStorage.getItem(PF_KEY) ?? "[]");
-  } catch {
-    return [];
-  }
-};
+export const loadPortfolios = (): Portfolio[] => sharedGet<Portfolio[]>("stratum.portfolios.v1", []);
 const savePortfolios = (v: Portfolio[]) => {
-  try {
-    localStorage.setItem(PF_KEY, JSON.stringify(v));
-  } catch {
-    /* ignore */
-  }
+  sharedSet("stratum.portfolios.v1", v);
   window.dispatchEvent(new Event("stratum:portfolios"));
 };
 

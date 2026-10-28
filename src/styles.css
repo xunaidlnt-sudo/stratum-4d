@@ -1594,3 +1594,6 @@ html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-dlg tex
 html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-fieldset { border-color: #c2c2c2; border-radius: 0; }
 html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-win-bar button,
 html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-layoutbar button { border-radius: 2px; background: linear-gradient(#fdfdfd, #e5e5e5); border-color: #acacac; }
+
+.cloud-folders { display: flex; flex-direction: column; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
+.cloud-folders button { justify-content: flex-start; border: none; border-bottom: 1px solid var(--line-soft, #eee); border-radius: 0; background: transparent; }

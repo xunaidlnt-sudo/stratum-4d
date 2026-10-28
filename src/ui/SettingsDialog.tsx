@@ -1,4 +1,5 @@
 import { X } from "lucide-react";
+import { CloudSettings } from "./CloudSettings";
 import { useEffect, useState } from "react";
 import { isDesktop, useConfig } from "../backend/config";
 import { serverLogin, serverStatus, type serverBackend } from "../backend/server";
@@ -129,8 +130,9 @@ function DataTab() {
           {backend.user ? ` · signed in as ${backend.user.email} (${backend.user.role})` : ""}
         </p>
         {backend.kind === "desktop" && dbFile && <p className="muted">Database file: {dbFile}</p>}
-        {backend.kind === "browser" && <p className="muted">Data is kept in this browser. Use the desktop app or a Stratum Server for P6 and emailed reports.</p>}
+        {backend.kind === "browser" && !(config.storage === "gdrive" || config.storage === "onedrive") && <p className="muted">Data is kept in this browser. Use a cloud folder to share it, or the desktop app or a Stratum Server for P6 and emailed reports.</p>}
       </section>
+      {backend.kind !== "server" && <CloudSettings />}
       {backend.kind === "server" ? (
         <section>
           <button

@@ -1,4 +1,5 @@
 import type * as THREE from "three";
+import { syncShared } from "./shared";
 import { recalcAssignmentCosts } from "../core/ops";
 import { useP6 } from "./p6/commands";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -252,6 +253,11 @@ function Workspace() {
       if (t) clearTimeout(t);
     };
   }, []);
+
+  // Shared enterprise data (EPS, portfolios, project codes) follows the store, e.g. a cloud folder.
+  useEffect(() => {
+    void syncShared(backend);
+  }, [backend]);
 
   // Help buttons in the P6 dialogs open the help panel.
   useEffect(() => {
