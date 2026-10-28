@@ -122,3 +122,14 @@ Last updated for release 0.6.
 | Risk scoring matrices, risk thresholds, response plans | Done | Editable 5×5 matrix and thresholds, heat map, response plan steps with owner, dates, cost, status |
 | Activity views (web), filters, grouping | Done | Same as the P6 layout |
 | Summarizer service, publication services | Out of scope | |
+
+## Dashboards, reporting and learning (0.9)
+
+| Topic | Status | Notes |
+|---|---|---|
+| Baseline choice and prerequisites | Done | Each dashboard compares against the project baseline or any stored baseline; readiness checks (baseline assigned, data date, scheduled, progress, costs, logic); baseline widgets wait for the required checks |
+| Dashboard wizard | Done | Project, baseline, template, prerequisite check; reopened to change project or baseline |
+| Execution and schedule-health KPIs | Done | BEI, CPLI, SPI(t), earned-schedule finish, PPC, on-time starts and finishes, DCMA 14-point checks; "Schedule health and execution" template |
+| Interactive dashboards | Done | KPI drill-down to activities, rows open the activity in the schedule, click-to-filter bars and donuts, slicers |
+| PowerPoint export | Done | Native, editable PowerPoint charts (data embedded) and tables |
+| Learning | Done | App tours on the live interface, and the Planning & Controls course (21 lessons, live tools, level reviews, final assessment, certificate) without game mechanics |
