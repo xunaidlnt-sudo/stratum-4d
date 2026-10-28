@@ -6,13 +6,7 @@
 // action is "install"; otherwise its first link).
 
 import { phaseAt } from "./simulation";
-import type {
-  AppearanceProfile,
-  DateSource,
-  Link,
-  ModelElement,
-  Schedule,
-} from "./types";
+import type { AppearanceProfile, DateSource, Link, ModelElement, Schedule } from "./types";
 
 export function toNumber(v: string | undefined | null): number | null {
   if (v === undefined || v === null) return null;
@@ -33,20 +27,9 @@ export function numericPropertyKeys(elements: ModelElement[]): string[] {
       seen.set(k, s);
     }
   }
-  const keys = [...seen]
-    .filter(([, s]) => s.numeric >= 2 && s.numeric / s.total >= 0.6)
-    .map(([k]) => k);
+  const keys = [...seen].filter(([, s]) => s.numeric >= 2 && s.numeric / s.total >= 0.6).map(([k]) => k);
   // Quantity-set measures first, volume before area before length: what planners usually track.
-  const rank = (k: string) =>
-    /volume/i.test(k)
-      ? 5
-      : /area/i.test(k)
-        ? 4
-        : /length|weight|count/i.test(k)
-          ? 3
-          : /qto|quantit/i.test(k)
-            ? 2
-            : 0;
+  const rank = (k: string) => (/volume/i.test(k) ? 5 : /area/i.test(k) ? 4 : /length|weight|count/i.test(k) ? 3 : /qto|quantit/i.test(k) ? 2 : 0);
   return keys.sort((a, b) => rank(b) - rank(a) || a.localeCompare(b));
 }
 
@@ -58,17 +41,11 @@ function measureOf(e: ModelElement, key: string): number {
 }
 
 /** Which activity installs each element: its first "install" link, else its first link. */
-export function installingActivity(
-  links: Link[],
-  profiles: AppearanceProfile[],
-): Map<string, string> {
+export function installingActivity(links: Link[], profiles: AppearanceProfile[]): Map<string, string> {
   const action = new Map(profiles.map((p) => [p.id, p.action]));
   const out = new Map<string, string>();
-  for (const l of links)
-    if (action.get(l.profileId) === "install" && !out.has(l.elementId))
-      out.set(l.elementId, l.activityId);
-  for (const l of links)
-    if (!out.has(l.elementId)) out.set(l.elementId, l.activityId);
+  for (const l of links) if (action.get(l.profileId) === "install" && !out.has(l.elementId)) out.set(l.elementId, l.activityId);
+  for (const l of links) if (!out.has(l.elementId)) out.set(l.elementId, l.activityId);
   return out;
 }
 
@@ -115,40 +92,21 @@ export function takeoff(
     if (act) {
       const { phase, progress } = phaseAt(act, t, source);
       done = phase === "after" ? q : phase === "active" ? q * progress : 0;
-      const row = byAct.get(act.id) ?? {
-        key: act.id,
-        label: `${act.code} ${act.name}`,
-        quantity: 0,
-        installed: 0,
-        elements: 0,
-      };
+      const row = byAct.get(act.id) ?? { key: act.id, label: `${act.code} ${act.name}`, quantity: 0, installed: 0, elements: 0 };
       row.quantity += q;
       row.installed += done;
       row.elements++;
       byAct.set(act.id, row);
     } else unscheduled += q;
     installed += done;
-    const tr = byType.get(e.ifcType) ?? {
-      key: e.ifcType,
-      label: e.ifcType,
-      quantity: 0,
-      installed: 0,
-      elements: 0,
-    };
+    const tr = byType.get(e.ifcType) ?? { key: e.ifcType, label: e.ifcType, quantity: 0, installed: 0, elements: 0 };
     tr.quantity += q;
     tr.installed += done;
     tr.elements++;
     byType.set(e.ifcType, tr);
   }
-  const sort = (m: Map<string, TakeoffRow>) =>
-    [...m.values()].sort((a, b) => b.quantity - a.quantity);
-  return {
-    total,
-    installed,
-    unscheduled,
-    byActivity: sort(byAct),
-    byType: sort(byType),
-  };
+  const sort = (m: Map<string, TakeoffRow>) => [...m.values()].sort((a, b) => b.quantity - a.quantity);
+  return { total, installed, unscheduled, byActivity: sort(byAct), byType: sort(byType) };
 }
 
 /** Cumulative installed quantity over time, planned (current dates) vs baseline. */
@@ -162,9 +120,7 @@ export function quantityCurve(
 ): { t: number; current: number; baseline: number }[] {
   return points.map((t) => ({
     t,
-    current: takeoff(schedule, elements, links, profiles, key, t, "current")
-      .installed,
-    baseline: takeoff(schedule, elements, links, profiles, key, t, "baseline")
-      .installed,
+    current: takeoff(schedule, elements, links, profiles, key, t, "current").installed,
+    baseline: takeoff(schedule, elements, links, profiles, key, t, "baseline").installed,
   }));
 }

@@ -4,21 +4,9 @@
 
 import type { AppearanceProfile, PhaseAppearance } from "./types";
 
-const original = (transparency = 0): PhaseAppearance => ({
-  visible: true,
-  color: null,
-  transparency,
-});
-const colored = (color: string, transparency = 0): PhaseAppearance => ({
-  visible: true,
-  color,
-  transparency,
-});
-const hidden: PhaseAppearance = {
-  visible: false,
-  color: null,
-  transparency: 0,
-};
+const original = (transparency = 0): PhaseAppearance => ({ visible: true, color: null, transparency });
+const colored = (color: string, transparency = 0): PhaseAppearance => ({ visible: true, color, transparency });
+const hidden: PhaseAppearance = { visible: false, color: null, transparency: 0 };
 
 export const DEFAULT_PROFILES: AppearanceProfile[] = [
   {
@@ -79,10 +67,6 @@ export const STATUS_COLORS = {
   critical: "#c2410c",
 } as const;
 
-export function cloneProfile(
-  p: AppearanceProfile,
-  id: string,
-  name: string,
-): AppearanceProfile {
+export function cloneProfile(p: AppearanceProfile, id: string, name: string): AppearanceProfile {
   return { ...structuredClone(p), id, name };
 }

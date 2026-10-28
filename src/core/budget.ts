@@ -1,27 +1,16 @@
 // Budgets, funding and spending plans (P6 "Budgets" chapter), the OBS, and
 // the probability × impact risk scoring matrix.
 
-import type {
-  Activity,
-  ObsNode,
-  RegisterItem,
-  RiskMatrix,
-  Schedule,
-  WbsNode,
-} from "./types";
+import type { Activity, ObsNode, RegisterItem, RiskMatrix, Schedule, WbsNode } from "./types";
 import { usageSheet } from "./usage";
 
 // ---------------------------------------------------------------- WBS tree helpers
 
 /** Ids of a WBS element and everything under it (null = whole project). */
-export function wbsSubtree(
-  s: Schedule,
-  wbsId: string | null,
-): Set<string> | null {
+export function wbsSubtree(s: Schedule, wbsId: string | null): Set<string> | null {
   if (wbsId === null) return null;
   const kids = new Map<string | null, WbsNode[]>();
-  for (const w of s.wbs)
-    (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
+  for (const w of s.wbs) (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
   const out = new Set<string>();
   const walk = (id: string) => {
     out.add(id);
@@ -33,9 +22,7 @@ export function wbsSubtree(
 
 const activitiesUnder = (s: Schedule, wbsId: string | null): Activity[] => {
   const sub = wbsSubtree(s, wbsId);
-  return sub
-    ? s.activities.filter((a) => a.wbsId !== null && sub.has(a.wbsId))
-    : s.activities;
+  return sub ? s.activities.filter((a) => a.wbsId !== null && sub.has(a.wbsId)) : s.activities;
 };
 
 const money = (v: string | undefined) => {
@@ -63,56 +50,22 @@ export interface BudgetSummary {
   spendingPlan: number;
 }
 
-export function budgetSummary(
-  s: Schedule,
-  wbsId: string | null,
-): BudgetSummary {
-  const node =
-    wbsId === null ? null : (s.wbs.find((w) => w.id === wbsId) ?? null);
-  const original =
-    (wbsId === null ? s.originalBudget : node?.originalBudget) ?? 0;
+export function budgetSummary(s: Schedule, wbsId: string | null): BudgetSummary {
+  const node = wbsId === null ? null : s.wbs.find((w) => w.id === wbsId) ?? null;
+  const original = (wbsId === null ? s.originalBudget : node?.originalBudget) ?? 0;
   const changes = (s.budgetChanges ?? []).filter((c) => c.wbsId === wbsId);
-  const approvedChanges = changes
-    .filter((c) => c.status === "approved")
-    .reduce((t, c) => t + c.amount, 0);
-  const pendingChanges = changes
-    .filter((c) => c.status === "pending")
-    .reduce((t, c) => t + c.amount, 0);
+  const approvedChanges = changes.filter((c) => c.status === "approved").reduce((t, c) => t + c.amount, 0);
+  const pendingChanges = changes.filter((c) => c.status === "pending").reduce((t, c) => t + c.amount, 0);
   const current = original + approvedChanges;
-  const childCurrent = (w: WbsNode) =>
-    (w.originalBudget ?? 0) +
-    (s.budgetChanges ?? [])
-      .filter((c) => c.wbsId === w.id && c.status === "approved")
-      .reduce((t, c) => t + c.amount, 0);
-  const distributed = s.wbs
-    .filter((w) => w.parentId === wbsId)
-    .reduce((t, w) => t + childCurrent(w), 0);
-  const funded = (s.funding ?? [])
-    .filter((f) => f.wbsId === wbsId)
-    .reduce((t, f) => t + f.amount, 0);
+  const childCurrent = (w: WbsNode) => (w.originalBudget ?? 0) + (s.budgetChanges ?? []).filter((c) => c.wbsId === w.id && c.status === "approved").reduce((t, c) => t + c.amount, 0);
+  const distributed = s.wbs.filter((w) => w.parentId === wbsId).reduce((t, w) => t + childCurrent(w), 0);
+  const funded = (s.funding ?? []).filter((f) => f.wbsId === wbsId).reduce((t, f) => t + f.amount, 0);
   const ids = new Set(activitiesUnder(s, wbsId).map((a) => a.id));
   let plannedCost = 0;
-  for (const x of s.assignments ?? [])
-    if (ids.has(x.activityId)) plannedCost += x.budgetCost;
-  for (const e of s.registers?.expenses ?? [])
-    if (e.activityId && ids.has(e.activityId))
-      plannedCost += money(e.values["Budgeted Cost"]);
-  const spendingPlan = (s.spendingPlan ?? [])
-    .filter((r) => r.wbsId === wbsId)
-    .reduce((t, r) => t + r.spending, 0);
-  return {
-    original,
-    approvedChanges,
-    pendingChanges,
-    current,
-    proposed: current + pendingChanges,
-    distributed,
-    undistributed: current - distributed,
-    funded,
-    unfunded: current - funded,
-    plannedCost,
-    spendingPlan,
-  };
+  for (const x of s.assignments ?? []) if (ids.has(x.activityId)) plannedCost += x.budgetCost;
+  for (const e of s.registers?.expenses ?? []) if (e.activityId && ids.has(e.activityId)) plannedCost += money(e.values["Budgeted Cost"]);
+  const spendingPlan = (s.spendingPlan ?? []).filter((r) => r.wbsId === wbsId).reduce((t, r) => t + r.spending, 0);
+  return { original, approvedChanges, pendingChanges, current, proposed: current + pendingChanges, distributed, undistributed: current - distributed, funded, unfunded: current - funded, plannedCost, spendingPlan };
 }
 
 // ---------------------------------------------------------------- spending plan vs planned cost
@@ -131,28 +84,13 @@ export interface SpendingRow {
 
 const monthKey = (t: number) => new Date(t).toISOString().slice(0, 7);
 
-export function spendingPlanCompare(
-  s: Schedule,
-  wbsId: string | null,
-): SpendingRow[] {
+export function spendingPlanCompare(s: Schedule, wbsId: string | null): SpendingRow[] {
   const acts = activitiesUnder(s, wbsId);
-  const sheet = usageSheet(s, {
-    by: "activity",
-    step: "month",
-    measure: "cost",
-    activityIds: new Set(acts.map((a) => a.id)),
-  });
+  const sheet = usageSheet(s, { by: "activity", step: "month", measure: "cost", activityIds: new Set(acts.map((a) => a.id)) });
   const planned = new Map<string, number>();
-  sheet.periods.forEach((p, i) =>
-    planned.set(
-      monthKey(p.start),
-      (planned.get(monthKey(p.start)) ?? 0) + sheet.totals[i],
-    ),
-  );
+  sheet.periods.forEach((p, i) => planned.set(monthKey(p.start), (planned.get(monthKey(p.start)) ?? 0) + sheet.totals[i]));
   const plan = new Map<string, { spending: number; benefit: number }>();
-  for (const r of s.spendingPlan ?? [])
-    if (r.wbsId === wbsId)
-      plan.set(r.month, { spending: r.spending, benefit: r.benefit ?? 0 });
+  for (const r of s.spendingPlan ?? []) if (r.wbsId === wbsId) plan.set(r.month, { spending: r.spending, benefit: r.benefit ?? 0 });
   const months = [...new Set([...planned.keys(), ...plan.keys()])].sort();
   if (!months.length) return [];
   // Fill gaps so the table reads month by month.
@@ -170,38 +108,15 @@ export function spendingPlanCompare(
     const pl = planned.get(month) ?? 0;
     cs += p.spending;
     cp += pl;
-    return {
-      month,
-      spending: p.spending,
-      benefit: p.benefit,
-      cumSpending: cs,
-      planned: pl,
-      cumPlanned: cp,
-      variance: cs - cp,
-    };
+    return { month, spending: p.spending, benefit: p.benefit, cumSpending: cs, planned: pl, cumPlanned: cp, variance: cs - cp };
   });
 }
 
 /** Seed a spending plan from the planned cost per month (P6 users often start from the schedule). */
-export function spendingPlanFromSchedule(
-  s: Schedule,
-  wbsId: string | null,
-): Schedule {
+export function spendingPlanFromSchedule(s: Schedule, wbsId: string | null): Schedule {
   const rows = spendingPlanCompare({ ...s, spendingPlan: [] }, wbsId);
   const keep = (s.spendingPlan ?? []).filter((r) => r.wbsId !== wbsId);
-  return {
-    ...s,
-    spendingPlan: [
-      ...keep,
-      ...rows
-        .filter((r) => r.planned)
-        .map((r) => ({
-          wbsId,
-          month: r.month,
-          spending: Math.round(r.planned),
-        })),
-    ],
-  };
+  return { ...s, spendingPlan: [...keep, ...rows.filter((r) => r.planned).map((r) => ({ wbsId, month: r.month, spending: Math.round(r.planned) }))] };
 }
 
 // ---------------------------------------------------------------- OBS
@@ -213,12 +128,7 @@ export function obsPath(s: Schedule, id: string | null | undefined): string {
   if (!m) obsMapCache.set(s.obs, (m = new Map(s.obs.map((o) => [o.id, o]))));
   const parts: string[] = [];
   const seen = new Set<string>();
-  for (
-    let o = m.get(id);
-    o && !seen.has(o.id);
-    o = o.parentId ? m.get(o.parentId) : undefined
-  )
-    (seen.add(o.id), parts.unshift(o.name));
+  for (let o = m.get(id); o && !seen.has(o.id); o = o.parentId ? m.get(o.parentId) : undefined) (seen.add(o.id), parts.unshift(o.name));
   return parts.join(" / ");
 }
 
@@ -227,12 +137,7 @@ const wbsMapCache = new WeakMap<WbsNode[], Map<string, WbsNode>>();
 export function wbsObs(s: Schedule, wbsId: string | null): string | null {
   let m = wbsMapCache.get(s.wbs);
   if (!m) wbsMapCache.set(s.wbs, (m = new Map(s.wbs.map((w) => [w.id, w]))));
-  for (
-    let w = wbsId ? m.get(wbsId) : undefined;
-    w;
-    w = w.parentId ? m.get(w.parentId) : undefined
-  )
-    if (w.obsId) return w.obsId;
+  for (let w = wbsId ? m.get(wbsId) : undefined; w; w = w.parentId ? m.get(w.parentId) : undefined) if (w.obsId) return w.obsId;
   return s.obsId ?? null;
 }
 
@@ -247,9 +152,7 @@ export function obsTree(s: Schedule): { node: ObsNode; depth: number }[] {
   }
   const out: { node: ObsNode; depth: number }[] = [];
   const walk = (p: string | null, depth: number) => {
-    for (const o of (kids.get(p) ?? []).sort((a, b) =>
-      a.name.localeCompare(b.name),
-    )) {
+    for (const o of (kids.get(p) ?? []).sort((a, b) => a.name.localeCompare(b.name))) {
       out.push({ node: o, depth });
       walk(o.id, depth + 1);
     }
@@ -286,26 +189,15 @@ export const DEFAULT_RISK_MATRIX: RiskMatrix = {
   medium: 5,
 };
 
-export const riskMatrixOf = (s: Schedule) =>
-  s.riskMatrix ?? DEFAULT_RISK_MATRIX;
+export const riskMatrixOf = (s: Schedule) => s.riskMatrix ?? DEFAULT_RISK_MATRIX;
 
 /** Level index for a text value: a label ("High"), "H", a level number (1–5) or a percentage ("40%"). */
-function levelOf(
-  v: string,
-  labels: string[],
-  pct?: { from: number }[],
-): number | null {
+function levelOf(v: string, labels: string[], pct?: { from: number }[]): number | null {
   const t = v.trim().toLowerCase();
   if (!t) return null;
   const byLabel = labels.findIndex((l) => l.toLowerCase() === t);
   if (byLabel >= 0) return byLabel;
-  const initials = labels.map((l) =>
-    l
-      .split(/\s+/)
-      .map((w) => w[0])
-      .join("")
-      .toLowerCase(),
-  );
+  const initials = labels.map((l) => l.split(/\s+/).map((w) => w[0]).join("").toLowerCase());
   const byInitial = initials.indexOf(t.replace(/[^a-z]/g, ""));
   if (byInitial >= 0 && /^[a-z ]+$/.test(t)) return byInitial;
   const n = Number(t.replace(/[%,\s]/g, ""));
@@ -334,18 +226,11 @@ export interface RiskScore {
 
 export function riskScore(item: RegisterItem, m: RiskMatrix): RiskScore {
   const v = item.values;
-  const probability = levelOf(
-    v["Probability"] ?? "",
-    m.probability.map((p) => p.label),
-    m.probability,
-  );
+  const probability = levelOf(v["Probability"] ?? "", m.probability.map((p) => p.label), m.probability);
   const labels = m.impact.map((i) => i.label);
   const levels: number[] = [];
   // Numbers are compared with the thresholds (days or cost); words are matched to the labels.
-  for (const [key, field] of [
-    ["Impact (Schedule)", "scheduleDays"],
-    ["Impact (Cost)", "cost"],
-  ] as const) {
+  for (const [key, field] of [["Impact (Schedule)", "scheduleDays"], ["Impact (Cost)", "cost"]] as const) {
     const raw = v[key] ?? "";
     const n = numIn(raw);
     if (n !== null) {
@@ -358,26 +243,13 @@ export function riskScore(item: RegisterItem, m: RiskMatrix): RiskScore {
     }
   }
   const impact = levels.length ? Math.max(...levels) : null;
-  const score =
-    probability !== null && impact !== null
-      ? (m.scores[probability]?.[impact] ?? null)
-      : null;
-  const band =
-    score === null
-      ? null
-      : score >= m.high
-        ? "high"
-        : score >= m.medium
-          ? "medium"
-          : "low";
+  const score = probability !== null && impact !== null ? m.scores[probability]?.[impact] ?? null : null;
+  const band = score === null ? null : score >= m.high ? "high" : score >= m.medium ? "medium" : "low";
   return { probability, impact, score, band };
 }
 
 /** counts[p][i] of risks in each cell of the matrix. */
-export function riskHeatMap(s: Schedule): {
-  counts: number[][];
-  unscored: number;
-} {
+export function riskHeatMap(s: Schedule): { counts: number[][]; unscored: number } {
   const m = riskMatrixOf(s);
   const counts = m.probability.map(() => m.impact.map(() => 0));
   let unscored = 0;
@@ -392,28 +264,10 @@ export function riskHeatMap(s: Schedule): {
 // ---------------------------------------------------------------- financial periods
 
 export type FinancialPeriod = NonNullable<Schedule["financialPeriods"]>[number];
-const MONTHS = [
-  "Jan",
-  "Feb",
-  "Mar",
-  "Apr",
-  "May",
-  "Jun",
-  "Jul",
-  "Aug",
-  "Sep",
-  "Oct",
-  "Nov",
-  "Dec",
-];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
 /** P6 Financial Period Calendar › Batch Create: periods of a week, a month or a quarter between two dates. */
-export function batchFinancialPeriods(
-  start: number,
-  end: number,
-  interval: "week" | "month" | "quarter",
-  endDay = 0,
-): FinancialPeriod[] {
+export function batchFinancialPeriods(start: number, end: number, interval: "week" | "month" | "quarter", endDay = 0): FinancialPeriod[] {
   const out: FinancialPeriod[] = [];
   const DAY = 86_400_000;
   let t = Math.floor(start / DAY) * DAY;
@@ -426,13 +280,7 @@ export function batchFinancialPeriods(
       next = t + (toEnd + 1) * DAY;
     } else {
       const months = interval === "month" ? 1 : 3;
-      next = Date.UTC(
-        d.getUTCFullYear(),
-        d.getUTCMonth() +
-          months -
-          (interval === "quarter" ? d.getUTCMonth() % 3 : 0),
-        1,
-      );
+      next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months - (interval === "quarter" ? d.getUTCMonth() % 3 : 0), 1);
     }
     const f = new Date(next - DAY);
     const name =
@@ -448,5 +296,4 @@ export function batchFinancialPeriods(
 }
 
 /** The financial period containing a date. */
-export const financialPeriodAt = (s: Schedule, t: number) =>
-  (s.financialPeriods ?? []).find((p) => p.start <= t && t < p.finish) ?? null;
+export const financialPeriodAt = (s: Schedule, t: number) => (s.financialPeriods ?? []).find((p) => p.start <= t && t < p.finish) ?? null;

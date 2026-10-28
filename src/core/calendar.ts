@@ -13,33 +13,18 @@ export function dayStart(t: number): number {
 }
 
 /** Monday–Friday, 08:00–12:00 and 13:00–17:00 (8 h/day). */
-export function standardCalendar(
-  id = "std",
-  name = "Standard 5-day",
-): Calendar {
+export function standardCalendar(id = "std", name = "Standard 5-day"): Calendar {
   const work: [number, number][] = [
     [8, 12],
     [13, 17],
   ];
-  return {
-    id,
-    name,
-    week: [[], work, work, work, work, work, []],
-    holidays: [],
-    hoursPerDay: 8,
-  };
+  return { id, name, week: [[], work, work, work, work, work, []], holidays: [], hoursPerDay: 8 };
 }
 
 /** Seven days a week, 24 hours (for curing, lead times and similar). */
 export function continuousCalendar(id = "24x7", name = "24/7"): Calendar {
   const all: [number, number][] = [[0, 24]];
-  return {
-    id,
-    name,
-    week: [all, all, all, all, all, all, all],
-    holidays: [],
-    hoursPerDay: 24,
-  };
+  return { id, name, week: [all, all, all, all, all, all, all], holidays: [], hoursPerDay: 24 };
 }
 
 interface Index {
@@ -53,9 +38,7 @@ function index(cal: Calendar): Index {
   if (!ix) {
     ix = {
       holidays: new Set(cal.holidays.map(dayStart)),
-      workdays: new Map(
-        (cal.workdays ?? []).map((w) => [dayStart(w.date), w.spans]),
-      ),
+      workdays: new Map((cal.workdays ?? []).map((w) => [dayStart(w.date), w.spans])),
     };
     indexCache.set(cal, ix);
   }
@@ -77,10 +60,7 @@ function relSpans(cal: Calendar, day: number): [number, number][] {
 }
 
 function hasAnyWork(cal: Calendar): boolean {
-  return (
-    cal.week.some((d) => d.some(([a, b]) => b > a)) ||
-    (cal.workdays ?? []).length > 0
-  );
+  return cal.week.some((d) => d.some(([a, b]) => b > a)) || (cal.workdays ?? []).length > 0;
 }
 
 const MAX_DAYS = 365 * 60;
@@ -120,8 +100,7 @@ function cumFor(cal: Calendar, lo: number, hi: number): Cum {
     // Keep the same origin as before so totals already computed stay comparable.
     if (c) {
       const shift = c.prefix[0] - next.prefix[c.d0 - next.d0];
-      if (shift)
-        for (let i = 0; i < next.prefix.length; i++) next.prefix[i] += shift;
+      if (shift) for (let i = 0; i < next.prefix.length; i++) next.prefix[i] += shift;
     }
     c = next;
     cumCache.set(cal, c);
@@ -147,8 +126,7 @@ function cumAt(cal: Calendar, c: Cum, t: number): number {
 function findDay(c: Cum, target: number, strict: boolean, from = 0): number {
   let lo = Math.max(0, from);
   let hi = c.n - 1;
-  const ok = (i: number) =>
-    strict ? c.prefix[i + 1] > target : c.prefix[i + 1] >= target;
+  const ok = (i: number) => (strict ? c.prefix[i + 1] > target : c.prefix[i + 1] >= target);
   if (lo > hi || !ok(hi)) return -1;
   while (lo < hi) {
     const mid = (lo + hi) >> 1;
@@ -162,12 +140,7 @@ function findDay(c: Cum, target: number, strict: boolean, from = 0): number {
  * Smallest moment where the running total reaches `target` (strict = false)
  * or starts to exceed it (strict = true), searching forward from day index `from`.
  */
-function momentOf(
-  cal: Calendar,
-  t0: number,
-  target: number,
-  strict: boolean,
-): number | null {
+function momentOf(cal: Calendar, t0: number, target: number, strict: boolean): number | null {
   const startDay = Math.floor(t0 / DAY);
   for (let span = 366 * 4; span <= MAX_DAYS * 2; span *= 2) {
     const c = cumFor(cal, startDay - 2, startDay + span);
@@ -181,8 +154,7 @@ function momentOf(
     for (const [a, b] of relSpans(cal, day)) {
       const len = (b - a) * HOUR;
       if (len <= 0) continue;
-      if (strict ? acc + len > target : acc + len >= target)
-        return day + a * HOUR + Math.max(0, target - acc);
+      if (strict ? acc + len > target : acc + len >= target) return day + a * HOUR + Math.max(0, target - acc);
       acc += len;
     }
     return day + DAY; // unreachable with a consistent index
@@ -198,43 +170,30 @@ function momentOf(
 export function addWorkHours(cal: Calendar, t: number, hours: number): number {
   if (hours < 0) return subtractWorkHours(cal, t, -hours);
   if (hours === 0) return t;
-  if (!hasAnyWork(cal))
-    throw new Error(`Calendar "${cal.name}" has no working time`);
+  if (!hasAnyWork(cal)) throw new Error(`Calendar "${cal.name}" has no working time`);
   const c = cumFor(cal, Math.floor(t / DAY) - 2, Math.floor(t / DAY) + 2);
   const r = momentOf(cal, t, cumAt(cal, c, t) + hours * HOUR, false);
-  if (r === null)
-    throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  if (r === null) throw new Error("Date arithmetic ran past 60 years; check the calendar");
   return r;
 }
 
 /** Subtract working hours. A result exactly on the start of a span stays there. */
-export function subtractWorkHours(
-  cal: Calendar,
-  t: number,
-  hours: number,
-): number {
+export function subtractWorkHours(cal: Calendar, t: number, hours: number): number {
   if (hours < 0) return addWorkHours(cal, t, -hours);
   if (hours === 0) return t;
-  if (!hasAnyWork(cal))
-    throw new Error(`Calendar "${cal.name}" has no working time`);
+  if (!hasAnyWork(cal)) throw new Error(`Calendar "${cal.name}" has no working time`);
   const day = Math.floor(t / DAY);
   // Make sure the index reaches far enough back to hold the hours we subtract.
   let c = cumFor(cal, day - 2, day + 2);
   let target = cumAt(cal, c, t) - hours * HOUR;
-  for (
-    let back = 366 * 4;
-    target < c.prefix[0] && back <= MAX_DAYS * 2;
-    back *= 2
-  ) {
+  for (let back = 366 * 4; target < c.prefix[0] && back <= MAX_DAYS * 2; back *= 2) {
     c = cumFor(cal, day - back, day + 2);
     target = cumAt(cal, c, t) - hours * HOUR;
   }
-  if (target < c.prefix[0])
-    throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  if (target < c.prefix[0]) throw new Error("Date arithmetic ran past 60 years; check the calendar");
   // Largest moment with that total: where the total starts to exceed it, searching from the index start.
   const i = findDay(c, target, true, 0);
-  if (i < 0)
-    throw new Error("Date arithmetic ran past 60 years; check the calendar");
+  if (i < 0) throw new Error("Date arithmetic ran past 60 years; check the calendar");
   const d = (c.d0 + i) * DAY;
   let acc = c.prefix[i];
   for (const [a, b] of relSpans(cal, d)) {
@@ -259,11 +218,7 @@ export function prevWorkEnd(cal: Calendar, t: number): number {
   const day = Math.floor(t / DAY);
   let c = cumFor(cal, day - 2, day + 2);
   let target = cumAt(cal, c, t);
-  for (
-    let back = 366 * 4;
-    target <= c.prefix[0] && back <= MAX_DAYS * 2;
-    back *= 2
-  ) {
+  for (let back = 366 * 4; target <= c.prefix[0] && back <= MAX_DAYS * 2; back *= 2) {
     c = cumFor(cal, day - back, day + 2);
     target = cumAt(cal, c, t);
   }
@@ -275,8 +230,7 @@ export function prevWorkEnd(cal: Calendar, t: number): number {
   for (const [a, b] of relSpans(cal, d)) {
     const len = (b - a) * HOUR;
     if (len <= 0) continue;
-    if (acc + len >= target)
-      return Math.min(t, d + a * HOUR + Math.max(0, target - acc));
+    if (acc + len >= target) return Math.min(t, d + a * HOUR + Math.max(0, target - acc));
     acc += len;
   }
   return t;
@@ -308,8 +262,7 @@ function hhmm(v: string): number {
 
 function spansIn(text: string): [number, number][] {
   const spans: [number, number][] = [];
-  const re =
-    /s\|(\d{1,2}:\d{2})\|f\|(\d{1,2}:\d{2})|f\|(\d{1,2}:\d{2})\|s\|(\d{1,2}:\d{2})/g;
+  const re = /s\|(\d{1,2}:\d{2})\|f\|(\d{1,2}:\d{2})|f\|(\d{1,2}:\d{2})\|s\|(\d{1,2}:\d{2})/g;
   for (let m = re.exec(text); m; m = re.exec(text)) {
     const s = hhmm(m[1] ?? m[4]);
     let f = hhmm(m[2] ?? m[3]);
@@ -319,12 +272,7 @@ function spansIn(text: string): [number, number][] {
   return spans.sort((a, b) => a[0] - b[0]);
 }
 
-export function parseP6CalendarData(
-  id: string,
-  name: string,
-  data: string,
-  hoursPerDay?: number,
-): Calendar {
+export function parseP6CalendarData(id: string, name: string, data: string, hoursPerDay?: number): Calendar {
   const week: [number, number][][] = [[], [], [], [], [], [], []];
   const holidays: number[] = [];
   const workdays: { date: number; spans: [number, number][] }[] = [];
@@ -332,10 +280,7 @@ export function parseP6CalendarData(
   const dowStart = data.indexOf("DaysOfWeek");
   const excStart = data.indexOf("Exceptions");
   if (dowStart >= 0) {
-    const block = data.slice(
-      dowStart,
-      excStart > dowStart ? excStart : undefined,
-    );
+    const block = data.slice(dowStart, excStart > dowStart ? excStart : undefined);
     const heads = [...block.matchAll(/\(0\|\|([1-7])\(\)\(/g)];
     heads.forEach((h, i) => {
       const from = (h.index ?? 0) + h[0].length;
@@ -358,30 +303,20 @@ export function parseP6CalendarData(
   const parsedAny = week.some((d) => d.length);
   const cal: Calendar = parsedAny
     ? { id, name, week, holidays, workdays, hoursPerDay: hoursPerDay ?? 8 }
-    : {
-        ...standardCalendar(id, name),
-        holidays,
-        workdays,
-        hoursPerDay: hoursPerDay ?? 8,
-      };
+    : { ...standardCalendar(id, name), holidays, workdays, hoursPerDay: hoursPerDay ?? 8 };
   return cal;
 }
 
 /** Encode a calendar back into P6 clndr_data (used by the XER exporter for new calendars). */
 export function toP6CalendarData(cal: Calendar): string {
-  const t = (h: number) =>
-    `${String(Math.floor(h % 24 === 0 && h > 0 ? 0 : h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
-  const spans = (list: [number, number][]) =>
-    list.map(([a, b], i) => `(0||${i}(s|${t(a)}|f|${t(b)})())`).join("");
+  const t = (h: number) => `${String(Math.floor(h % 24 === 0 && h > 0 ? 0 : h)).padStart(2, "0")}:${String(Math.round((h % 1) * 60)).padStart(2, "0")}`;
+  const spans = (list: [number, number][]) => list.map(([a, b], i) => `(0||${i}(s|${t(a)}|f|${t(b)})())`).join("");
   const days = cal.week.map((d, i) => `(0||${i + 1}()(${spans(d)}))`).join("");
   const ex = [
     ...cal.holidays.map((d) => ({ d, s: [] as [number, number][] })),
     ...(cal.workdays ?? []).map((w) => ({ d: w.date, s: w.spans })),
   ]
-    .map(
-      (e, i) =>
-        `(0||${i}(d|${Math.round((dayStart(e.d) - P6_EPOCH) / DAY)})(${spans(e.s)}))`,
-    )
+    .map((e, i) => `(0||${i}(d|${Math.round((dayStart(e.d) - P6_EPOCH) / DAY)})(${spans(e.s)}))`)
     .join("");
   return `(0||CalendarData()((0||DaysOfWeek()(${days}))(0||Exceptions()(${ex}))))`;
 }

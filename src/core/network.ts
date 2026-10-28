@@ -23,16 +23,8 @@ export function networkLayout(s: Schedule, only?: Set<string>): NetLayout {
   const indeg = new Map<string, number>();
   for (const a of acts) indeg.set(a.id, 0);
   for (const r of s.relationships) {
-    if (
-      !ids.has(r.predecessorId) ||
-      !ids.has(r.successorId) ||
-      r.predecessorId === r.successorId
-    )
-      continue;
-    (
-      succ.get(r.predecessorId) ??
-      succ.set(r.predecessorId, []).get(r.predecessorId)!
-    ).push(r.successorId);
+    if (!ids.has(r.predecessorId) || !ids.has(r.successorId) || r.predecessorId === r.successorId) continue;
+    (succ.get(r.predecessorId) ?? succ.set(r.predecessorId, []).get(r.predecessorId)!).push(r.successorId);
     indeg.set(r.successorId, (indeg.get(r.successorId) ?? 0) + 1);
   }
   const level = new Map<string, number>();
@@ -59,48 +51,27 @@ export function networkLayout(s: Schedule, only?: Set<string>): NetLayout {
   const nodes = new Map<string, NetNode>();
   let maxRow = 0;
   for (const [c, list] of cols) {
-    list.sort(
-      (a, b) =>
-        (a.start ?? 0) - (b.start ?? 0) ||
-        a.code.localeCompare(b.code, undefined, { numeric: true }),
-    );
+    list.sort((a, b) => (a.start ?? 0) - (b.start ?? 0) || a.code.localeCompare(b.code, undefined, { numeric: true }));
     list.forEach((a, i) => nodes.set(a.id, { id: a.id, col: c, row: i }));
     maxRow = Math.max(maxRow, list.length);
   }
-  return {
-    nodes,
-    cols: cols.size ? Math.max(...cols.keys()) + 1 : 0,
-    rows: maxRow,
-  };
+  return { nodes, cols: cols.size ? Math.max(...cols.keys()) + 1 : 0, rows: maxRow };
 }
 
 /** Activities within `depth` relationships of `id`, both ways (P6 Trace Logic). */
-export function traceLogic(
-  s: Schedule,
-  id: string,
-  depthBack: number,
-  depthFwd: number,
-): Set<string> {
+export function traceLogic(s: Schedule, id: string, depthBack: number, depthFwd: number): Set<string> {
   const preds = new Map<string, string[]>();
   const succs = new Map<string, string[]>();
   for (const r of s.relationships) {
-    (
-      preds.get(r.successorId) ??
-      preds.set(r.successorId, []).get(r.successorId)!
-    ).push(r.predecessorId);
-    (
-      succs.get(r.predecessorId) ??
-      succs.set(r.predecessorId, []).get(r.predecessorId)!
-    ).push(r.successorId);
+    (preds.get(r.successorId) ?? preds.set(r.successorId, []).get(r.successorId)!).push(r.predecessorId);
+    (succs.get(r.predecessorId) ?? succs.set(r.predecessorId, []).get(r.predecessorId)!).push(r.successorId);
   }
   const out = new Set([id]);
   const walk = (map: Map<string, string[]>, depth: number) => {
     let front = [id];
     for (let d = 0; d < depth && front.length; d++) {
       const next: string[] = [];
-      for (const x of front)
-        for (const y of map.get(x) ?? [])
-          if (!out.has(y)) (out.add(y), next.push(y));
+      for (const x of front) for (const y of map.get(x) ?? []) if (!out.has(y)) (out.add(y), next.push(y));
       front = next;
     }
   };

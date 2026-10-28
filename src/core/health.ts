@@ -19,11 +19,7 @@ export interface LinkHealth {
 
 const WORK_TYPES = new Set<Activity["type"]>(["task", "resource-dependent"]);
 
-export function linkHealth(
-  schedule: Schedule,
-  elements: ModelElement[],
-  links: Link[],
-): LinkHealth {
+export function linkHealth(schedule: Schedule, elements: ModelElement[], links: Link[]): LinkHealth {
   const actById = new Map(schedule.activities.map((a) => [a.id, a]));
   const elById = new Map(elements.map((e) => [e.id, e]));
   const linkedActs = new Set<string>();
@@ -53,10 +49,7 @@ export function linkHealth(
   const unlinkedElements = elements.filter((e) => !linkedEls.has(e.id));
   const duplicateInstalls = [...installs]
     .filter(([, acts]) => acts.size > 1)
-    .map(([elId, acts]) => ({
-      element: elById.get(elId)!,
-      activities: [...acts].map((id) => actById.get(id)!),
-    }));
+    .map(([elId, acts]) => ({ element: elById.get(elId)!, activities: [...acts].map((id) => actById.get(id)!) }));
 
   return {
     unlinkedActivities,
@@ -65,12 +58,8 @@ export function linkHealth(
     orphanElementLinks,
     duplicateInstalls,
     coverage: {
-      activities: work.length
-        ? (work.length - unlinkedActivities.length) / work.length
-        : 1,
-      elements: elements.length
-        ? (elements.length - unlinkedElements.length) / elements.length
-        : 1,
+      activities: work.length ? (work.length - unlinkedActivities.length) / work.length : 1,
+      elements: elements.length ? (elements.length - unlinkedElements.length) / elements.length : 1,
     },
   };
 }

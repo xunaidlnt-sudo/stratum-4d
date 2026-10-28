@@ -2,15 +2,7 @@
 // and splitting elements into segments (pours, bays).
 
 import { phaseAt } from "./simulation";
-import type {
-  DateSource,
-  ElementGroup,
-  ElementSegment,
-  GrowthDirection,
-  ModelElement,
-  MotionPath,
-  Schedule,
-} from "./types";
+import type { DateSource, ElementGroup, ElementSegment, GrowthDirection, ModelElement, MotionPath, Schedule } from "./types";
 
 export type Vec3 = [number, number, number];
 
@@ -32,10 +24,7 @@ function length(a: Vec3, b: Vec3): number {
 }
 
 /** Point and heading at fraction p (0..1) of the path's length. */
-export function pointAlong(
-  points: Vec3[],
-  p: number,
-): { point: Vec3; yaw: number } {
+export function pointAlong(points: Vec3[], p: number): { point: Vec3; yaw: number } {
   if (points.length === 0) return { point: [0, 0, 0], yaw: 0 };
   if (points.length === 1) return { point: points[0], yaw: 0 };
   const segs = points.slice(1).map((b, i) => length(points[i], b));
@@ -47,11 +36,7 @@ export function pointAlong(
     if (target <= segs[i] || i === segs.length - 1) {
       const f = segs[i] > 0 ? Math.min(1, target / segs[i]) : 0;
       return {
-        point: [
-          a[0] + (b[0] - a[0]) * f,
-          a[1] + (b[1] - a[1]) * f,
-          a[2] + (b[2] - a[2]) * f,
-        ],
+        point: [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f],
         yaw: Math.atan2(b[0] - a[0], b[2] - a[2]),
       };
     }
@@ -61,12 +46,7 @@ export function pointAlong(
 }
 
 /** Where each path-driven element is at time t, as an offset from its modelled position. */
-export function motionAt(
-  schedule: Schedule,
-  paths: MotionPath[],
-  t: number,
-  source: DateSource = "current",
-): Map<string, Motion> {
+export function motionAt(schedule: Schedule, paths: MotionPath[], t: number, source: DateSource = "current"): Map<string, Motion> {
   const acts = new Map(schedule.activities.map((a) => [a.id, a]));
   const out = new Map<string, Motion>();
   for (const path of paths) {
@@ -77,11 +57,7 @@ export function motionAt(
     const start = pointAlong(path.points, 0);
     const now = pointAlong(path.points, p);
     const motion: Motion = {
-      offset: [
-        now.point[0] - start.point[0],
-        now.point[1] - start.point[1],
-        now.point[2] - start.point[2],
-      ],
+      offset: [now.point[0] - start.point[0], now.point[1] - start.point[1], now.point[2] - start.point[2]],
       yaw: path.orient ? now.yaw - start.yaw : 0,
     };
     for (const id of path.elementIds) out.set(id, motion);
@@ -94,10 +70,7 @@ export function motionAt(
  * In Stratum's model space +Y is up and -Z is south, so "south-north" grows
  * from the low-Z side.
  */
-export function growthClip(
-  direction: GrowthDirection | undefined,
-  p: number,
-): Clip | null {
+export function growthClip(direction: GrowthDirection | undefined, p: number): Clip | null {
   const q = Math.min(1, Math.max(0, p));
   switch (direction) {
     case "bottom-up":
@@ -118,28 +91,16 @@ export function growthClip(
 }
 
 /** Growth inside a segment: map the growth fraction into the segment's own range. */
-export function combineClips(
-  segment: Clip | null,
-  growth: Clip | null,
-): Clip | null {
+export function combineClips(segment: Clip | null, growth: Clip | null): Clip | null {
   if (!segment) return growth;
   if (!growth) return segment;
   if (growth.axis !== segment.axis) return segment; // different axes: keep the segment cut (one clip axis per element)
   const span = segment.hi - segment.lo;
-  return {
-    axis: segment.axis,
-    lo: segment.lo + growth.lo * span,
-    hi: segment.lo + growth.hi * span,
-  };
+  return { axis: segment.axis, lo: segment.lo + growth.lo * span, hi: segment.lo + growth.hi * span };
 }
 
 /** Split one element into n equal segments along an axis. */
-export function splitElement(
-  parentId: string,
-  axis: Clip["axis"],
-  n: number,
-  label = "Part",
-): ElementSegment[] {
+export function splitElement(parentId: string, axis: Clip["axis"], n: number, label = "Part"): ElementSegment[] {
   const k = Math.max(2, Math.min(50, Math.round(n)));
   return Array.from({ length: k }, (_, i) => ({
     id: `${parentId}#${axis}${i + 1}of${k}`,
@@ -156,25 +117,14 @@ export function splitElement(
  * by their segments, and group membership is exposed as a "Group" property so
  * rules and selection-by-property can use it.
  */
-export function expandElements(
-  elements: ModelElement[],
-  segments: ElementSegment[],
-  groups: ElementGroup[] = [],
-): ModelElement[] {
+export function expandElements(elements: ModelElement[], segments: ElementSegment[], groups: ElementGroup[] = []): ModelElement[] {
   const byParent = new Map<string, ElementSegment[]>();
-  for (const s of segments)
-    (
-      byParent.get(s.parentId) ?? byParent.set(s.parentId, []).get(s.parentId)!
-    ).push(s);
+  for (const s of segments) (byParent.get(s.parentId) ?? byParent.set(s.parentId, []).get(s.parentId)!).push(s);
   const groupNames = new Map<string, string[]>();
-  for (const g of groups)
-    for (const id of g.elementIds)
-      (groupNames.get(id) ?? groupNames.set(id, []).get(id)!).push(g.name);
+  for (const g of groups) for (const id of g.elementIds) (groupNames.get(id) ?? groupNames.set(id, []).get(id)!).push(g.name);
   const withGroup = (e: ModelElement): ModelElement => {
     const names = groupNames.get(e.id);
-    return names
-      ? { ...e, properties: { ...e.properties, Group: names.join(", ") } }
-      : e;
+    return names ? { ...e, properties: { ...e.properties, Group: names.join(", ") } } : e;
   };
   const out: ModelElement[] = [];
   for (const e of elements) {
@@ -184,18 +134,7 @@ export function expandElements(
       continue;
     }
     for (const s of segs) {
-      out.push(
-        withGroup({
-          ...e,
-          id: s.id,
-          name: `${e.name} – ${s.name}`,
-          properties: {
-            ...e.properties,
-            Segment: s.name,
-            ParentGlobalId: e.id,
-          },
-        }),
-      );
+      out.push(withGroup({ ...e, id: s.id, name: `${e.name} – ${s.name}`, properties: { ...e.properties, Segment: s.name, ParentGlobalId: e.id } }));
     }
   }
   return out;

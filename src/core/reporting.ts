@@ -63,14 +63,7 @@ export type KpiMetric =
   | "remainingDuration"
   | "overrun";
 
-export type TableFilter =
-  | "critical"
-  | "late"
-  | "in-progress"
-  | "starting-soon"
-  | "finishing-soon"
-  | "negative-float"
-  | "all";
+export type TableFilter = "critical" | "late" | "in-progress" | "starting-soon" | "finishing-soon" | "negative-float" | "all";
 
 /** Columns an activity table can show. "dim:<dimension>" shows a WBS level or activity code. */
 export type TableColumn =
@@ -267,11 +260,7 @@ export interface SmtpSettings {
   from: string;
 }
 
-export type P6ConnectionKind =
-  | "eppm"
-  | "p6-sqlserver"
-  | "p6-oracle"
-  | "p6-sqlite";
+export type P6ConnectionKind = "eppm" | "p6-sqlserver" | "p6-oracle" | "p6-sqlite";
 
 export interface P6Connection {
   id: string;
@@ -302,8 +291,7 @@ export interface P6Connection {
 export type InterfaceMode = "p6" | "msp" | "4d";
 export type StorageKind = "local" | "server" | "gdrive" | "onedrive";
 
-export const uid = (prefix = "id") =>
-  `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
+export const uid = (prefix = "id") => `${prefix}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`;
 
 export function newSchedule(dashboardId: string): ReportSchedule {
   return {
@@ -334,13 +322,7 @@ const DAY = 86_400_000;
  * Next time a schedule should run strictly after `from` (UTC ms). Works in
  * the schedule's fixed UTC offset, so "08:00 Dubai" is 04:00 UTC every day.
  */
-export function computeNextRun(
-  s: Pick<
-    ReportSchedule,
-    "frequency" | "time" | "weekdays" | "monthDay" | "utcOffsetMinutes"
-  >,
-  from: number,
-): number {
+export function computeNextRun(s: Pick<ReportSchedule, "frequency" | "time" | "weekdays" | "monthDay" | "utcOffsetMinutes">, from: number): number {
   const [hh, mm] = s.time.split(":").map((x) => Number(x) || 0);
   const off = s.utcOffsetMinutes * MIN;
   // Work in "local wall time expressed as UTC".
@@ -351,17 +333,10 @@ export function computeNextRun(
     const at = day + (hh * 60 + mm) * MIN;
     if (at <= local) continue;
     const d = new Date(day);
-    if (
-      s.frequency === "weekly" &&
-      !(s.weekdays.length ? s.weekdays : [1]).includes(d.getUTCDay())
-    )
-      continue;
+    if (s.frequency === "weekly" && !(s.weekdays.length ? s.weekdays : [1]).includes(d.getUTCDay())) continue;
     if (s.frequency === "monthly") {
-      const last = new Date(
-        Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0),
-      ).getUTCDate();
-      const want =
-        s.monthDay === -1 ? last : Math.min(Math.max(1, s.monthDay), last);
+      const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+      const want = s.monthDay === -1 ? last : Math.min(Math.max(1, s.monthDay), last);
       if (d.getUTCDate() !== want) continue;
     }
     return at - off;
@@ -370,15 +345,7 @@ export function computeNextRun(
 }
 
 /** Replace {project}, {date}, {datadate} in subject/body templates. */
-export function fillTemplate(
-  t: string,
-  vars: {
-    project: string;
-    date: number;
-    dataDate: number | null;
-    utcOffsetMinutes: number;
-  },
-): string {
+export function fillTemplate(t: string, vars: { project: string; date: number; dataDate: number | null; utcOffsetMinutes: number }): string {
   const fmt = (ms: number) => {
     const d = new Date(ms + vars.utcOffsetMinutes * MIN);
     return `${String(d.getUTCDate()).padStart(2, "0")}-${monthShort(d)}-${d.getUTCFullYear()}`;
@@ -386,19 +353,12 @@ export function fillTemplate(
   return t
     .replace(/\{project\}/g, vars.project)
     .replace(/\{date\}/g, fmt(vars.date))
-    .replace(
-      /\{datadate\}/g,
-      vars.dataDate !== null ? fmt(vars.dataDate) : "n/a",
-    );
+    .replace(/\{datadate\}/g, vars.dataDate !== null ? fmt(vars.dataDate) : "n/a");
 }
 
 /** EPC-style progress report: key figures, weighted progress table, S-curve, slicers. */
 export function progressReportDashboard(projectId: string | null): Dashboard {
-  const w = (
-    kind: WidgetKind,
-    title: string,
-    extra: Partial<Widget>,
-  ): Widget => ({ id: uid("w"), kind, title, w: 6, h: 1, ...extra });
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 6, h: 1, ...extra });
   return {
     id: uid("dash"),
     name: "Monthly progress report",
@@ -413,11 +373,7 @@ export function progressReportDashboard(projectId: string | null): Dashboard {
         rows: [
           { label: "Overall progress (actual)", metric: "percentComplete" },
           { label: "POI %", metric: null, value: "" },
-          {
-            label: "Total man-months spent against ACE",
-            metric: null,
-            value: "",
-          },
+          { label: "Total man-months spent against ACE", metric: null, value: "" },
           { label: "Provisions to be liquidated", metric: null, value: "" },
           { label: "WISA attendance %", metric: null, value: "" },
         ],
@@ -425,30 +381,15 @@ export function progressReportDashboard(projectId: string | null): Dashboard {
       w("kpi", "Schedule Data Date", { w: 4, metric: "dataDate" }),
       w("slicer", "Discipline", { w: 4, dimension: "wbs1" }),
       w("banner", "Progress {datadate}", { w: 12, h: 0.5 }),
-      w("progress", "Overall", {
-        w: 12,
-        h: 2,
-        dimension: "wbs1",
-        basis: "cost",
-        totalLabel: "TOTAL EPC",
-      }),
-      w("pscurve", "Progress S-curve", {
-        w: 12,
-        h: 3,
-        basis: "cost",
-        step: "month",
-      }),
+      w("progress", "Overall", { w: 12, h: 2, dimension: "wbs1", basis: "cost", totalLabel: "TOTAL EPC" }),
+      w("pscurve", "Progress S-curve", { w: 12, h: 3, basis: "cost", step: "month" }),
     ],
   };
 }
 
 /** A starter dashboard so a new user has something useful straight away. */
 export function defaultDashboard(projectId: string | null): Dashboard {
-  const w = (
-    kind: WidgetKind,
-    title: string,
-    extra: Partial<Widget>,
-  ): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, ...extra });
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, ...extra });
   return {
     id: uid("dash"),
     name: "Project status",
@@ -462,19 +403,8 @@ export function defaultDashboard(projectId: string | null): Dashboard {
       w("scurve", "Progress S-curve", { w: 8, h: 2, measure: "cost" }),
       w("kpi", "Critical activities", { metric: "critical", w: 4 }),
       w("kpi", "Late against baseline", { metric: "late", w: 4 }),
-      w("table", "Critical and late activities", {
-        filter: "late",
-        w: 12,
-        h: 2,
-        limit: 15,
-      }),
-      w("table", "Starting in the next 14 days", {
-        filter: "starting-soon",
-        days: 14,
-        w: 6,
-        h: 2,
-        limit: 12,
-      }),
+      w("table", "Critical and late activities", { filter: "late", w: 12, h: 2, limit: 15 }),
+      w("table", "Starting in the next 14 days", { filter: "starting-soon", days: 14, w: 6, h: 2, limit: 12 }),
       w("histogram", "Labour and plant usage", { w: 6, h: 2 }),
     ],
   };
@@ -486,60 +416,27 @@ export function defaultDashboard(projectId: string | null): Dashboard {
  * plan vs actual by discipline, separate E/P/C S-curves and a look-ahead.
  */
 export function planningDashboard(projectId: string | null): Dashboard {
-  const w = (
-    kind: WidgetKind,
-    title: string,
-    extra: Partial<Widget>,
-  ): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, ...extra });
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, ...extra });
   return {
     id: uid("dash"),
     name: "Planning dashboard",
     projectId,
     theme: "classic",
-    page: {
-      header: "{project}",
-      subtitle: "Weekly schedule update · data date {datadate}",
-      accent: "#0b4f8a",
-      showDataDate: true,
-    },
+    page: { header: "{project}", subtitle: "Weekly schedule update · data date {datadate}", accent: "#0b4f8a", showDataDate: true },
     updatedAt: new Date().toISOString(),
     slices: [],
     widgets: [
-      w("gauge", "Schedule performance (SPI)", {
-        metric: "spi",
-        good: 1,
-        bad: 0.9,
-      }),
-      w("gauge", "Cost performance (CPI)", {
-        metric: "cpi",
-        good: 1,
-        bad: 0.9,
-      }),
+      w("gauge", "Schedule performance (SPI)", { metric: "spi", good: 1, bad: 0.9 }),
+      w("gauge", "Cost performance (CPI)", { metric: "cpi", good: 1, bad: 0.9 }),
       w("gauge", "Physical progress", { metric: "percentComplete" }),
       w("kpi", "Forecast finish", { metric: "finish" }),
       w("slicer", "Discipline", { w: 12, h: 0.5, dimension: "wbs1" }),
-      w("groupbars", "Plan vs actual by discipline", {
-        w: 6,
-        h: 2,
-        dimension: "wbs1",
-        basis: "cost",
-      }),
+      w("groupbars", "Plan vs actual by discipline", { w: 6, h: 2, dimension: "wbs1", basis: "cost" }),
       w("donut", "Activity status", { w: 3, h: 2, split: "status" }),
       w("donut", "Float health", { w: 3, h: 2, split: "float" }),
-      w("phasecurves", "Progress by phase", {
-        w: 12,
-        h: 2,
-        dimension: "wbs1",
-        basis: "cost",
-        step: "month",
-      }),
+      w("phasecurves", "Progress by phase", { w: 12, h: 2, dimension: "wbs1", basis: "cost", step: "month" }),
       w("milestones", "Milestone tracker", { w: 6, h: 2.5, limit: 12 }),
-      w("lookahead", "3-week look-ahead", {
-        w: 6,
-        h: 2.5,
-        weeks: 3,
-        limit: 30,
-      }),
+      w("lookahead", "3-week look-ahead", { w: 6, h: 2.5, weeks: 3, limit: 30 }),
     ],
   };
 }
@@ -550,32 +447,13 @@ export function planningDashboard(projectId: string | null): Dashboard {
  * baseline plan measured to the end of last month, as monthly reports do.
  */
 export function eppmSummaryDashboard(projectId: string | null): Dashboard {
-  const w = (
-    kind: WidgetKind,
-    title: string,
-    extra: Partial<Widget>,
-  ): Widget => ({
-    id: uid("w"),
-    kind,
-    title,
-    w: 3,
-    h: 1,
-    basis: "hours",
-    ...extra,
-  });
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, basis: "hours", ...extra });
   return {
     id: uid("dash"),
     name: "Project control – summary",
     projectId,
     theme: "classic",
-    page: {
-      header: "{project}",
-      subtitle: "Selected baseline: {baseline} · data date {baselinedate}",
-      accent: "#1f3c88",
-      showDataDate: true,
-      dense: true,
-      gap: 10,
-    },
+    page: { header: "{project}", subtitle: "Selected baseline: {baseline} · data date {baselinedate}", accent: "#1f3c88", showDataDate: true, dense: true, gap: 10 },
     updatedAt: new Date().toISOString(),
     slices: [],
     widgets: [
@@ -594,19 +472,8 @@ export function eppmSummaryDashboard(projectId: string | null): Dashboard {
           { label: "Estimated finish", metric: "finish" },
         ],
       }),
-      w("gauge", "Weighted percent", {
-        w: 3,
-        h: 2,
-        metric: "actualPct",
-        cutoff: "monthstart",
-      }),
-      w("donut", "Scope composition weightage", {
-        w: 3,
-        h: 2.5,
-        split: "weight",
-        dimension: "wbs1",
-        ignoreSlicers: true,
-      }),
+      w("gauge", "Weighted percent", { w: 3, h: 2, metric: "actualPct", cutoff: "monthstart" }),
+      w("donut", "Scope composition weightage", { w: 3, h: 2.5, split: "weight", dimension: "wbs1", ignoreSlicers: true }),
       w("cards", "Progress summary", {
         w: 3,
         h: 2,
@@ -634,73 +501,28 @@ export function eppmSummaryDashboard(projectId: string | null): Dashboard {
         ],
       }),
       w("text", "Contract description", { w: 3, h: 1, text: "{project}" }),
-      w("controltable", "Discipline", {
-        w: 9,
-        h: 2.5,
-        dimension: "wbs1",
-        cutoff: "monthstart",
-        ignoreSlicers: true,
-      }),
-      w("text", "Status of EOT", {
-        w: 3,
-        h: 1.5,
-        text: "Type the status of extension of time claims here (Customise → select this card → Data).",
-      }),
+      w("controltable", "Discipline", { w: 9, h: 2.5, dimension: "wbs1", cutoff: "monthstart", ignoreSlicers: true }),
+      w("text", "Status of EOT", { w: 3, h: 1.5, text: "Type the status of extension of time claims here (Customise → select this card → Data)." }),
     ],
   };
 }
 
 /** Project control dashboard, page 2: progress S-curve with histograms and slicers. */
 export function eppmCurveDashboard(projectId: string | null): Dashboard {
-  const w = (
-    kind: WidgetKind,
-    title: string,
-    extra: Partial<Widget>,
-  ): Widget => ({
-    id: uid("w"),
-    kind,
-    title,
-    w: 2,
-    h: 1,
-    basis: "hours",
-    ...extra,
-  });
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 2, h: 1, basis: "hours", ...extra });
   return {
     id: uid("dash"),
     name: "Project control – S-curve",
     projectId,
     theme: "classic",
-    page: {
-      header: "{project}",
-      subtitle: "Selected baseline: {baseline} · data date {baselinedate}",
-      accent: "#1f3c88",
-      dense: true,
-      gap: 10,
-    },
+    page: { header: "{project}", subtitle: "Selected baseline: {baseline} · data date {baselinedate}", accent: "#1f3c88", dense: true, gap: 10 },
     updatedAt: new Date().toISOString(),
     slices: [],
     widgets: [
-      w("slicer", "Discipline", {
-        h: 2,
-        dimension: "wbs1",
-        slicerStyle: "list",
-      }),
-      w("combo", "Progress S-curve", {
-        w: 8,
-        h: 4.5,
-        step: "month",
-        showLabels: true,
-      }),
-      w("slicer", "Work package", {
-        h: 3.5,
-        dimension: "wbs2",
-        slicerStyle: "list",
-      }),
-      w("slicer", "Package", {
-        h: 1.5,
-        dimension: "wbs2",
-        slicerStyle: "list",
-      }),
+      w("slicer", "Discipline", { h: 2, dimension: "wbs1", slicerStyle: "list" }),
+      w("combo", "Progress S-curve", { w: 8, h: 4.5, step: "month", showLabels: true }),
+      w("slicer", "Work package", { h: 3.5, dimension: "wbs2", slicerStyle: "list" }),
+      w("slicer", "Package", { h: 1.5, dimension: "wbs2", slicerStyle: "list" }),
       w("slicer", "Domain", { h: 2, dimension: "wbs1", slicerStyle: "list" }),
       w("cards", "", {
         w: 12,
@@ -727,23 +549,15 @@ export function eppmCurveDashboard(projectId: string | null): Dashboard {
  * (P6 user fields or activity codes named Discipline, Domain, Package, Work Package).
  */
 export function adaptToFields(d: Dashboard, fields: string[]): Dashboard {
-  const find = (name: string) =>
-    fields.find((f) => f.toLowerCase() === name.toLowerCase());
+  const find = (name: string) => fields.find((f) => f.toLowerCase() === name.toLowerCase());
   const pick = (title: string, fallback: string) => {
-    const f =
-      find(`user:${title}`) ??
-      find(`code:${title}`) ??
-      fields.find((x) => x.toLowerCase().endsWith(`:${title.toLowerCase()}`));
+    const f = find(`user:${title}`) ?? find(`code:${title}`) ?? fields.find((x) => x.toLowerCase().endsWith(`:${title.toLowerCase()}`));
     return f ?? fallback;
   };
   return {
     ...d,
     widgets: d.widgets.map((x) => {
-      if (
-        x.kind === "slicer" ||
-        x.kind === "controltable" ||
-        (x.kind === "donut" && x.split === "weight")
-      ) {
+      if (x.kind === "slicer" || x.kind === "controltable" || (x.kind === "donut" && x.split === "weight")) {
         const t = x.kind === "slicer" ? x.title : "Discipline";
         return { ...x, dimension: pick(t, x.dimension ?? "wbs1") };
       }
@@ -753,50 +567,16 @@ export function adaptToFields(d: Dashboard, fields: string[]): Dashboard {
 }
 
 /** Built-in starting points shown under "New". */
-export const BUILTIN_TEMPLATES: {
-  id: string;
-  name: string;
-  hint: string;
-  make: (projectId: string | null) => Dashboard;
-}[] = [
-  {
-    id: "eppm-summary",
-    name: "Project control – summary",
-    hint: "EPPM style: key dates, weighted %, FTM/UTM, durations, discipline table",
-    make: eppmSummaryDashboard,
-  },
-  {
-    id: "eppm-curve",
-    name: "Project control – S-curve",
-    hint: "Weight % curves with monthly histograms, slicers, date slider",
-    make: eppmCurveDashboard,
-  },
-  {
-    id: "planning",
-    name: "Planning dashboard",
-    hint: "Gauges, milestones, look-ahead, E/P/C curves",
-    make: planningDashboard,
-  },
-  {
-    id: "progress",
-    name: "Progress report (EPC style)",
-    hint: "Key figures, weighted progress, S-curve",
-    make: progressReportDashboard,
-  },
-  {
-    id: "status",
-    name: "Project status",
-    hint: "KPIs, S-curve, critical and late work",
-    make: defaultDashboard,
-  },
+export const BUILTIN_TEMPLATES: { id: string; name: string; hint: string; make: (projectId: string | null) => Dashboard }[] = [
+  { id: "eppm-summary", name: "Project control – summary", hint: "EPPM style: key dates, weighted %, FTM/UTM, durations, discipline table", make: eppmSummaryDashboard },
+  { id: "eppm-curve", name: "Project control – S-curve", hint: "Weight % curves with monthly histograms, slicers, date slider", make: eppmCurveDashboard },
+  { id: "planning", name: "Planning dashboard", hint: "Gauges, milestones, look-ahead, E/P/C curves", make: planningDashboard },
+  { id: "progress", name: "Progress report (EPC style)", hint: "Key figures, weighted progress, S-curve", make: progressReportDashboard },
+  { id: "status", name: "Project status", hint: "KPIs, S-curve, critical and late work", make: defaultDashboard },
 ];
 
 /** Copy a dashboard (or template) with fresh ids. */
-export function cloneDashboard(
-  d: Dashboard,
-  name: string,
-  asTemplate = false,
-): Dashboard {
+export function cloneDashboard(d: Dashboard, name: string, asTemplate = false): Dashboard {
   return {
     ...structuredClone(d),
     id: uid("dash"),
@@ -808,7 +588,5 @@ export function cloneDashboard(
 }
 
 /** Grid rows a widget spans (rows are 52 px + 12 px gap; h 1 = 2 rows). */
-export const widgetRows = (h: number) =>
-  Math.max(1, Math.round((Number(h) || 1) * 2));
-export const widgetCols = (w: number) =>
-  Math.min(12, Math.max(1, Math.round(Number(w) || 6)));
+export const widgetRows = (h: number) => Math.max(1, Math.round((Number(h) || 1) * 2));
+export const widgetCols = (w: number) => Math.min(12, Math.max(1, Math.round(Number(w) || 6)));

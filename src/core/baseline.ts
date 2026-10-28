@@ -13,11 +13,7 @@ export interface AssignResult {
   dropped: string[];
 }
 
-export function assignBaseline(
-  current: Schedule,
-  baseline: Schedule,
-  name?: string,
-): AssignResult {
+export function assignBaseline(current: Schedule, baseline: Schedule, name?: string): AssignResult {
   const byCode = new Map(baseline.activities.map((a) => [a.code, a]));
   const seen = new Set<string>();
   const missing: string[] = [];
@@ -31,15 +27,9 @@ export function assignBaseline(
     seen.add(a.code);
     matched++;
     // A baseline file normally has no progress, so its start/finish are its plan.
-    return {
-      ...a,
-      baselineStart: b.actualStart ?? b.start ?? b.baselineStart,
-      baselineFinish: b.actualFinish ?? b.finish ?? b.baselineFinish,
-    };
+    return { ...a, baselineStart: b.actualStart ?? b.start ?? b.baselineStart, baselineFinish: b.actualFinish ?? b.finish ?? b.baselineFinish };
   });
-  const dropped = baseline.activities
-    .filter((a) => !seen.has(a.code) && a.type !== "wbs-summary")
-    .map((a) => a.code);
+  const dropped = baseline.activities.filter((a) => !seen.has(a.code) && a.type !== "wbs-summary").map((a) => a.code);
   return {
     schedule: {
       ...current,

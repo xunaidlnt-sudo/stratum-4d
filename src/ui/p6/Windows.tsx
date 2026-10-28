@@ -5,24 +5,8 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { networkLayout, traceLogic } from "../../core/network";
 import { monitorThresholds, THRESHOLD_PARAMETERS, uid } from "../../core/ops";
-import {
-  allCurves,
-  assignmentPricer,
-  costAccountPath,
-  priceAt,
-  RATE_TYPE_NAMES,
-  resourcesForRole,
-  staffRole,
-} from "../../core/resources";
-import type {
-  Assignment,
-  RegisterItem,
-  RegisterKind,
-  Resource,
-  ResourceType,
-  Schedule,
-  WbsNode,
-} from "../../core/types";
+import { allCurves, assignmentPricer, costAccountPath, priceAt, RATE_TYPE_NAMES, resourcesForRole, staffRole } from "../../core/resources";
+import type { Assignment, RegisterItem, RegisterKind, Resource, ResourceType, Schedule, WbsNode } from "../../core/types";
 import { usageSheet } from "../../core/usage";
 import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
@@ -33,17 +17,9 @@ import { fieldCtx, fieldsFor, fieldText } from "../../core/fields";
 import { DetailTabs } from "./P6Dlg";
 import { wbsPerformance } from "../../core/evm";
 import { openBudgets } from "./Dialogs5";
-import {
-  budgetSummary,
-  obsPath,
-  obsTree,
-  riskMatrixOf,
-  riskScore,
-  wbsObs,
-} from "../../core/budget";
+import { budgetSummary, obsPath, obsTree, riskMatrixOf, riskScore, wbsObs } from "../../core/budget";
 
-const commit = (s: Schedule, label: string) =>
-  useStore.getState().commit(s, label);
+const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
 
 // ---------------------------------------------------------------- WBS
 
@@ -53,14 +29,10 @@ export function WbsWindow() {
   const rows = useMemo(() => {
     if (!schedule) return [];
     const kids = new Map<string | null, WbsNode[]>();
-    for (const w of schedule.wbs)
-      (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(
-        w,
-      );
+    for (const w of schedule.wbs) (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w);
     for (const l of kids.values()) l.sort((a, b) => a.seq - b.seq);
     const count = new Map<string, number>();
-    for (const a of schedule.activities)
-      if (a.wbsId) count.set(a.wbsId, (count.get(a.wbsId) ?? 0) + 1);
+    for (const a of schedule.activities) if (a.wbsId) count.set(a.wbsId, (count.get(a.wbsId) ?? 0) + 1);
     const out: { w: WbsNode; depth: number; path: string; n: number }[] = [];
     const visit = (p: string | null, depth: number, path: string) => {
       for (const w of kids.get(p) ?? []) {
@@ -72,36 +44,18 @@ export function WbsWindow() {
     visit(null, 0, "");
     return out;
   }, [schedule]);
-  const budgets = useMemo(
-    () =>
-      new Map(
-        schedule && schedule.wbs.length <= 2000
-          ? schedule.wbs.map((w) => [w.id, budgetSummary(schedule, w.id)])
-          : [],
-      ),
-    [schedule],
-  );
+  const budgets = useMemo(() => new Map(schedule && schedule.wbs.length <= 2000 ? schedule.wbs.map((w) => [w.id, budgetSummary(schedule, w.id)]) : []), [schedule]);
   if (!schedule) return <div className="empty">No project open.</div>;
   const s = schedule;
   const obsRows = obsTree(s);
   const obsName = new Map(obsRows.map((o) => [o.node.id, o.node.name]));
   const cur = s.wbs.find((w) => w.id === sel) ?? null;
-  const siblings = (w: WbsNode) =>
-    s.wbs
-      .filter((x) => x.parentId === w.parentId)
-      .sort((a, b) => a.seq - b.seq);
-  const setWbs = (wbs: WbsNode[], label: string) =>
-    commit({ ...s, wbs }, label);
+  const siblings = (w: WbsNode) => s.wbs.filter((x) => x.parentId === w.parentId).sort((a, b) => a.seq - b.seq);
+  const setWbs = (wbs: WbsNode[], label: string) => commit({ ...s, wbs }, label);
   const add = (child: boolean) => {
-    const parentId = child ? (cur?.id ?? null) : (cur?.parentId ?? null);
+    const parentId = child ? cur?.id ?? null : cur?.parentId ?? null;
     const sib = s.wbs.filter((x) => x.parentId === parentId);
-    const w: WbsNode = {
-      id: uid("wbs"),
-      parentId,
-      code: String(sib.length + 1),
-      name: "New WBS",
-      seq: Math.max(0, ...sib.map((x) => x.seq)) + 1,
-    };
+    const w: WbsNode = { id: uid("wbs"), parentId, code: String(sib.length + 1), name: "New WBS", seq: Math.max(0, ...sib.map((x) => x.seq)) + 1 };
     setWbs([...s.wbs, w], "Add WBS");
     setSel(w.id);
   };
@@ -111,16 +65,7 @@ export function WbsWindow() {
     const i = list.findIndex((x) => x.id === cur.id);
     const o = list[i + d];
     if (!o) return;
-    setWbs(
-      s.wbs.map((x) =>
-        x.id === cur.id
-          ? { ...x, seq: o.seq }
-          : x.id === o.id
-            ? { ...x, seq: cur.seq }
-            : x,
-      ),
-      "Move WBS",
-    );
+    setWbs(s.wbs.map((x) => (x.id === cur.id ? { ...x, seq: o.seq } : x.id === o.id ? { ...x, seq: cur.seq } : x)), "Move WBS");
   };
   const indent = () => {
     if (!cur) return;
@@ -128,53 +73,20 @@ export function WbsWindow() {
     const i = list.findIndex((x) => x.id === cur.id);
     const above = list[i - 1];
     if (!above) return;
-    setWbs(
-      s.wbs.map((x) =>
-        x.id === cur.id ? { ...x, parentId: above.id, seq: 9999 } : x,
-      ),
-      "Indent WBS",
-    );
+    setWbs(s.wbs.map((x) => (x.id === cur.id ? { ...x, parentId: above.id, seq: 9999 } : x)), "Indent WBS");
   };
   const outdent = () => {
     if (!cur || !cur.parentId) return;
     const parent = s.wbs.find((x) => x.id === cur.parentId);
-    setWbs(
-      s.wbs.map((x) =>
-        x.id === cur.id
-          ? {
-              ...x,
-              parentId: parent?.parentId ?? null,
-              seq: (parent?.seq ?? 0) + 0.5,
-            }
-          : x,
-      ),
-      "Outdent WBS",
-    );
+    setWbs(s.wbs.map((x) => (x.id === cur.id ? { ...x, parentId: parent?.parentId ?? null, seq: (parent?.seq ?? 0) + 0.5 } : x)), "Outdent WBS");
   };
   const del = () => {
     if (!cur) return;
     const n = s.activities.filter((a) => a.wbsId === cur.id).length;
     const kids = s.wbs.some((x) => x.parentId === cur.id);
-    if (kids)
-      return useStore
-        .getState()
-        .setStatus("Delete or move the child WBS elements first.");
-    if (
-      !window.confirm(
-        `Delete WBS ${cur.code}?${n ? ` Its ${n} activities move to the parent.` : ""}`,
-      )
-    )
-      return;
-    commit(
-      {
-        ...s,
-        wbs: s.wbs.filter((x) => x.id !== cur.id),
-        activities: s.activities.map((a) =>
-          a.wbsId === cur.id ? { ...a, wbsId: cur.parentId } : a,
-        ),
-      },
-      "Delete WBS",
-    );
+    if (kids) return useStore.getState().setStatus("Delete or move the child WBS elements first.");
+    if (!window.confirm(`Delete WBS ${cur.code}?${n ? ` Its ${n} activities move to the parent.` : ""}`)) return;
+    commit({ ...s, wbs: s.wbs.filter((x) => x.id !== cur.id), activities: s.activities.map((a) => (a.wbsId === cur.id ? { ...a, wbsId: cur.parentId } : a)) }, "Delete WBS");
     setSel(null);
   };
   return (
@@ -194,11 +106,7 @@ export function WbsWindow() {
         <button onClick={() => move(1)} disabled={!cur} title="Move down">
           ▼
         </button>
-        <button
-          onClick={outdent}
-          disabled={!cur?.parentId}
-          title="Move left (outdent)"
-        >
+        <button onClick={outdent} disabled={!cur?.parentId} title="Move left (outdent)">
           ◀
         </button>
         <button onClick={indent} disabled={!cur} title="Move right (indent)">
@@ -224,64 +132,16 @@ export function WbsWindow() {
           </thead>
           <tbody>
             {rows.map(({ w, depth, path, n }) => (
-              <tr
-                key={w.id}
-                className={sel === w.id ? "on" : ""}
-                onClick={() => setSel(w.id)}
-              >
+              <tr key={w.id} className={sel === w.id ? "on" : ""} onClick={() => setSel(w.id)}>
                 <td style={{ paddingLeft: 6 + depth * 14 }}>
-                  <input
-                    className="cell"
-                    value={w.code}
-                    onChange={(e) =>
-                      setWbs(
-                        s.wbs.map((x) =>
-                          x.id === w.id ? { ...x, code: e.target.value } : x,
-                        ),
-                        `WBS code ${w.id}`,
-                      )
-                    }
-                    title={path}
-                  />
+                  <input className="cell" value={w.code} onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, code: e.target.value } : x)), `WBS code ${w.id}`)} title={path} />
                 </td>
                 <td>
-                  <input
-                    className="cell"
-                    value={w.name}
-                    onChange={(e) =>
-                      setWbs(
-                        s.wbs.map((x) =>
-                          x.id === w.id ? { ...x, name: e.target.value } : x,
-                        ),
-                        `WBS name ${w.id}`,
-                      )
-                    }
-                  />
+                  <input className="cell" value={w.name} onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, name: e.target.value } : x)), `WBS name ${w.id}`)} />
                 </td>
                 <td>
-                  <select
-                    value={w.obsId ?? ""}
-                    onChange={(e) =>
-                      setWbs(
-                        s.wbs.map((x) =>
-                          x.id === w.id
-                            ? { ...x, obsId: e.target.value || null }
-                            : x,
-                        ),
-                        `WBS OBS ${w.id}`,
-                      )
-                    }
-                    title={
-                      w.obsId
-                        ? obsPath(s, w.obsId)
-                        : `Inherited: ${obsPath(s, wbsObs(s, w.id)) || "none"}`
-                    }
-                  >
-                    <option value="">
-                      {w.obsId
-                        ? "–"
-                        : `(${obsName.get(wbsObs(s, w.id) ?? "") ?? "–"})`}
-                    </option>
+                  <select value={w.obsId ?? ""} onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, obsId: e.target.value || null } : x)), `WBS OBS ${w.id}`)} title={w.obsId ? obsPath(s, w.obsId) : `Inherited: ${obsPath(s, wbsObs(s, w.id)) || "none"}`}>
+                    <option value="">{w.obsId ? "–" : `(${obsName.get(wbsObs(s, w.id) ?? "") ?? "–"})`}</option>
                     {obsRows.map(({ node, depth: d }) => (
                       <option key={node.id} value={node.id}>
                         {"\u00a0".repeat(d * 2)}
@@ -291,37 +151,10 @@ export function WbsWindow() {
                   </select>
                 </td>
                 <td>
-                  <input
-                    className="cell num"
-                    type="number"
-                    min={0}
-                    value={w.originalBudget ?? ""}
-                    placeholder="0"
-                    onChange={(e) =>
-                      setWbs(
-                        s.wbs.map((x) =>
-                          x.id === w.id
-                            ? {
-                                ...x,
-                                originalBudget:
-                                  e.target.value === ""
-                                    ? undefined
-                                    : Math.max(0, Number(e.target.value) || 0),
-                              }
-                            : x,
-                        ),
-                        `WBS budget ${w.id}`,
-                      )
-                    }
-                    style={{ width: 100 }}
-                  />
+                  <input className="cell num" type="number" min={0} value={w.originalBudget ?? ""} placeholder="0" onChange={(e) => setWbs(s.wbs.map((x) => (x.id === w.id ? { ...x, originalBudget: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value) || 0) } : x)), `WBS budget ${w.id}`)} style={{ width: 100 }} />
                 </td>
-                <td className="num">
-                  {fmtNum(budgets.get(w.id)?.current ?? 0)}
-                </td>
-                <td className="num">
-                  {fmtNum(budgets.get(w.id)?.plannedCost ?? 0)}
-                </td>
+                <td className="num">{fmtNum(budgets.get(w.id)?.current ?? 0)}</td>
+                <td className="num">{fmtNum(budgets.get(w.id)?.plannedCost ?? 0)}</td>
                 <td className="num">{n}</td>
               </tr>
             ))}
@@ -339,21 +172,13 @@ function WbsDetails({ w }: { w: WbsNode }) {
   const node = schedule.wbs.find((x) => x.id === w.id) ?? w;
   const put = (patch: Partial<WbsNode>) => {
     const s = useStore.getState().schedule!;
-    commit(
-      {
-        ...s,
-        wbs: s.wbs.map((x) => (x.id === node.id ? { ...x, ...patch } : x)),
-      },
-      `WBS details ${node.id}`,
-    );
+    commit({ ...s, wbs: s.wbs.map((x) => (x.id === node.id ? { ...x, ...patch } : x)) }, `WBS details ${node.id}`);
   };
   const ms = node.milestones ?? [];
   const tech = node.evTechnique ?? "activity-pct";
   const perf = wbsPerformance(schedule, node.id);
-  const day = (t: number | null | undefined) =>
-    t != null ? new Date(t).toISOString().slice(0, 10) : "";
-  const parse = (v: string, h: number) =>
-    v ? Date.parse(`${v}T00:00:00Z`) + h * 3_600_000 : null;
+  const day = (t: number | null | undefined) => (t != null ? new Date(t).toISOString().slice(0, 10) : "");
+  const parse = (v: string, h: number) => (v ? Date.parse(`${v}T00:00:00Z`) + h * 3_600_000 : null);
   return (
     <div className="p6-wbs-details">
       <DetailTabs
@@ -362,27 +187,14 @@ function WbsDetails({ w }: { w: WbsNode }) {
             "General",
             <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
               <label>
-                WBS Code{" "}
-                <input
-                  value={node.code}
-                  onChange={(e) => put({ code: e.target.value })}
-                />
+                WBS Code <input value={node.code} onChange={(e) => put({ code: e.target.value })} />
               </label>
               <label style={{ flex: 1, minWidth: 200 }}>
-                WBS Name{" "}
-                <input
-                  value={node.name}
-                  onChange={(e) => put({ name: e.target.value })}
-                />
+                WBS Name <input value={node.name} onChange={(e) => put({ name: e.target.value })} />
               </label>
               <label>
                 Status
-                <select
-                  value={node.status ?? "active"}
-                  onChange={(e) =>
-                    put({ status: e.target.value as WbsNode["status"] })
-                  }
-                >
+                <select value={node.status ?? "active"} onChange={(e) => put({ status: e.target.value as WbsNode["status"] })}>
                   <option value="planned">Planned</option>
                   <option value="active">Active</option>
                   <option value="inactive">Inactive</option>
@@ -390,24 +202,10 @@ function WbsDetails({ w }: { w: WbsNode }) {
                 </select>
               </label>
               <label>
-                Anticipated Start{" "}
-                <input
-                  type="date"
-                  value={day(node.anticipatedStart)}
-                  onChange={(e) =>
-                    put({ anticipatedStart: parse(e.target.value, 8) })
-                  }
-                />
+                Anticipated Start <input type="date" value={day(node.anticipatedStart)} onChange={(e) => put({ anticipatedStart: parse(e.target.value, 8) })} />
               </label>
               <label>
-                Anticipated Finish{" "}
-                <input
-                  type="date"
-                  value={day(node.anticipatedFinish)}
-                  onChange={(e) =>
-                    put({ anticipatedFinish: parse(e.target.value, 17) })
-                  }
-                />
+                Anticipated Finish <input type="date" value={day(node.anticipatedFinish)} onChange={(e) => put({ anticipatedFinish: parse(e.target.value, 17) })} />
               </label>
             </div>,
           ],
@@ -427,63 +225,16 @@ function WbsDetails({ w }: { w: WbsNode }) {
                   {ms.map((m, i) => (
                     <tr key={m.id}>
                       <td style={{ textAlign: "center" }}>
-                        <input
-                          type="checkbox"
-                          checked={m.done}
-                          onChange={(e) =>
-                            put({
-                              milestones: ms.map((x, k) =>
-                                k === i ? { ...x, done: e.target.checked } : x,
-                              ),
-                            })
-                          }
-                          aria-label={`${m.name} done`}
-                        />
+                        <input type="checkbox" checked={m.done} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, done: e.target.checked } : x)) })} aria-label={`${m.name} done`} />
                       </td>
                       <td>
-                        <input
-                          className="cell"
-                          value={m.name}
-                          onChange={(e) =>
-                            put({
-                              milestones: ms.map((x, k) =>
-                                k === i ? { ...x, name: e.target.value } : x,
-                              ),
-                            })
-                          }
-                        />
+                        <input className="cell" value={m.name} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} />
                       </td>
                       <td>
-                        <input
-                          className="cell num"
-                          type="number"
-                          min={0}
-                          value={m.weight}
-                          onChange={(e) =>
-                            put({
-                              milestones: ms.map((x, k) =>
-                                k === i
-                                  ? {
-                                      ...x,
-                                      weight: Math.max(
-                                        0,
-                                        Number(e.target.value) || 0,
-                                      ),
-                                    }
-                                  : x,
-                              ),
-                            })
-                          }
-                          style={{ width: 80 }}
-                        />
+                        <input className="cell num" type="number" min={0} value={m.weight} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} style={{ width: 80 }} />
                       </td>
                       <td>
-                        <button
-                          className="link"
-                          onClick={() =>
-                            put({ milestones: ms.filter((_, k) => k !== i) })
-                          }
-                        >
+                        <button className="link" onClick={() => put({ milestones: ms.filter((_, k) => k !== i) })}>
                           Remove
                         </button>
                       </td>
@@ -492,27 +243,8 @@ function WbsDetails({ w }: { w: WbsNode }) {
                 </tbody>
               </table>
               <div className="row">
-                <button
-                  onClick={() =>
-                    put({
-                      milestones: [
-                        ...ms,
-                        {
-                          id: uid("wms"),
-                          name: `Milestone ${ms.length + 1}`,
-                          weight: 1,
-                          done: false,
-                        },
-                      ],
-                    })
-                  }
-                >
-                  Add
-                </button>
-                <span className="muted small">
-                  Used when the Earned Value technique is WBS Milestones percent
-                  complete: done weight ÷ total weight.
-                </span>
+                <button onClick={() => put({ milestones: [...ms, { id: uid("wms"), name: `Milestone ${ms.length + 1}`, weight: 1, done: false }] })}>Add</button>
+                <span className="muted small">Used when the Earned Value technique is WBS Milestones percent complete: done weight ÷ total weight.</span>
               </div>
             </>,
           ],
@@ -520,9 +252,7 @@ function WbsDetails({ w }: { w: WbsNode }) {
             "Earned Value",
             <>
               <fieldset className="p6-fieldset">
-                <legend>
-                  Technique for computing performance percent complete
-                </legend>
+                <legend>Technique for computing performance percent complete</legend>
                 {(
                   [
                     ["activity-pct", "Activity percent complete"],
@@ -533,33 +263,12 @@ function WbsDetails({ w }: { w: WbsNode }) {
                   ] as const
                 ).map(([k, l]) => (
                   <label key={k} className="p6-check">
-                    <input
-                      type="radio"
-                      checked={tech === k}
-                      onChange={() => put({ evTechnique: k })}
-                    />{" "}
-                    {l}
+                    <input type="radio" checked={tech === k} onChange={() => put({ evTechnique: k })} /> {l}
                     {k === "custom" && tech === "custom" && (
                       <>
                         {" "}
                         – earned at start{" "}
-                        <input
-                          type="number"
-                          min={0}
-                          max={100}
-                          value={node.evCustomStartPct ?? 50}
-                          onChange={(e) =>
-                            put({
-                              evCustomStartPct: Math.min(
-                                100,
-                                Math.max(0, Number(e.target.value) || 0),
-                              ),
-                            })
-                          }
-                          style={{ width: 70 }}
-                          aria-label="Percent earned at start"
-                        />
-                        %
+                        <input type="number" min={0} max={100} value={node.evCustomStartPct ?? 50} onChange={(e) => put({ evCustomStartPct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} style={{ width: 70 }} aria-label="Percent earned at start" />%
                       </>
                     )}
                   </label>
@@ -584,44 +293,14 @@ export function ResourcesWindow() {
   const s = schedule;
   const res = s.resources ?? [];
   const used = new Map<string, number>();
-  for (const x of s.assignments ?? [])
-    used.set(x.resourceId, (used.get(x.resourceId) ?? 0) + 1);
-  const set = (id: string, patch: Partial<Resource>) =>
-    commit(
-      {
-        ...s,
-        resources: res.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      },
-      `Resource ${id}`,
-    );
+  for (const x of s.assignments ?? []) used.set(x.resourceId, (used.get(x.resourceId) ?? 0) + 1);
+  const set = (id: string, patch: Partial<Resource>) => commit({ ...s, resources: res.map((r) => (r.id === id ? { ...r, ...patch } : r)) }, `Resource ${id}`);
   const roleCode = new Map((s.roles ?? []).map((r) => [r.id, r.code]));
   const codeTypes = s.resourceCodeTypes ?? [];
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
-        <button
-          onClick={() =>
-            commit(
-              {
-                ...s,
-                resources: [
-                  ...res,
-                  {
-                    id: uid("rsrc"),
-                    code: `R${res.length + 1}`,
-                    name: "New Resource",
-                    type: "labor",
-                    unit: "h",
-                    pricePerUnit: 0,
-                  },
-                ],
-              },
-              "Add resource",
-            )
-          }
-        >
-          Add
-        </button>
+        <button onClick={() => commit({ ...s, resources: [...res, { id: uid("rsrc"), code: `R${res.length + 1}`, name: "New Resource", type: "labor", unit: "h", pricePerUnit: 0 }] }, "Add resource")}>Add</button>
         <span className="spacer" />
         <span className="muted">{res.length} resources</span>
       </div>
@@ -634,9 +313,7 @@ export function ResourcesWindow() {
               <td>Type</td>
               <td>Unit</td>
               <td>Price / Unit</td>
-              <td title="For levelling: how many units can work at once (crew size). Empty = no limit.">
-                Max Units / h
-              </td>
+              <td title="For levelling: how many units can work at once (crew size). Empty = no limit.">Max Units / h</td>
               <td>Calendar</td>
               <td>Shift</td>
               {codeTypes.map((t) => (
@@ -652,78 +329,29 @@ export function ResourcesWindow() {
             {res.map((r) => (
               <tr key={r.id}>
                 <td>
-                  <input
-                    className="cell"
-                    value={r.code}
-                    onChange={(e) => set(r.id, { code: e.target.value })}
-                  />
+                  <input className="cell" value={r.code} onChange={(e) => set(r.id, { code: e.target.value })} />
                 </td>
                 <td>
-                  <input
-                    className="cell"
-                    value={r.name}
-                    onChange={(e) => set(r.id, { name: e.target.value })}
-                  />
+                  <input className="cell" value={r.name} onChange={(e) => set(r.id, { name: e.target.value })} />
                 </td>
                 <td>
-                  <select
-                    value={r.type}
-                    onChange={(e) =>
-                      set(r.id, { type: e.target.value as ResourceType })
-                    }
-                  >
+                  <select value={r.type} onChange={(e) => set(r.id, { type: e.target.value as ResourceType })}>
                     <option value="labor">Labor</option>
                     <option value="equipment">Nonlabor</option>
                     <option value="material">Material</option>
                   </select>
                 </td>
                 <td>
-                  <input
-                    className="cell"
-                    value={r.unit}
-                    onChange={(e) => set(r.id, { unit: e.target.value })}
-                    style={{ width: 60 }}
-                  />
+                  <input className="cell" value={r.unit} onChange={(e) => set(r.id, { unit: e.target.value })} style={{ width: 60 }} />
                 </td>
                 <td>
-                  <input
-                    className="cell num"
-                    type="number"
-                    value={r.pricePerUnit}
-                    onChange={(e) =>
-                      set(r.id, { pricePerUnit: Number(e.target.value) || 0 })
-                    }
-                    style={{ width: 90 }}
-                  />
+                  <input className="cell num" type="number" value={r.pricePerUnit} onChange={(e) => set(r.id, { pricePerUnit: Number(e.target.value) || 0 })} style={{ width: 90 }} />
                 </td>
                 <td>
-                  <input
-                    className="cell num"
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    placeholder="no limit"
-                    value={r.maxUnitsPerHour ?? ""}
-                    disabled={r.type === "material"}
-                    onChange={(e) =>
-                      set(r.id, {
-                        maxUnitsPerHour:
-                          e.target.value === ""
-                            ? undefined
-                            : Math.max(0, Number(e.target.value)),
-                      })
-                    }
-                    style={{ width: 80 }}
-                  />
+                  <input className="cell num" type="number" min={0} step={0.5} placeholder="no limit" value={r.maxUnitsPerHour ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { maxUnitsPerHour: e.target.value === "" ? undefined : Math.max(0, Number(e.target.value)) })} style={{ width: 80 }} />
                 </td>
                 <td>
-                  <select
-                    value={r.calendarId ?? ""}
-                    onChange={(e) =>
-                      set(r.id, { calendarId: e.target.value || null })
-                    }
-                    aria-label={`Calendar of ${r.code}`}
-                  >
+                  <select value={r.calendarId ?? ""} onChange={(e) => set(r.id, { calendarId: e.target.value || null })} aria-label={`Calendar of ${r.code}`}>
                     <option value="">Project default</option>
                     {(s.calendars ?? []).map((c) => (
                       <option key={c.id} value={c.id}>
@@ -733,13 +361,7 @@ export function ResourcesWindow() {
                   </select>
                 </td>
                 <td>
-                  <select
-                    value={r.shiftId ?? ""}
-                    disabled={r.type === "material"}
-                    onChange={(e) =>
-                      set(r.id, { shiftId: e.target.value || null })
-                    }
-                  >
+                  <select value={r.shiftId ?? ""} disabled={r.type === "material"} onChange={(e) => set(r.id, { shiftId: e.target.value || null })}>
                     <option value="">–</option>
                     {(s.shifts ?? []).map((x) => (
                       <option key={x.id} value={x.id}>
@@ -750,18 +372,7 @@ export function ResourcesWindow() {
                 </td>
                 {codeTypes.map((t) => (
                   <td key={t.name}>
-                    <select
-                      value={r.codes?.[t.name] ?? ""}
-                      onChange={(e) =>
-                        set(r.id, {
-                          codes: {
-                            ...(r.codes ?? {}),
-                            [t.name]: e.target.value,
-                          },
-                        })
-                      }
-                      aria-label={`${t.name} of ${r.code}`}
-                    >
+                    <select value={r.codes?.[t.name] ?? ""} onChange={(e) => set(r.id, { codes: { ...(r.codes ?? {}), [t.name]: e.target.value } })} aria-label={`${t.name} of ${r.code}`}>
                       <option value="">–</option>
                       {t.values.map((v) => (
                         <option key={v.value} value={v.value}>
@@ -771,21 +382,10 @@ export function ResourcesWindow() {
                     </select>
                   </td>
                 ))}
-                <td
-                  title={(r.roleIds ?? [])
-                    .map((id) => roleCode.get(id))
-                    .join(", ")}
-                >
-                  {(r.roleIds ?? [])
-                    .map((id) => roleCode.get(id))
-                    .filter(Boolean)
-                    .join(", ") || <span className="muted">–</span>}
-                </td>
+                <td title={(r.roleIds ?? []).map((id) => roleCode.get(id)).join(", ")}>{(r.roleIds ?? []).map((id) => roleCode.get(id)).filter(Boolean).join(", ") || <span className="muted">–</span>}</td>
                 <td>
                   <button className="link" onClick={() => openRates(r.id)}>
-                    {r.rates?.length
-                      ? `${r.rates.length} rate${r.rates.length > 1 ? "s" : ""}`
-                      : "Add…"}
+                    {r.rates?.length ? `${r.rates.length} rate${r.rates.length > 1 ? "s" : ""}` : "Add…"}
                   </button>
                 </td>
                 <td className="num">{used.get(r.id) ?? 0}</td>
@@ -793,19 +393,8 @@ export function ResourcesWindow() {
                   <button
                     className="link"
                     onClick={() =>
-                      window.confirm(
-                        `Delete ${r.code}${used.get(r.id) ? ` and its ${used.get(r.id)} assignments` : ""}?`,
-                      ) &&
-                      commit(
-                        {
-                          ...s,
-                          resources: res.filter((x) => x.id !== r.id),
-                          assignments: (s.assignments ?? []).filter(
-                            (x) => x.resourceId !== r.id,
-                          ),
-                        },
-                        "Delete resource",
-                      )
+                      window.confirm(`Delete ${r.code}${used.get(r.id) ? ` and its ${used.get(r.id)} assignments` : ""}?`) &&
+                      commit({ ...s, resources: res.filter((x) => x.id !== r.id), assignments: (s.assignments ?? []).filter((x) => x.resourceId !== r.id) }, "Delete resource")
                     }
                   >
                     ✕
@@ -831,86 +420,33 @@ export function AssignmentsWindow() {
   const acts = new Map(s.activities.map((a) => [a.id, a]));
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
   const t = q.trim().toLowerCase();
-  const list = (s.assignments ?? []).filter(
-    (x) =>
-      !t ||
-      `${acts.get(x.activityId)?.code} ${acts.get(x.activityId)?.name} ${res.get(x.resourceId)?.code} ${res.get(x.resourceId)?.name}`
-        .toLowerCase()
-        .includes(t),
-  );
+  const list = (s.assignments ?? []).filter((x) => !t || `${acts.get(x.activityId)?.code} ${acts.get(x.activityId)?.name} ${res.get(x.resourceId)?.code} ${res.get(x.resourceId)?.name}`.toLowerCase().includes(t));
   const roles = new Map((s.roles ?? []).map((r) => [r.id, r]));
   const curves = allCurves(s);
   const accts = s.costAccounts ?? [];
-  const patch = (id: string, p: Partial<Assignment>, label: string) =>
-    commit(
-      {
-        ...s,
-        assignments: s.assignments!.map((y) =>
-          y.id === id ? { ...y, ...p } : y,
-        ),
-      },
-      label,
-    );
+  const patch = (id: string, p: Partial<Assignment>, label: string) => commit({ ...s, assignments: s.assignments!.map((y) => (y.id === id ? { ...y, ...p } : y)) }, label);
   /** Price/Unit for an assignment from its rate source and rate type, at the activity's start. */
   const priceOf = (x: Assignment) => {
     const p = assignmentPricer(s, x);
     if (!p) return 0;
     if (!("id" in p)) return p.pricePerUnit;
-    return priceAt(
-      p,
-      acts.get(x.activityId)?.start ?? s.dataDate ?? 0,
-      x.rateType ?? 1,
-    );
+    return priceAt(p, acts.get(x.activityId)?.start ?? s.dataDate ?? 0, x.rateType ?? 1);
   };
   const repriced = (x: Assignment): Assignment => {
     const price = priceOf(x);
-    return {
-      ...x,
-      budgetCost: x.budgetQty * price,
-      actualCost: x.actualQty * price,
-      remainingCost: x.remainingQty * price,
-    };
+    return { ...x, budgetCost: x.budgetQty * price, actualCost: x.actualQty * price, remainingCost: x.remainingQty * price };
   };
-  const set = (
-    id: string,
-    k: "budgetQty" | "actualQty" | "remainingQty",
-    v: number,
-  ) => {
+  const set = (id: string, k: "budgetQty" | "actualQty" | "remainingQty", v: number) => {
     const x = s.assignments!.find((y) => y.id === id)!;
     const price = priceOf(x);
-    const cost = {
-      budgetQty: "budgetCost",
-      actualQty: "actualCost",
-      remainingQty: "remainingCost",
-    }[k];
-    commit(
-      {
-        ...s,
-        assignments: s.assignments!.map((y) =>
-          y.id === id ? { ...y, [k]: v, [cost]: v * price } : y,
-        ),
-      },
-      `Assignment ${id}`,
-    );
+    const cost = { budgetQty: "budgetCost", actualQty: "actualCost", remainingQty: "remainingCost" }[k];
+    commit({ ...s, assignments: s.assignments!.map((y) => (y.id === id ? { ...y, [k]: v, [cost]: v * price } : y)) }, `Assignment ${id}`);
   };
-  const reprice = (id: string, p: Partial<Assignment>, label: string) =>
-    commit(
-      {
-        ...s,
-        assignments: s.assignments!.map((y) =>
-          y.id === id ? repriced({ ...y, ...p }) : y,
-        ),
-      },
-      label,
-    );
+  const reprice = (id: string, p: Partial<Assignment>, label: string) => commit({ ...s, assignments: s.assignments!.map((y) => (y.id === id ? repriced({ ...y, ...p }) : y)) }, label);
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
-        <input
-          placeholder="Find activity or resource"
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-        />
+        <input placeholder="Find activity or resource" value={q} onChange={(e) => setQ(e.target.value)} />
         <span className="spacer" />
         <span className="muted">{list.length} assignments</span>
       </div>
@@ -927,9 +463,7 @@ export function AssignmentsWindow() {
               <td>Rate Source</td>
               <td>Rate Type</td>
               <td>Price / Unit</td>
-              <td title="Resource-dependent activities: this resource's calendar sets the dates">
-                Drive Activity Dates
-              </td>
+              <td title="Resource-dependent activities: this resource's calendar sets the dates">Drive Activity Dates</td>
               <td>Budgeted Units</td>
               <td>Actual Units</td>
               <td>Remaining Units</td>
@@ -946,36 +480,16 @@ export function AssignmentsWindow() {
               return (
                 <tr key={x.id}>
                   <td>
-                    <button
-                      className="link"
-                      onClick={() =>
-                        a &&
-                        (selectActivity(a.id),
-                        useP6.getState().show("activities"))
-                      }
-                    >
+                    <button className="link" onClick={() => a && (selectActivity(a.id), useP6.getState().show("activities"))}>
                       {a?.code}
                     </button>
                   </td>
                   <td>{a?.name}</td>
                   <td title={res.get(x.resourceId)?.name ?? "Unstaffed role"}>
                     {x.roleId ? (
-                      <select
-                        value={x.resourceId}
-                        onChange={(e) =>
-                          e.target.value
-                            ? commit(
-                                staffRole(s, x.id, e.target.value),
-                                "Staff role",
-                              )
-                            : patch(x.id, { resourceId: "" }, "Unstaff role")
-                        }
-                      >
+                      <select value={x.resourceId} onChange={(e) => (e.target.value ? commit(staffRole(s, x.id, e.target.value), "Staff role") : patch(x.id, { resourceId: "" }, "Unstaff role"))}>
                         <option value="">(unstaffed)</option>
-                        {(resourcesForRole(s, x.roleId).length
-                          ? resourcesForRole(s, x.roleId)
-                          : [...res.values()]
-                        ).map((r) => (
+                        {(resourcesForRole(s, x.roleId).length ? resourcesForRole(s, x.roleId) : [...res.values()]).map((r) => (
                           <option key={r.id} value={r.id}>
                             {r.code}
                           </option>
@@ -986,18 +500,7 @@ export function AssignmentsWindow() {
                     )}
                   </td>
                   <td>
-                    <select
-                      style={{ minWidth: 70 }}
-                      value={x.roleId ?? ""}
-                      onChange={(e) =>
-                        patch(
-                          x.id,
-                          { roleId: e.target.value || null },
-                          `Assignment role ${x.id}`,
-                        )
-                      }
-                      disabled={!x.resourceId && !!x.roleId}
-                    >
+                    <select style={{ minWidth: 70 }} value={x.roleId ?? ""} onChange={(e) => patch(x.id, { roleId: e.target.value || null }, `Assignment role ${x.id}`)} disabled={!x.resourceId && !!x.roleId}>
                       <option value="">–</option>
                       {[...roles.values()].map((r) => (
                         <option key={r.id} value={r.id}>
@@ -1007,38 +510,17 @@ export function AssignmentsWindow() {
                     </select>
                   </td>
                   <td>
-                    <select
-                      style={{ minWidth: 104 }}
-                      value={x.curveId ?? ""}
-                      onChange={(e) =>
-                        patch(
-                          x.id,
-                          { curveId: e.target.value || null },
-                          `Assignment curve ${x.id}`,
-                        )
-                      }
-                    >
+                    <select style={{ minWidth: 104 }} value={x.curveId ?? ""} onChange={(e) => patch(x.id, { curveId: e.target.value || null }, `Assignment curve ${x.id}`)}>
                       <option value="">Linear</option>
-                      {curves
-                        .filter((c) => c.id !== "std-linear")
-                        .map((c) => (
-                          <option key={c.id} value={c.id}>
-                            {c.name}
-                          </option>
-                        ))}
+                      {curves.filter((c) => c.id !== "std-linear").map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
                     </select>
                   </td>
                   <td>
-                    <select
-                      value={x.costAccountId ?? ""}
-                      onChange={(e) =>
-                        patch(
-                          x.id,
-                          { costAccountId: e.target.value || null },
-                          `Assignment account ${x.id}`,
-                        )
-                      }
-                    >
+                    <select value={x.costAccountId ?? ""} onChange={(e) => patch(x.id, { costAccountId: e.target.value || null }, `Assignment account ${x.id}`)}>
                       <option value="">–</option>
                       {accts.map((c) => (
                         <option key={c.id} value={c.id}>
@@ -1048,25 +530,7 @@ export function AssignmentsWindow() {
                     </select>
                   </td>
                   <td>
-                    <select
-                      style={{ minWidth: 92 }}
-                      value={x.rateSource ?? "resource"}
-                      onChange={(e) =>
-                        reprice(
-                          x.id,
-                          {
-                            rateSource:
-                              e.target.value === "resource"
-                                ? undefined
-                                : (e.target.value as "role" | "override"),
-                            ...(e.target.value === "override"
-                              ? { priceOverride: priceOf(x) }
-                              : {}),
-                          },
-                          `Rate source ${x.id}`,
-                        )
-                      }
-                    >
+                    <select style={{ minWidth: 92 }} value={x.rateSource ?? "resource"} onChange={(e) => reprice(x.id, { rateSource: e.target.value === "resource" ? undefined : (e.target.value as "role" | "override"), ...(e.target.value === "override" ? { priceOverride: priceOf(x) } : {}) }, `Rate source ${x.id}`)}>
                       <option value="resource">Resource</option>
                       <option value="role" disabled={!x.roleId}>
                         Role
@@ -1075,23 +539,7 @@ export function AssignmentsWindow() {
                     </select>
                   </td>
                   <td>
-                    <select
-                      style={{ minWidth: 118 }}
-                      value={x.rateType ?? 1}
-                      disabled={x.rateSource === "override"}
-                      onChange={(e) =>
-                        reprice(
-                          x.id,
-                          {
-                            rateType:
-                              Number(e.target.value) > 1
-                                ? Number(e.target.value)
-                                : undefined,
-                          },
-                          `Rate type ${x.id}`,
-                        )
-                      }
-                    >
+                    <select style={{ minWidth: 118 }} value={x.rateType ?? 1} disabled={x.rateSource === "override"} onChange={(e) => reprice(x.id, { rateType: Number(e.target.value) > 1 ? Number(e.target.value) : undefined }, `Rate type ${x.id}`)}>
                       {RATE_TYPE_NAMES.map((n, i) => (
                         <option key={n} value={i + 1}>
                           {n}
@@ -1101,75 +549,26 @@ export function AssignmentsWindow() {
                   </td>
                   <td>
                     {x.rateSource === "override" ? (
-                      <input
-                        className="cell num"
-                        type="number"
-                        min={0}
-                        value={x.priceOverride ?? 0}
-                        onChange={(e) =>
-                          reprice(
-                            x.id,
-                            {
-                              priceOverride: Math.max(
-                                0,
-                                Number(e.target.value) || 0,
-                              ),
-                            },
-                            `Override price ${x.id}`,
-                          )
-                        }
-                        style={{ width: 80 }}
-                      />
+                      <input className="cell num" type="number" min={0} value={x.priceOverride ?? 0} onChange={(e) => reprice(x.id, { priceOverride: Math.max(0, Number(e.target.value) || 0) }, `Override price ${x.id}`)} style={{ width: 80 }} />
                     ) : (
                       <span className="num">{fmtNum(priceOf(x))}</span>
                     )}
                   </td>
                   <td style={{ textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      aria-label="Drive activity dates"
-                      checked={x.drivesDates !== false}
-                      onChange={(e) =>
-                        patch(
-                          x.id,
-                          { drivesDates: e.target.checked ? undefined : false },
-                          `Drive dates ${x.id}`,
-                        )
-                      }
-                    />
+                    <input type="checkbox" aria-label="Drive activity dates" checked={x.drivesDates !== false} onChange={(e) => patch(x.id, { drivesDates: e.target.checked ? undefined : false }, `Drive dates ${x.id}`)} />
                   </td>
-                  {(["budgetQty", "actualQty", "remainingQty"] as const).map(
-                    (k) => (
-                      <td key={k}>
-                        <input
-                          className="cell num"
-                          type="number"
-                          value={Math.round(x[k] * 100) / 100}
-                          onChange={(e) =>
-                            set(
-                              x.id,
-                              k,
-                              Math.max(0, Number(e.target.value) || 0),
-                            )
-                          }
-                          style={{ width: 80 }}
-                        />
-                      </td>
-                    ),
-                  )}
+                  {(["budgetQty", "actualQty", "remainingQty"] as const).map((k) => (
+                    <td key={k}>
+                      <input className="cell num" type="number" value={Math.round(x[k] * 100) / 100} onChange={(e) => set(x.id, k, Math.max(0, Number(e.target.value) || 0))} style={{ width: 80 }} />
+                    </td>
+                  ))}
                   <td className="num">{fmtNum(x.budgetCost)}</td>
                   <td className="num">{fmtNum(x.actualCost)}</td>
                   <td>{fmtDate(a?.start)}</td>
                   <td>{fmtDate(a?.finish)}</td>
                   <td>
-                    <button
-                      className="link"
-                      disabled={a?.status === "complete"}
-                      onClick={() => openBuckets(x.id)}
-                    >
-                      {x.buckets?.length
-                        ? `${x.buckets.length} periods`
-                        : "Plan…"}
+                    <button className="link" disabled={a?.status === "complete"} onClick={() => openBuckets(x.id)}>
+                      {x.buckets?.length ? `${x.buckets.length} periods` : "Plan…"}
                     </button>
                   </td>
                 </tr>
@@ -1177,9 +576,7 @@ export function AssignmentsWindow() {
             })}
           </tbody>
         </table>
-        {list.length > 3000 && (
-          <p className="muted">First 3,000 shown; use Find to narrow.</p>
-        )}
+        {list.length > 3000 && <p className="muted">First 3,000 shown; use Find to narrow.</p>}
       </div>
     </div>
   );
@@ -1193,10 +590,7 @@ export function ProjectsWindow({ onOpen }: { onOpen: () => void }) {
     <div className="p6-win">
       <div className="p6-win-bar">
         <button onClick={onOpen}>Open Project…</button>
-        <button
-          onClick={() => useP6.getState().open("projectInfo")}
-          disabled={!schedule}
-        >
+        <button onClick={() => useP6.getState().open("projectInfo")} disabled={!schedule}>
           Project Details…
         </button>
       </div>
@@ -1219,26 +613,9 @@ export function ProjectsWindow({ onOpen }: { onOpen: () => void }) {
                 <td>{schedule.projectCode}</td>
                 <td>{schedule.projectName}</td>
                 <td>{fmtDate(schedule.dataDate)}</td>
-                <td>
-                  {fmtDate(
-                    schedule.activities.reduce(
-                      (m, a) =>
-                        Math.min(m, a.actualStart ?? a.start ?? Infinity),
-                      Infinity,
-                    ),
-                  )}
-                </td>
-                <td>
-                  {fmtDate(
-                    schedule.activities.reduce(
-                      (m, a) => Math.max(m, a.finish ?? -Infinity),
-                      -Infinity,
-                    ),
-                  )}
-                </td>
-                <td className="num">
-                  {schedule.activities.length.toLocaleString()}
-                </td>
+                <td>{fmtDate(schedule.activities.reduce((m, a) => Math.min(m, a.actualStart ?? a.start ?? Infinity), Infinity))}</td>
+                <td>{fmtDate(schedule.activities.reduce((m, a) => Math.max(m, a.finish ?? -Infinity), -Infinity))}</td>
+                <td className="num">{schedule.activities.length.toLocaleString()}</td>
                 <td>{schedule.baselineInfo?.name ?? "as imported"}</td>
               </tr>
             ) : (
@@ -1257,73 +634,12 @@ export function ProjectsWindow({ onOpen }: { onOpen: () => void }) {
 
 // ---------------------------------------------------------------- registers
 
-export const REGISTER_COLUMNS: Record<
-  RegisterKind,
-  { title: string; cols: string[] }
-> = {
-  issues: {
-    title: "Issues",
-    cols: [
-      "Issue Name",
-      "Priority",
-      "Status",
-      "Responsible",
-      "Date Identified",
-      "Tracking Layout",
-      "Notes",
-    ],
-  },
-  risks: {
-    title: "Risks",
-    cols: [
-      "Risk ID",
-      "Risk Name",
-      "Category",
-      "Probability",
-      "Impact (Schedule)",
-      "Impact (Cost)",
-      "Response",
-      "Owner",
-      "Status",
-    ],
-  },
-  documents: {
-    title: "WPs & Docs",
-    cols: [
-      "Title",
-      "Reference No.",
-      "Version",
-      "Status",
-      "Author",
-      "Location / URL",
-      "Deliverable",
-    ],
-  },
-  expenses: {
-    title: "Expenses",
-    cols: [
-      "Expense Item",
-      "Category",
-      "Vendor",
-      "Budgeted Cost",
-      "Actual Cost",
-      "Remaining Cost",
-      "Accrual Type",
-    ],
-  },
-  thresholds: {
-    title: "Thresholds",
-    cols: [
-      "Parameter",
-      "Lower Threshold",
-      "Upper Threshold",
-      "WBS",
-      "From Date",
-      "To Date",
-      "Responsible",
-      "Status",
-    ],
-  },
+export const REGISTER_COLUMNS: Record<RegisterKind, { title: string; cols: string[] }> = {
+  issues: { title: "Issues", cols: ["Issue Name", "Priority", "Status", "Responsible", "Date Identified", "Tracking Layout", "Notes"] },
+  risks: { title: "Risks", cols: ["Risk ID", "Risk Name", "Category", "Probability", "Impact (Schedule)", "Impact (Cost)", "Response", "Owner", "Status"] },
+  documents: { title: "WPs & Docs", cols: ["Title", "Reference No.", "Version", "Status", "Author", "Location / URL", "Deliverable"] },
+  expenses: { title: "Expenses", cols: ["Expense Item", "Category", "Vendor", "Budgeted Cost", "Actual Cost", "Remaining Cost", "Accrual Type"] },
+  thresholds: { title: "Thresholds", cols: ["Parameter", "Lower Threshold", "Upper Threshold", "WBS", "From Date", "To Date", "Responsible", "Status"] },
 };
 
 export function RegisterWindow({ kind }: { kind: RegisterKind }) {
@@ -1335,53 +651,21 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
   const def = REGISTER_COLUMNS[kind];
   const items = s.registers?.[kind] ?? [];
   const acts = new Map(s.activities.map((a) => [a.id, a]));
-  const put = (list: RegisterItem[], label: string) =>
-    commit(
-      { ...s, registers: { ...(s.registers ?? {}), [kind]: list } },
-      label,
-    );
+  const put = (list: RegisterItem[], label: string) => commit({ ...s, registers: { ...(s.registers ?? {}), [kind]: list } }, label);
   const usesActivity = kind !== "thresholds";
   const matrix = riskMatrixOf(s);
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
-        <button
-          onClick={() =>
-            put(
-              [
-                ...items,
-                {
-                  id: uid(kind),
-                  activityId: usesActivity ? selected : null,
-                  values: {},
-                },
-              ],
-              `Add ${def.title}`,
-            )
-          }
-        >
-          Add
-        </button>
-        {kind === "risks" && (
-          <button onClick={() => useP6.getState().open("riskMatrix")}>
-            Risk Matrix…
-          </button>
-        )}
-        <span className="muted small">
-          {usesActivity
-            ? "New rows link to the selected activity."
-            : `Parameters: ${Object.keys(THRESHOLD_PARAMETERS).join(", ")} (days or %).`}
-        </span>
+        <button onClick={() => put([...items, { id: uid(kind), activityId: usesActivity ? selected : null, values: {} }], `Add ${def.title}`)}>Add</button>
+        {kind === "risks" && <button onClick={() => useP6.getState().open("riskMatrix")}>Risk Matrix…</button>}
+        <span className="muted small">{usesActivity ? "New rows link to the selected activity." : `Parameters: ${Object.keys(THRESHOLD_PARAMETERS).join(", ")} (days or %).`}</span>
         {kind === "thresholds" && (
           <button
             onClick={() => {
               const r = monitorThresholds(s);
               if (r.created) commit(r.schedule, "Monitor thresholds");
-              useStore
-                .getState()
-                .setStatus(
-                  `Thresholds checked against ${r.checked} activity values: ${r.created} new issue${r.created === 1 ? "" : "s"} in the Issues window.`,
-                );
+              useStore.getState().setStatus(`Thresholds checked against ${r.checked} activity values: ${r.created} new issue${r.created === 1 ? "" : "s"} in the Issues window.`);
             }}
           >
             Monitor
@@ -1411,9 +695,7 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
               ))}
               {kind === "risks" && (
                 <>
-                  <td title="Probability × impact from the risk scoring matrix">
-                    Score
-                  </td>
+                  <td title="Probability × impact from the risk scoring matrix">Score</td>
                   <td>Level</td>
                 </>
               )}
@@ -1430,59 +712,19 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                   <td key={c}>
                     <input
                       className="cell"
-                      list={
-                        kind === "expenses" && c === "Category"
-                          ? "p6-exp-cats"
-                          : kind === "expenses" && c === "Accrual Type"
-                            ? "p6-accrual"
-                            : undefined
-                      }
+                      list={kind === "expenses" && c === "Category" ? "p6-exp-cats" : kind === "expenses" && c === "Accrual Type" ? "p6-accrual" : undefined}
                       value={it.values[c] ?? ""}
-                      onFocus={(e) =>
-                        (e.currentTarget.dataset.was = e.currentTarget.value)
-                      }
+                      onFocus={(e) => (e.currentTarget.dataset.was = e.currentTarget.value)}
                       onBlur={(e) => {
                         // Issues keep a history of what changed (P6 issue History tab).
                         const was = e.currentTarget.dataset.was ?? "";
-                        if (kind !== "issues" || was === e.currentTarget.value)
-                          return;
+                        if (kind !== "issues" || was === e.currentTarget.value) return;
                         const cur = useStore.getState().schedule!;
                         const list = cur.registers?.issues ?? [];
                         const text = `${c}: ${was || "(empty)"} → ${e.currentTarget.value || "(empty)"}`;
-                        commit(
-                          {
-                            ...cur,
-                            registers: {
-                              ...(cur.registers ?? {}),
-                              issues: list.map((x) =>
-                                x.id === it.id
-                                  ? {
-                                      ...x,
-                                      history: [
-                                        ...(x.history ?? []),
-                                        { at: new Date().toISOString(), text },
-                                      ],
-                                    }
-                                  : x,
-                              ),
-                            },
-                          },
-                          `Issue history ${it.id}`,
-                        );
+                        commit({ ...cur, registers: { ...(cur.registers ?? {}), issues: list.map((x) => (x.id === it.id ? { ...x, history: [...(x.history ?? []), { at: new Date().toISOString(), text }] } : x)) } }, `Issue history ${it.id}`);
                       }}
-                      onChange={(e) =>
-                        put(
-                          items.map((x) =>
-                            x.id === it.id
-                              ? {
-                                  ...x,
-                                  values: { ...x.values, [c]: e.target.value },
-                                }
-                              : x,
-                          ),
-                          `${def.title} ${it.id}`,
-                        )
-                      }
+                      onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)}
                     />
                   </td>
                 ))}
@@ -1492,88 +734,39 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                     return (
                       <>
                         <td className="num">{sc.score ?? ""}</td>
-                        <td>
-                          {sc.band ? (
-                            <span className={`risk-band ${sc.band}`}>
-                              {sc.band === "high"
-                                ? "High"
-                                : sc.band === "medium"
-                                  ? "Medium"
-                                  : "Low"}
-                            </span>
-                          ) : (
-                            <span className="muted small">not scored</span>
-                          )}
-                        </td>
+                        <td>{sc.band ? <span className={`risk-band ${sc.band}`}>{sc.band === "high" ? "High" : sc.band === "medium" ? "Medium" : "Low"}</span> : <span className="muted small">not scored</span>}</td>
                       </>
                     );
                   })()}
                 {kind === "issues" && (
                   <td>
-                    <button
-                      className="link"
-                      onClick={() => openRegisterDetail("issues", it.id)}
-                    >
-                      {it.history?.length
-                        ? `${it.history.length} entr${it.history.length === 1 ? "y" : "ies"}`
-                        : "Open…"}
+                    <button className="link" onClick={() => openRegisterDetail("issues", it.id)}>
+                      {it.history?.length ? `${it.history.length} entr${it.history.length === 1 ? "y" : "ies"}` : "Open…"}
                     </button>
                   </td>
                 )}
                 {kind === "risks" && (
                   <td>
-                    <button
-                      className="link"
-                      onClick={() => openRegisterDetail("risks", it.id)}
-                    >
-                      {it.responsePlan?.length
-                        ? `${it.responsePlan.length} step${it.responsePlan.length === 1 ? "" : "s"}`
-                        : "Plan…"}
+                    <button className="link" onClick={() => openRegisterDetail("risks", it.id)}>
+                      {it.responsePlan?.length ? `${it.responsePlan.length} step${it.responsePlan.length === 1 ? "" : "s"}` : "Plan…"}
                     </button>
                   </td>
                 )}
                 {usesActivity && (
                   <td>
                     {it.activityId && acts.get(it.activityId) ? (
-                      <button
-                        className="link"
-                        onClick={() => (
-                          selectActivity(it.activityId!),
-                          useP6.getState().show("activities")
-                        )}
-                      >
+                      <button className="link" onClick={() => (selectActivity(it.activityId!), useP6.getState().show("activities"))}>
                         {acts.get(it.activityId)!.code}
                       </button>
                     ) : (
-                      <button
-                        className="link"
-                        disabled={!selected}
-                        onClick={() =>
-                          put(
-                            items.map((x) =>
-                              x.id === it.id
-                                ? { ...x, activityId: selected }
-                                : x,
-                            ),
-                            "Link register item",
-                          )
-                        }
-                      >
+                      <button className="link" disabled={!selected} onClick={() => put(items.map((x) => (x.id === it.id ? { ...x, activityId: selected } : x)), "Link register item")}>
                         link selected
                       </button>
                     )}
                   </td>
                 )}
                 <td>
-                  <button
-                    className="link"
-                    onClick={() =>
-                      put(
-                        items.filter((x) => x.id !== it.id),
-                        `Delete ${def.title}`,
-                      )
-                    }
-                  >
+                  <button className="link" onClick={() => put(items.filter((x) => x.id !== it.id), `Delete ${def.title}`)}>
                     ✕
                   </button>
                 </td>
@@ -1607,48 +800,23 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const [view, setView] = useState({ x: 20, y: 20, k: 1 });
   const [size, setSize] = useState({ w: 600, h: 400 });
-  const drag = useRef<{
-    x: number;
-    y: number;
-    vx: number;
-    vy: number;
-    moved: boolean;
-    from: string | null;
-  } | null>(null);
-  const [rubber, setRubber] = useState<{
-    x1: number;
-    y1: number;
-    x2: number;
-    y2: number;
-  } | null>(null);
-  const layout = useMemo(
-    () => (schedule ? networkLayout(schedule, only ?? undefined) : null),
-    [schedule, only],
-  );
+  const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; from: string | null } | null>(null);
+  const [rubber, setRubber] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
+  const layout = useMemo(() => (schedule ? networkLayout(schedule, only ?? undefined) : null), [schedule, only]);
   // P6 box template: which fields the boxes show, and their width.
   const tpl = useNetBox();
   const bw = tpl.width;
   const boxFields = useMemo(() => {
     const all = new Map(fieldsFor(schedule).map((f) => [f.id, f]));
-    return tpl.fields
-      .map((id) => all.get(id))
-      .filter((f): f is NonNullable<typeof f> => !!f);
+    return tpl.fields.map((id) => all.get(id)).filter((f): f is NonNullable<typeof f> => !!f);
   }, [schedule, tpl.fields]);
-  const fctx = useMemo(
-    () => (schedule ? fieldCtx(schedule) : null),
-    [schedule],
-  );
-  const byId = useMemo(
-    () => new Map((schedule?.activities ?? []).map((a) => [a.id, a])),
-    [schedule],
-  );
+  const fctx = useMemo(() => (schedule ? fieldCtx(schedule) : null), [schedule]);
+  const byId = useMemo(() => new Map((schedule?.activities ?? []).map((a) => [a.id, a])), [schedule]);
 
   useEffect(() => {
     const el = wrap.current;
     if (!el) return;
-    const ro = new ResizeObserver(() =>
-      setSize({ w: el.clientWidth, h: el.clientHeight }),
-    );
+    const ro = new ResizeObserver(() => setSize({ w: el.clientWidth, h: el.clientHeight }));
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
@@ -1657,11 +825,7 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
   useEffect(() => {
     const n = selected ? layout?.nodes.get(selected) : null;
     if (!n) return;
-    setView((v) => ({
-      ...v,
-      x: size.w / 2 - (n.col * (bw + GAP_X) + bw / 2) * v.k,
-      y: size.h / 2 - (n.row * (BOX_H + GAP_Y) + BOX_H / 2) * v.k,
-    }));
+    setView((v) => ({ ...v, x: size.w / 2 - (n.col * (bw + GAP_X) + bw / 2) * v.k, y: size.h / 2 - (n.row * (BOX_H + GAP_Y) + BOX_H / 2) * v.k }));
   }, [selected, layout, size.w, size.h]);
 
   useEffect(() => {
@@ -1697,16 +861,8 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
       const y1 = p.y + BOX_H / 2;
       const x2 = q.x;
       const y2 = q.y + BOX_H / 2;
-      if (
-        Math.max(x1, x2) < vx0 ||
-        Math.min(x1, x2) > vx1 ||
-        Math.max(y1, y2) < vy0 ||
-        Math.min(y1, y2) > vy1
-      )
-        continue;
-      const crit =
-        byId.get(r.predecessorId)?.critical &&
-        byId.get(r.successorId)?.critical;
+      if (Math.max(x1, x2) < vx0 || Math.min(x1, x2) > vx1 || Math.max(y1, y2) < vy0 || Math.min(y1, y2) > vy1) continue;
+      const crit = byId.get(r.predecessorId)?.critical && byId.get(r.successorId)?.critical;
       g.strokeStyle = crit ? "#e02424" : line.trim();
       g.beginPath();
       g.moveTo(x1, y1);
@@ -1721,14 +877,7 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
       if (p.x > vx1 || p.x < vx0 || p.y > vy1 || p.y < vy0) continue;
       const a = byId.get(id);
       if (!a) continue;
-      const color =
-        a.status === "complete"
-          ? "#1f4fd6"
-          : a.critical
-            ? "#e02424"
-            : a.status === "in-progress"
-              ? "#2fb52f"
-              : "#2fb52f";
+      const color = a.status === "complete" ? "#1f4fd6" : a.critical ? "#e02424" : a.status === "in-progress" ? "#2fb52f" : "#2fb52f";
       g.fillStyle = panel.trim();
       g.strokeStyle = id === selected ? "#f5a623" : color;
       g.lineWidth = id === selected ? 3 : 1.5;
@@ -1741,38 +890,25 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
       if (view.k > 0.35) {
         g.fillStyle = ink.trim();
         g.font = "600 11px Inter, system-ui, sans-serif";
-        const txt = (i: number) =>
-          boxFields[i] && fctx ? fieldText(boxFields[i], a, fctx) : "";
+        const txt = (i: number) => (boxFields[i] && fctx ? fieldText(boxFields[i], a, fctx) : "");
         g.fillText(txt(0), p.x + 6, p.y + 17, bw - 12);
         g.font = "11px Inter, system-ui, sans-serif";
         g.fillText(txt(1), p.x + 6, p.y + 31, bw - 12);
         g.fillStyle = "#777";
-        g.fillText(
-          boxFields
-            .slice(2)
-            .map((_, k) => txt(k + 2))
-            .filter(Boolean)
-            .join("  "),
-          p.x + 6,
-          p.y + 46,
-          bw - 12,
-        );
+        g.fillText(boxFields.slice(2).map((_, k) => txt(k + 2)).filter(Boolean).join("  "), p.x + 6, p.y + 46, bw - 12);
       }
     }
   }, [layout, schedule, view, size, selected, byId, bw, boxFields, fctx]);
 
-  if (!schedule || !layout)
-    return <div className="empty">No project open.</div>;
+  if (!schedule || !layout) return <div className="empty">No project open.</div>;
 
   const hit = (cx: number, cy: number) => {
     const x = (cx - view.x) / view.k;
     const y = (cy - view.y) / view.k;
     const col = Math.floor(x / (bw + GAP_X));
     const row = Math.floor(y / (BOX_H + GAP_Y));
-    if (x - col * (bw + GAP_X) > bw || y - row * (BOX_H + GAP_Y) > BOX_H)
-      return null;
-    for (const n of layout.nodes.values())
-      if (n.col === col && n.row === row) return n.id;
+    if (x - col * (bw + GAP_X) > bw || y - row * (BOX_H + GAP_Y) > BOX_H) return null;
+    for (const n of layout.nodes.values()) if (n.col === col && n.row === row) return n.id;
     return null;
   };
   return (
@@ -1783,48 +919,22 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
         const r = wrap.current!.getBoundingClientRect();
         const cx = e.clientX - r.left;
         const cy = e.clientY - r.top;
-        const k = Math.max(
-          0.08,
-          Math.min(3, view.k * (e.deltaY < 0 ? 1.15 : 1 / 1.15)),
-        );
-        setView({
-          k,
-          x: cx - ((cx - view.x) * k) / view.k,
-          y: cy - ((cy - view.y) * k) / view.k,
-        });
+        const k = Math.max(0.08, Math.min(3, view.k * (e.deltaY < 0 ? 1.15 : 1 / 1.15)));
+        setView({ k, x: cx - ((cx - view.x) * k) / view.k, y: cy - ((cy - view.y) * k) / view.k });
       }}
       onMouseDown={(e) => {
         const r = wrap.current!.getBoundingClientRect();
         // Dragging from an activity box draws a relationship (P6); dragging empty space pans.
-        drag.current = {
-          x: e.clientX,
-          y: e.clientY,
-          vx: view.x,
-          vy: view.y,
-          moved: false,
-          from: hit(e.clientX - r.left, e.clientY - r.top),
-        };
+        drag.current = { x: e.clientX, y: e.clientY, vx: view.x, vy: view.y, moved: false, from: hit(e.clientX - r.left, e.clientY - r.top) };
       }}
       onMouseMove={(e) => {
         const d = drag.current;
         if (!d) return;
-        if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3)
-          d.moved = true;
+        if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 3) d.moved = true;
         const r = wrap.current!.getBoundingClientRect();
         if (d.from) {
-          if (d.moved)
-            setRubber({
-              x1: d.x - r.left,
-              y1: d.y - r.top,
-              x2: e.clientX - r.left,
-              y2: e.clientY - r.top,
-            });
-        } else
-          setView({
-            ...view,
-            x: d.vx + e.clientX - d.x,
-            y: d.vy + e.clientY - d.y,
-          });
+          if (d.moved) setRubber({ x1: d.x - r.left, y1: d.y - r.top, x2: e.clientX - r.left, y2: e.clientY - r.top });
+        } else setView({ ...view, x: d.vx + e.clientX - d.x, y: d.vy + e.clientY - d.y });
       }}
       onMouseUp={(e) => {
         const d = drag.current;
@@ -1842,91 +952,28 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
           const s = st.schedule!;
           const p = byId.get(d.from)!;
           const q = byId.get(id)!;
-          if (
-            s.relationships.some(
-              (x) => x.predecessorId === d.from && x.successorId === id,
-            )
-          )
-            return st.setStatus(`${p.code} already drives ${q.code}.`);
-          st.commit(
-            {
-              ...s,
-              relationships: [
-                ...s.relationships,
-                {
-                  id: uid("rel"),
-                  predecessorId: d.from,
-                  successorId: id,
-                  type: "FS",
-                  lagHours: 0,
-                },
-              ],
-            },
-            `Link ${p.code} → ${q.code}`,
-          );
-          st.setStatus(
-            `Linked ${p.code} → ${q.code} (FS). Press F9 to reschedule.`,
-          );
+          if (s.relationships.some((x) => x.predecessorId === d.from && x.successorId === id)) return st.setStatus(`${p.code} already drives ${q.code}.`);
+          st.commit({ ...s, relationships: [...s.relationships, { id: uid("rel"), predecessorId: d.from, successorId: id, type: "FS", lagHours: 0 }] }, `Link ${p.code} → ${q.code}`);
+          st.setStatus(`Linked ${p.code} → ${q.code} (FS). Press F9 to reschedule.`);
         }
       }}
       onMouseLeave={() => ((drag.current = null), setRubber(null))}
     >
       <canvas ref={canvas} style={{ width: size.w, height: size.h }} />
       {rubber && (
-        <svg
-          className="p6-net-rubber"
-          width={size.w}
-          height={size.h}
-          aria-hidden
-        >
-          <line
-            x1={rubber.x1}
-            y1={rubber.y1}
-            x2={rubber.x2}
-            y2={rubber.y2}
-            stroke="var(--accent)"
-            strokeWidth={2}
-            strokeDasharray="5 4"
-          />
+        <svg className="p6-net-rubber" width={size.w} height={size.h} aria-hidden>
+          <line x1={rubber.x1} y1={rubber.y1} x2={rubber.x2} y2={rubber.y2} stroke="var(--accent)" strokeWidth={2} strokeDasharray="5 4" />
         </svg>
       )}
       <div className="p6-net-tools">
-        <button
-          title="Box Template"
-          onClick={() => useP6.getState().open("netBox")}
-        >
+        <button title="Box Template" onClick={() => useP6.getState().open("netBox")}>
           Box…
         </button>
-        <button
-          onClick={() => setView({ ...view, k: Math.min(3, view.k * 1.3) })}
-        >
-          +
-        </button>
-        <button
-          onClick={() => setView({ ...view, k: Math.max(0.08, view.k / 1.3) })}
-        >
-          −
-        </button>
-        <button
-          onClick={() =>
-            setView({
-              x: 20,
-              y: 20,
-              k: Math.min(
-                1,
-                Math.max(
-                  0.08,
-                  size.w / Math.max(1, layout.cols * (bw + GAP_X)),
-                ),
-              ),
-            })
-          }
-        >
-          Fit
-        </button>
+        <button onClick={() => setView({ ...view, k: Math.min(3, view.k * 1.3) })}>+</button>
+        <button onClick={() => setView({ ...view, k: Math.max(0.08, view.k / 1.3) })}>−</button>
+        <button onClick={() => setView({ x: 20, y: 20, k: Math.min(1, Math.max(0.08, size.w / Math.max(1, layout.cols * (bw + GAP_X)))) })}>Fit</button>
         <span className="muted small">
-          {layout.nodes.size.toLocaleString()} activities · drag to pan, wheel
-          to zoom, click to select
+          {layout.nodes.size.toLocaleString()} activities · drag to pan, wheel to zoom, click to select
         </span>
       </div>
     </div>
@@ -1938,25 +985,15 @@ export function TraceLogicView() {
   const selected = useStore((s) => s.selectedActivity);
   const depth = useP6((s) => s.traceDepth);
   const setDepth = useP6((s) => s.setTraceDepth);
-  const only = useMemo(
-    () =>
-      schedule && selected
-        ? traceLogic(schedule, selected, depth, depth)
-        : null,
-    [schedule, selected, depth],
-  );
-  if (!selected)
-    return <div className="empty">Select an activity to trace its logic.</div>;
+  const only = useMemo(() => (schedule && selected ? traceLogic(schedule, selected, depth, depth) : null), [schedule, selected, depth]);
+  if (!selected) return <div className="empty">Select an activity to trace its logic.</div>;
   return (
     <div className="p6-trace">
       <div className="p6-win-bar">
         <span>Trace Logic</span>
         <label>
           Levels each side{" "}
-          <select
-            value={depth}
-            onChange={(e) => setDepth(Number(e.target.value))}
-          >
+          <select value={depth} onChange={(e) => setDepth(Number(e.target.value))}>
             {[1, 2, 3, 4, 5, 8].map((n) => (
               <option key={n}>{n}</option>
             ))}
@@ -1977,75 +1014,35 @@ export function UsageSpreadsheet({ by }: { by: "resource" | "activity" }) {
   const [step, setStep] = useState<"month" | "week" | "financial">("month");
   const [measure, setMeasure] = useState<"units" | "cost">("units");
   const [onlySel, setOnlySel] = useState(false);
-  const sheet = useMemo(
-    () =>
-      schedule
-        ? usageSheet(schedule, {
-            by,
-            step,
-            measure,
-            activityIds: onlySel && selected.size ? selected : undefined,
-          })
-        : null,
-    [schedule, by, step, measure, onlySel, selected],
-  );
+  const sheet = useMemo(() => (schedule ? usageSheet(schedule, { by, step, measure, activityIds: onlySel && selected.size ? selected : undefined }) : null), [schedule, by, step, measure, onlySel, selected]);
   if (!schedule || !sheet) return <div className="empty">No project open.</div>;
-  if (!sheet.rows.length)
-    return (
-      <div className="empty">
-        No resource assignments to spread. Assign resources to activities first.
-      </div>
-    );
+  if (!sheet.rows.length) return <div className="empty">No resource assignments to spread. Assign resources to activities first.</div>;
   const dd = schedule.dataDate ?? 0;
   return (
     <div className="p6-usage">
       <div className="p6-win-bar">
-        <b>
-          {by === "resource"
-            ? "Resource Usage Spreadsheet"
-            : "Activity Usage Spreadsheet"}
-        </b>
-        <select
-          value={measure}
-          onChange={(e) => setMeasure(e.target.value as "units" | "cost")}
-        >
+        <b>{by === "resource" ? "Resource Usage Spreadsheet" : "Activity Usage Spreadsheet"}</b>
+        <select value={measure} onChange={(e) => setMeasure(e.target.value as "units" | "cost")}>
           <option value="units">Units</option>
           <option value="cost">Cost</option>
         </select>
-        <select
-          value={step}
-          onChange={(e) =>
-            setStep(e.target.value as "month" | "week" | "financial")
-          }
-        >
-          {!!schedule?.financialPeriods?.length && (
-            <option value="financial">Financial Period</option>
-          )}
+        <select value={step} onChange={(e) => setStep(e.target.value as "month" | "week" | "financial")}>
+          {!!schedule?.financialPeriods?.length && <option value="financial">Financial Period</option>}
           <option value="month">Month</option>
           <option value="week">Week</option>
         </select>
         <label>
-          <input
-            type="checkbox"
-            checked={onlySel}
-            onChange={(e) => setOnlySel(e.target.checked)}
-          />{" "}
-          Selected activities only
+          <input type="checkbox" checked={onlySel} onChange={(e) => setOnlySel(e.target.checked)} /> Selected activities only
         </label>
       </div>
       <div className="p6-win-body">
         <table className="p6-grid sticky usage">
           <thead>
             <tr>
-              <td className="stick">
-                {by === "resource" ? "Resource" : "Activity"}
-              </td>
+              <td className="stick">{by === "resource" ? "Resource" : "Activity"}</td>
               <td>Total</td>
               {sheet.periods.map((p) => (
-                <td
-                  key={p.start}
-                  className={p.start <= dd && dd < p.end ? "ddcol" : ""}
-                >
+                <td key={p.start} className={p.start <= dd && dd < p.end ? "ddcol" : ""}>
                   {p.label}
                 </td>
               ))}
@@ -2061,10 +1058,7 @@ export function UsageSpreadsheet({ by }: { by: "resource" | "activity" }) {
                   <b>{fmtNum(r.total)}</b>
                 </td>
                 {r.values.map((v, i) => (
-                  <td
-                    key={i}
-                    className={`num ${sheet.periods[i].end <= dd ? "past" : ""}`}
-                  >
+                  <td key={i} className={`num ${sheet.periods[i].end <= dd ? "past" : ""}`}>
                     {v ? fmtNum(v) : ""}
                   </td>
                 ))}
@@ -2072,9 +1066,7 @@ export function UsageSpreadsheet({ by }: { by: "resource" | "activity" }) {
             ))}
             <tr className="total">
               <td className="stick">Total</td>
-              <td className="num">
-                {fmtNum(sheet.totals.reduce((a, b) => a + b, 0))}
-              </td>
+              <td className="num">{fmtNum(sheet.totals.reduce((a, b) => a + b, 0))}</td>
               {sheet.totals.map((v, i) => (
                 <td key={i} className="num">
                   {v ? fmtNum(v) : ""}

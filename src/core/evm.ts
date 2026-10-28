@@ -8,13 +8,7 @@
 // Two measures are supported so the panel is useful with or without a costed
 // schedule: "cost" (assignment costs) and "hours" (labour quantities).
 
-import type {
-  Activity,
-  Assignment,
-  Resource,
-  Schedule,
-  WbsNode,
-} from "./types";
+import type { Activity, Assignment, Resource, Schedule, WbsNode } from "./types";
 
 export type Measure = "cost" | "hours";
 
@@ -37,10 +31,7 @@ interface ActValues {
 export function activityValues(s: Schedule, measure: Measure): ActValues[] {
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
   const byAct = new Map<string, Assignment[]>();
-  for (const x of s.assignments ?? [])
-    (
-      byAct.get(x.activityId) ?? byAct.set(x.activityId, []).get(x.activityId)!
-    ).push(x);
+  for (const x of s.assignments ?? []) (byAct.get(x.activityId) ?? byAct.set(x.activityId, []).get(x.activityId)!).push(x);
   return s.activities
     .filter((a) => a.type !== "wbs-summary")
     .map((a) => {
@@ -53,9 +44,7 @@ export function activityValues(s: Schedule, measure: Measure): ActValues[] {
           remaining: list.reduce((t, x) => t + x.remainingCost, 0),
         };
       }
-      const labour = list.filter(
-        (x) => res.get(x.resourceId)?.type === "labor",
-      );
+      const labour = list.filter((x) => res.get(x.resourceId)?.type === "labor");
       return {
         a,
         budget: labour.reduce((t, x) => t + x.budgetQty, 0),
@@ -95,9 +84,7 @@ function metricsFor(values: ActValues[], dataDate: number): EvmMetrics {
   for (const v of values) {
     const { a } = v;
     bac += v.budget;
-    pv +=
-      v.budget *
-      frac(dataDate, a.baselineStart ?? a.start, a.baselineFinish ?? a.finish);
+    pv += v.budget * frac(dataDate, a.baselineStart ?? a.start, a.baselineFinish ?? a.finish);
     ev += v.budget * (a.percentComplete / 100);
     ac += v.actual;
     rem += a.status === "complete" ? 0 : v.remaining;
@@ -124,32 +111,19 @@ function metricsFor(values: ActValues[], dataDate: number): EvmMetrics {
   };
 }
 
-export function evm(
-  s: Schedule,
-  measure: Measure = "cost",
-  dataDate = s.dataDate ?? Date.now(),
-): EvmMetrics {
+export function evm(s: Schedule, measure: Measure = "cost", dataDate = s.dataDate ?? Date.now()): EvmMetrics {
   return metricsFor(activityValues(s, measure), dataDate);
 }
 
 /** EVM per WBS node (including everything below it), in WBS order. */
-export function evmByWbs(
-  s: Schedule,
-  measure: Measure = "cost",
-  dataDate = s.dataDate ?? Date.now(),
-) {
+export function evmByWbs(s: Schedule, measure: Measure = "cost", dataDate = s.dataDate ?? Date.now()) {
   const values = activityValues(s, measure);
   const children = new Map<string | null, string[]>();
-  for (const w of s.wbs)
-    (
-      children.get(w.parentId) ?? children.set(w.parentId, []).get(w.parentId)!
-    ).push(w.id);
+  for (const w of s.wbs) (children.get(w.parentId) ?? children.set(w.parentId, []).get(w.parentId)!).push(w.id);
   const under = (id: string): Set<string> => {
     const out = new Set<string>([id]);
     const stack = [id];
-    while (stack.length)
-      for (const c of children.get(stack.pop()!) ?? [])
-        if (!out.has(c)) (out.add(c), stack.push(c));
+    while (stack.length) for (const c of children.get(stack.pop()!) ?? []) if (!out.has(c)) (out.add(c), stack.push(c));
     return out;
   };
   return s.wbs
@@ -158,13 +132,7 @@ export function evmByWbs(
       const mine = values.filter((v) => ids.has(v.a.wbsId ?? ""));
       const m = metricsFor(mine, dataDate);
       const tech = w.evTechnique ?? "activity-pct";
-      return {
-        wbs: w,
-        metrics:
-          tech === "activity-pct"
-            ? m
-            : withEv(m, m.bac * performanceOf(w, mine)),
-      };
+      return { wbs: w, metrics: tech === "activity-pct" ? m : withEv(m, m.bac * performanceOf(w, mine)) };
     })
     .filter((r) => r.metrics.bac > 0 || r.metrics.ac > 0);
 }
@@ -175,11 +143,7 @@ function performanceOf(w: WbsNode, values: ActValues[]): number {
   if (tech === "wbs-milestones") {
     const ms = w.milestones ?? [];
     const total = ms.reduce((t, m) => t + Math.max(0, m.weight), 0);
-    return total
-      ? ms
-          .filter((m) => m.done)
-          .reduce((t, m) => t + Math.max(0, m.weight), 0) / total
-      : 0;
+    return total ? ms.filter((m) => m.done).reduce((t, m) => t + Math.max(0, m.weight), 0) / total : 0;
   }
   let bac = 0;
   let earned = 0;
@@ -189,66 +153,28 @@ function performanceOf(w: WbsNode, values: ActValues[]): number {
     const started = a.status !== "not-started";
     const done = a.status === "complete";
     const part =
-      tech === "0-100"
-        ? done
-          ? 1
-          : 0
-        : tech === "50-50"
-          ? done
-            ? 1
-            : started
-              ? 0.5
-              : 0
-          : tech === "custom"
-            ? done
-              ? 1
-              : started
-                ? Math.min(1, Math.max(0, (w.evCustomStartPct ?? 50) / 100))
-                : 0
-            : a.percentComplete / 100;
+      tech === "0-100" ? (done ? 1 : 0) : tech === "50-50" ? (done ? 1 : started ? 0.5 : 0) : tech === "custom" ? (done ? 1 : started ? Math.min(1, Math.max(0, (w.evCustomStartPct ?? 50) / 100)) : 0) : a.percentComplete / 100;
     earned += v.budget * part;
   }
   return bac ? earned / bac : 0;
 }
 
 /** Performance % complete (0–1) of a WBS element and everything below it. */
-export function wbsPerformance(
-  s: Schedule,
-  wbsId: string,
-  measure: Measure = "cost",
-): number {
+export function wbsPerformance(s: Schedule, wbsId: string, measure: Measure = "cost"): number {
   const w = s.wbs.find((x) => x.id === wbsId);
   if (!w) return 0;
   const kids = new Map<string | null, string[]>();
-  for (const x of s.wbs)
-    (kids.get(x.parentId) ?? kids.set(x.parentId, []).get(x.parentId)!).push(
-      x.id,
-    );
+  for (const x of s.wbs) (kids.get(x.parentId) ?? kids.set(x.parentId, []).get(x.parentId)!).push(x.id);
   const ids = new Set<string>([wbsId]);
   const stack = [wbsId];
-  while (stack.length)
-    for (const c of kids.get(stack.pop()!) ?? [])
-      if (!ids.has(c)) (ids.add(c), stack.push(c));
-  return performanceOf(
-    w,
-    activityValues(s, measure).filter((v) => ids.has(v.a.wbsId ?? "")),
-  );
+  while (stack.length) for (const c of kids.get(stack.pop()!) ?? []) if (!ids.has(c)) (ids.add(c), stack.push(c));
+  return performanceOf(w, activityValues(s, measure).filter((v) => ids.has(v.a.wbsId ?? "")));
 }
 
 function withEv(m: EvmMetrics, ev: number): EvmMetrics {
   const spi = m.pv > 0 ? ev / m.pv : null;
   const cpi = m.ac > 0 ? ev / m.ac : null;
-  return {
-    ...m,
-    ev,
-    sv: ev - m.pv,
-    cv: ev - m.ac,
-    spi,
-    cpi,
-    eacCpi: cpi ? m.bac / cpi : null,
-    tcpi: m.bac - m.ac !== 0 ? (m.bac - ev) / (m.bac - m.ac) : null,
-    earnedPct: m.bac ? ev / m.bac : 0,
-  };
+  return { ...m, ev, sv: ev - m.pv, cv: ev - m.ac, spi, cpi, eacCpi: cpi ? m.bac / cpi : null, tcpi: m.bac - m.ac !== 0 ? (m.bac - ev) / (m.bac - m.ac) : null, earnedPct: m.bac ? ev / m.bac : 0 };
 }
 
 export interface CurvePoint {
@@ -264,21 +190,15 @@ export interface CurvePoint {
 }
 
 /** Weekly cumulative S-curves from project start to finish. */
-export function sCurves(
-  s: Schedule,
-  measure: Measure = "cost",
-  stepDays = 7,
-): CurvePoint[] {
+export function sCurves(s: Schedule, measure: Measure = "cost", stepDays = 7): CurvePoint[] {
   const values = activityValues(s, measure);
   if (!values.length) return [];
   const dd = s.dataDate ?? Date.now();
   let lo = Infinity;
   let hi = -Infinity;
   for (const { a } of values) {
-    for (const t of [a.baselineStart, a.start, a.actualStart])
-      if (t !== null && t !== undefined) lo = Math.min(lo, t);
-    for (const t of [a.baselineFinish, a.finish, a.actualFinish])
-      if (t !== null && t !== undefined) hi = Math.max(hi, t);
+    for (const t of [a.baselineStart, a.start, a.actualStart]) if (t !== null && t !== undefined) lo = Math.min(lo, t);
+    for (const t of [a.baselineFinish, a.finish, a.actualFinish]) if (t !== null && t !== undefined) hi = Math.max(hi, t);
   }
   if (!Number.isFinite(lo) || !Number.isFinite(hi)) return [];
   lo = Math.floor(lo / DAY) * DAY;
@@ -293,33 +213,18 @@ export function sCurves(
     const evAt = Math.min(tt, dd);
     for (const v of values) {
       const { a } = v;
-      pv +=
-        v.budget *
-        frac(tt, a.baselineStart ?? a.start, a.baselineFinish ?? a.finish);
+      pv += v.budget * frac(tt, a.baselineStart ?? a.start, a.baselineFinish ?? a.finish);
       // Earned and actual values accrue linearly over the actual period up to the data date.
       const aEnd = a.actualFinish ?? dd;
       if (a.actualStart !== null) {
-        ev +=
-          v.budget *
-          (a.percentComplete / 100) *
-          frac(evAt, a.actualStart, aEnd);
+        ev += v.budget * (a.percentComplete / 100) * frac(evAt, a.actualStart, aEnd);
         ac += v.actual * frac(evAt, a.actualStart, aEnd);
       }
       // Forecast = actual to date + remaining on the current dates after the data date.
       const remStart = Math.max(a.start ?? dd, dd);
-      fc +=
-        v.actual * frac(Math.min(tt, dd), a.actualStart, aEnd) +
-        (a.status === "complete"
-          ? 0
-          : v.remaining * frac(tt, remStart, a.finish ?? remStart));
+      fc += v.actual * frac(Math.min(tt, dd), a.actualStart, aEnd) + (a.status === "complete" ? 0 : v.remaining * frac(tt, remStart, a.finish ?? remStart));
     }
-    out.push({
-      t: tt,
-      pv,
-      ev: tt <= dd ? ev : null,
-      ac: tt <= dd ? ac : null,
-      forecast: fc,
-    });
+    out.push({ t: tt, pv, ev: tt <= dd ? ev : null, ac: tt <= dd ? ac : null, forecast: fc });
     if (tt >= hi) break;
   }
   return out;
@@ -336,20 +241,13 @@ export interface HistogramBar {
  * actual period up to the data date; remaining quantities over the current
  * remaining dates. With `baseline` the budget is spread over baseline dates.
  */
-export function resourceHistogram(
-  s: Schedule,
-  opts: { stepDays?: number; baseline?: boolean; resourceIds?: string[] } = {},
-): { bars: HistogramBar[]; resources: Resource[] } {
+export function resourceHistogram(s: Schedule, opts: { stepDays?: number; baseline?: boolean; resourceIds?: string[] } = {}): { bars: HistogramBar[]; resources: Resource[] } {
   const step = (opts.stepDays ?? 7) * DAY;
   const dd = s.dataDate ?? Date.now();
   const acts = new Map(s.activities.map((a) => [a.id, a]));
   const filter = opts.resourceIds ? new Set(opts.resourceIds) : null;
-  const used = (s.assignments ?? []).filter(
-    (x) => acts.has(x.activityId) && (!filter || filter.has(x.resourceId)),
-  );
-  const resources = (s.resources ?? []).filter((r) =>
-    used.some((x) => x.resourceId === r.id),
-  );
+  const used = (s.assignments ?? []).filter((x) => acts.has(x.activityId) && (!filter || filter.has(x.resourceId)));
+  const resources = (s.resources ?? []).filter((r) => used.some((x) => x.resourceId === r.id));
   if (!used.length) return { bars: [], resources };
 
   type Piece = { res: string; qty: number; a: number; b: number };
@@ -359,28 +257,13 @@ export function resourceHistogram(
     if (opts.baseline) {
       const s0 = a.baselineStart ?? a.start;
       const f0 = a.baselineFinish ?? a.finish;
-      if (s0 !== null && f0 !== null)
-        pieces.push({ res: x.resourceId, qty: x.budgetQty, a: s0, b: f0 });
+      if (s0 !== null && f0 !== null) pieces.push({ res: x.resourceId, qty: x.budgetQty, a: s0, b: f0 });
       continue;
     }
-    if (a.actualStart !== null && x.actualQty > 0)
-      pieces.push({
-        res: x.resourceId,
-        qty: x.actualQty,
-        a: a.actualStart,
-        b: Math.max(a.actualStart + 1, a.actualFinish ?? dd),
-      });
+    if (a.actualStart !== null && x.actualQty > 0) pieces.push({ res: x.resourceId, qty: x.actualQty, a: a.actualStart, b: Math.max(a.actualStart + 1, a.actualFinish ?? dd) });
     if (a.status !== "complete" && x.remainingQty > 0 && a.finish !== null) {
-      const rs = Math.max(
-        a.start ?? dd,
-        a.actualStart !== null ? dd : (a.start ?? dd),
-      );
-      pieces.push({
-        res: x.resourceId,
-        qty: x.remainingQty,
-        a: rs,
-        b: Math.max(rs + 1, a.finish),
-      });
+      const rs = Math.max(a.start ?? dd, a.actualStart !== null ? dd : a.start ?? dd);
+      pieces.push({ res: x.resourceId, qty: x.remainingQty, a: rs, b: Math.max(rs + 1, a.finish) });
     }
   }
   if (!pieces.length) return { bars: [], resources };
