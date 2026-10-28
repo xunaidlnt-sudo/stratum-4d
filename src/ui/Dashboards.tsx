@@ -36,6 +36,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { EXTRA_KPIS, isExtraMetric } from "../core/kpiExtra";
 import { DashboardWizard, type WizardResult } from "./DashboardWizard";
 import { applyBaseline, baselineOptions, baselineReady, dashboardReadiness, widgetNeedsBaseline, type ReadinessCheck } from "../core/dashboardBaseline";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -1260,13 +1261,7 @@ function WidgetSettings({ w, onChange, projects, raw }: { w: Widget; onChange: (
         <label>
           Measure
           <select value={w.metric} onChange={(e) => onChange({ ...w, metric: e.target.value as KpiMetric })}>
-            {(Object.keys(KPI_LABELS) as KpiMetric[])
-              .filter((k) => w.kind === "kpi" || !["finish", "dataDate", "finishVariance"].includes(k))
-              .map((k) => (
-                <option key={k} value={k}>
-                  {KPI_LABELS[k]}
-                </option>
-              ))}
+            <KpiOptions filter={(k) => w.kind === "kpi" || !["finish", "dataDate", "finishVariance", "esFinish"].includes(k)} />
           </select>
         </label>
       )}
@@ -1814,11 +1809,7 @@ function InfoRowsEditor({ rows, onChange }: { rows: InfoRow[]; onChange: (r: Inf
           <input value={r.label} onChange={(e) => set(i, { ...r, label: e.target.value })} style={{ flex: 2 }} />
           <select value={r.metric ?? ""} onChange={(e) => set(i, { ...r, metric: (e.target.value || null) as KpiMetric | null })} style={{ flex: 1 }}>
             <option value="">Typed value</option>
-            {(Object.keys(KPI_LABELS) as KpiMetric[]).map((k) => (
-              <option key={k} value={k}>
-                {KPI_LABELS[k]}
-              </option>
-            ))}
+            <KpiOptions />
           </select>
           {!r.metric && <input value={r.value ?? ""} onChange={(e) => set(i, { ...r, value: e.target.value })} placeholder="value" style={{ flex: 1 }} />}
           <button className="link" onClick={() => onChange(rows.filter((_, k) => k !== i))}>
@@ -1863,5 +1854,28 @@ function ReadinessBar({ checks, dash, schedule, onChange }: { checks: ReadinessC
         </ul>
       )}
     </div>
+  );
+}
+
+/** KPI choices grouped: progress and cost, then execution indices, then DCMA schedule health. */
+function KpiOptions({ filter = () => true }: { filter?: (k: KpiMetric) => boolean }) {
+  const keys = (Object.keys(KPI_LABELS) as KpiMetric[]).filter(filter);
+  const groups: [string, KpiMetric[]][] = [
+    ["Progress, dates and cost", keys.filter((k) => !isExtraMetric(k))],
+    ["Execution (BEI, CPLI, SPI(t), PPC)", keys.filter((k) => isExtraMetric(k) && EXTRA_KPIS[k].group === "Execution")],
+    ["Schedule health (DCMA 14-point)", keys.filter((k) => isExtraMetric(k) && EXTRA_KPIS[k].group !== "Execution")],
+  ];
+  return (
+    <>
+      {groups.map(([g, ks]) => (
+        <optgroup key={g} label={g}>
+          {ks.map((k) => (
+            <option key={k} value={k} title={isExtraMetric(k) ? EXTRA_KPIS[k].hint : undefined}>
+              {KPI_LABELS[k]}
+            </option>
+          ))}
+        </optgroup>
+      ))}
+    </>
   );
 }

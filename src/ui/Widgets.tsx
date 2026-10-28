@@ -1,4 +1,5 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { EXTRA_KPIS, type ExtraMetric } from "../core/kpiExtra";
 import {
   activityRows,
   compact,
@@ -168,6 +169,7 @@ export const KPI_LABELS: Record<KpiMetric, string> = {
   elapsedPct: "Elapsed duration %",
   remainingDuration: "Remaining duration (months)",
   overrun: "Overrun (months)",
+  ...(Object.fromEntries(Object.entries(EXTRA_KPIS).map(([k, d]) => [k, d.label])) as Record<ExtraMetric, string>),
 };
 
 export const FILTER_LABELS: Record<TableFilter, string> = {

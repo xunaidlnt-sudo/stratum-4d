@@ -4,6 +4,7 @@
 // assigned and the schedule is calculated and progressed, so the checks below
 // say what is missing before the numbers are trusted.
 
+import { EXTRA_KPIS, EXTRA_METRICS } from "./kpiExtra";
 import type { KpiMetric, Widget } from "./reporting";
 import type { Schedule } from "./types";
 
@@ -43,7 +44,10 @@ export function applyBaseline(s: Schedule, baselineId: string | null | undefined
 }
 
 /** KPI metrics that compare against the baseline. */
-export const BASELINE_METRICS = new Set<KpiMetric>(["blPlanPct", "blUtm", "gapFtm", "sai", "blStart", "blFinish", "blDuration", "overrun", "finishVariance", "spi", "late"] as KpiMetric[]);
+export const BASELINE_METRICS = new Set<KpiMetric>([
+  ...(["blPlanPct", "blUtm", "gapFtm", "sai", "blStart", "blFinish", "blDuration", "overrun", "finishVariance", "spi", "late"] as KpiMetric[]),
+  ...EXTRA_METRICS.filter((m) => EXTRA_KPIS[m].needsBaseline),
+]);
 /** Widget kinds that draw a baseline plan. */
 const BASELINE_KINDS = new Set<Widget["kind"]>(["scurve", "progress", "pscurve"]);
 

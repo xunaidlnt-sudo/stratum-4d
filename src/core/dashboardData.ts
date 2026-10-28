@@ -1,6 +1,7 @@
 // Numbers behind dashboard widgets and report workbooks. Pure functions of a
 // schedule, so the app, the PDF renderer and the Excel writer agree.
 
+import { extraKpi, isExtraMetric } from "./kpiExtra";
 import { evm, resourceHistogram, sCurves, type Measure } from "./evm";
 import type { KpiMetric, TableFilter } from "./reporting";
 import type { Activity, Schedule } from "./types";
@@ -285,6 +286,9 @@ export function kpi(s: Schedule, metric: KpiMetric, opts: { measure?: Measure; d
       const n = work(s).filter(isLate).length;
       return { label: "Late vs baseline", value: String(n), raw: n, tone: n ? "bad" : "good" };
     }
+    default:
+      if (isExtraMetric(metric)) return extraKpi(s, metric, { days: opts.days });
+      return { label: metric, value: "–", raw: null };
     case "startingSoon": {
       const days = opts.days ?? 14;
       const n = work(s).filter((a) => a.status === "not-started" && a.start !== null && a.start >= dd && a.start < dd + days * DAY).length;

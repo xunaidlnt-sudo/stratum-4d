@@ -1,6 +1,7 @@
 // Dashboards, report schedules and the shared settings model.
 // Pure data and functions: used by the browser, the desktop app's main
 // process and the server alike.
+import type { ExtraMetric } from "./kpiExtra";
 import { monthShort } from "./dates";
 
 export type WidgetKind =
@@ -61,7 +62,9 @@ export type KpiMetric =
   | "elapsed"
   | "elapsedPct"
   | "remainingDuration"
-  | "overrun";
+  | "overrun"
+  // Execution indices and DCMA schedule health (kpiExtra.ts)
+  | ExtraMetric;
 
 export type TableFilter = "critical" | "late" | "in-progress" | "starting-soon" | "finishing-soon" | "negative-float" | "all";
 
@@ -413,6 +416,44 @@ export function defaultDashboard(projectId: string | null): Dashboard {
 }
 
 /**
+ * Schedule health and execution: the indices planners report alongside
+ * SPI/CPI (BEI, CPLI, SPI(t), PPC, on-time starts and finishes) and the
+ * DCMA 14-point checks, so a reader can judge how far to trust the dates.
+ */
+export function scheduleHealthDashboard(projectId: string | null): Dashboard {
+  const w = (kind: WidgetKind, title: string, extra: Partial<Widget>): Widget => ({ id: uid("w"), kind, title, w: 3, h: 1, ...extra });
+  return {
+    id: uid("dash"),
+    name: "Schedule health and execution",
+    projectId,
+    updatedAt: new Date().toISOString(),
+    page: { header: "{project}", subtitle: "Schedule health – data date {datadate}" },
+    widgets: [
+      w("banner", "Execution against the baseline", { w: 12, h: 0.5 }),
+      w("kpi", "BEI", { metric: "bei" }),
+      w("kpi", "CPLI", { metric: "cpli" }),
+      w("kpi", "SPI(t)", { metric: "spiT" }),
+      w("kpi", "Finish by earned schedule", { metric: "esFinish" }),
+      w("kpi", "PPC, last 7 days", { metric: "ppc", days: 7 }),
+      w("kpi", "Starts on time", { metric: "startsOnTime" }),
+      w("kpi", "Finishes on time", { metric: "finishesOnTime" }),
+      w("kpi", "Finish variance", { metric: "finishVariance" }),
+      w("banner", "Schedule quality (DCMA 14-point)", { w: 12, h: 0.5 }),
+      w("kpi", "Missing logic", { metric: "missingLogic" }),
+      w("kpi", "Leads", { metric: "leads" }),
+      w("kpi", "Lags", { metric: "lags" }),
+      w("kpi", "FS relationships", { metric: "fsPct" }),
+      w("kpi", "Hard constraints", { metric: "hardConstraints" }),
+      w("kpi", "High float", { metric: "highFloat" }),
+      w("kpi", "Negative float", { metric: "negFloat" }),
+      w("kpi", "Long durations", { metric: "longDuration" }),
+      w("kpi", "Invalid dates", { metric: "invalidDates", w: 3 }),
+      w("table", "Negative float", { filter: "negative-float", w: 9, h: 2, limit: 15 }),
+    ],
+  };
+}
+
+/**
  * Planning engineer's dashboard, built from what project controls people
  * share as their weekly P6 dashboards: SPI/CPI gauges, milestone tracker,
  * plan vs actual by discipline, separate E/P/C S-curves and a look-ahead.
@@ -575,6 +616,7 @@ export const BUILTIN_TEMPLATES: { id: string; name: string; hint: string; make: 
   { id: "planning", name: "Planning dashboard", hint: "Gauges, milestones, look-ahead, E/P/C curves", make: planningDashboard },
   { id: "progress", name: "Progress report (EPC style)", hint: "Key figures, weighted progress, S-curve", make: progressReportDashboard },
   { id: "status", name: "Project status", hint: "KPIs, S-curve, critical and late work", make: defaultDashboard },
+  { id: "health", name: "Schedule health and execution", hint: "BEI, CPLI, SPI(t), PPC, on-time starts/finishes and the DCMA 14-point checks", make: scheduleHealthDashboard },
 ];
 
 /** Copy a dashboard (or template) with fresh ids. */
