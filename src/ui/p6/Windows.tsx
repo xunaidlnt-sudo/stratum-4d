@@ -12,7 +12,8 @@ import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
 import { openRates } from "./Dialogs4";
-import { openBuckets } from "./Dialogs6";
+import { openBuckets, openRegisterDetail, useNetBox } from "./Dialogs6";
+import { fieldCtx, fieldsFor, fieldText } from "../../core/fields";
 import { DetailTabs } from "./P6Dlg";
 import { wbsPerformance } from "../../core/evm";
 import { openBudgets } from "./Dialogs5";
@@ -654,6 +655,8 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                   <td>Level</td>
                 </>
               )}
+              {kind === "issues" && <td>History</td>}
+              {kind === "risks" && <td>Response Plan</td>}
               {usesActivity && <td>Activity</td>}
               <td />
             </tr>
@@ -667,6 +670,16 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                       className="cell"
                       list={kind === "expenses" && c === "Category" ? "p6-exp-cats" : kind === "expenses" && c === "Accrual Type" ? "p6-accrual" : undefined}
                       value={it.values[c] ?? ""}
+                      onFocus={(e) => (e.currentTarget.dataset.was = e.currentTarget.value)}
+                      onBlur={(e) => {
+                        // Issues keep a history of what changed (P6 issue History tab).
+                        const was = e.currentTarget.dataset.was ?? "";
+                        if (kind !== "issues" || was === e.currentTarget.value) return;
+                        const cur = useStore.getState().schedule!;
+                        const list = cur.registers?.issues ?? [];
+                        const text = `${c}: ${was || "(empty)"} → ${e.currentTarget.value || "(empty)"}`;
+                        commit({ ...cur, registers: { ...(cur.registers ?? {}), issues: list.map((x) => (x.id === it.id ? { ...x, history: [...(x.history ?? []), { at: new Date().toISOString(), text }] } : x)) } }, `Issue history ${it.id}`);
+                      }}
                       onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)}
                     />
                   </td>
@@ -681,6 +694,20 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                       </>
                     );
                   })()}
+                {kind === "issues" && (
+                  <td>
+                    <button className="link" onClick={() => openRegisterDetail("issues", it.id)}>
+                      {it.history?.length ? `${it.history.length} entr${it.history.length === 1 ? "y" : "ies"}` : "Open…"}
+                    </button>
+                  </td>
+                )}
+                {kind === "risks" && (
+                  <td>
+                    <button className="link" onClick={() => openRegisterDetail("risks", it.id)}>
+                      {it.responsePlan?.length ? `${it.responsePlan.length} step${it.responsePlan.length === 1 ? "" : "s"}` : "Plan…"}
+                    </button>
+                  </td>
+                )}
                 {usesActivity && (
                   <td>
                     {it.activityId && acts.get(it.activityId) ? (
@@ -717,7 +744,6 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
 
 // ---------------------------------------------------------------- Activity Network (canvas)
 
-const BOX_W = 150;
 const BOX_H = 58;
 const GAP_X = 50;
 const GAP_Y = 18;
@@ -733,6 +759,14 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
   const drag = useRef<{ x: number; y: number; vx: number; vy: number; moved: boolean; from: string | null } | null>(null);
   const [rubber, setRubber] = useState<{ x1: number; y1: number; x2: number; y2: number } | null>(null);
   const layout = useMemo(() => (schedule ? networkLayout(schedule, only ?? undefined) : null), [schedule, only]);
+  // P6 box template: which fields the boxes show, and their width.
+  const tpl = useNetBox();
+  const bw = tpl.width;
+  const boxFields = useMemo(() => {
+    const all = new Map(fieldsFor(schedule).map((f) => [f.id, f]));
+    return tpl.fields.map((id) => all.get(id)).filter((f): f is NonNullable<typeof f> => !!f);
+  }, [schedule, tpl.fields]);
+  const fctx = useMemo(() => (schedule ? fieldCtx(schedule) : null), [schedule]);
   const byId = useMemo(() => new Map((schedule?.activities ?? []).map((a) => [a.id, a])), [schedule]);
 
   useEffect(() => {
@@ -747,7 +781,7 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
   useEffect(() => {
     const n = selected ? layout?.nodes.get(selected) : null;
     if (!n) return;
-    setView((v) => ({ ...v, x: size.w / 2 - (n.col * (BOX_W + GAP_X) + BOX_W / 2) * v.k, y: size.h / 2 - (n.row * (BOX_H + GAP_Y) + BOX_H / 2) * v.k }));
+    setView((v) => ({ ...v, x: size.w / 2 - (n.col * (bw + GAP_X) + bw / 2) * v.k, y: size.h / 2 - (n.row * (BOX_H + GAP_Y) + BOX_H / 2) * v.k }));
   }, [selected, layout, size.w, size.h]);
 
   useEffect(() => {
@@ -765,13 +799,13 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
     g.clearRect(0, 0, size.w, size.h);
     g.translate(view.x, view.y);
     g.scale(view.k, view.k);
-    const vx0 = -view.x / view.k - BOX_W;
+    const vx0 = -view.x / view.k - bw;
     const vy0 = -view.y / view.k - BOX_H;
-    const vx1 = (size.w - view.x) / view.k + BOX_W;
+    const vx1 = (size.w - view.x) / view.k + bw;
     const vy1 = (size.h - view.y) / view.k + BOX_H;
     const pos = (id: string) => {
       const n = layout.nodes.get(id);
-      return n ? { x: n.col * (BOX_W + GAP_X), y: n.row * (BOX_H + GAP_Y) } : null;
+      return n ? { x: n.col * (bw + GAP_X), y: n.row * (BOX_H + GAP_Y) } : null;
     };
     // Links first.
     g.lineWidth = 1 / Math.max(0.5, view.k);
@@ -779,7 +813,7 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
       const p = pos(r.predecessorId);
       const q = pos(r.successorId);
       if (!p || !q) continue;
-      const x1 = p.x + BOX_W;
+      const x1 = p.x + bw;
       const y1 = p.y + BOX_H / 2;
       const x2 = q.x;
       const y2 = q.y + BOX_H / 2;
@@ -804,31 +838,32 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
       g.strokeStyle = id === selected ? "#f5a623" : color;
       g.lineWidth = id === selected ? 3 : 1.5;
       g.beginPath();
-      g.roundRect(p.x, p.y, BOX_W, BOX_H, 4);
+      g.roundRect(p.x, p.y, bw, BOX_H, 4);
       g.fill();
       g.stroke();
       g.fillStyle = color;
-      g.fillRect(p.x, p.y, BOX_W, 4);
+      g.fillRect(p.x, p.y, bw, 4);
       if (view.k > 0.35) {
         g.fillStyle = ink.trim();
         g.font = "600 11px Inter, system-ui, sans-serif";
-        g.fillText(a.code, p.x + 6, p.y + 17, BOX_W - 12);
+        const txt = (i: number) => (boxFields[i] && fctx ? fieldText(boxFields[i], a, fctx) : "");
+        g.fillText(txt(0), p.x + 6, p.y + 17, bw - 12);
         g.font = "11px Inter, system-ui, sans-serif";
-        g.fillText(a.name, p.x + 6, p.y + 31, BOX_W - 12);
+        g.fillText(txt(1), p.x + 6, p.y + 31, bw - 12);
         g.fillStyle = "#777";
-        g.fillText(`${fmtDate(a.start)}  ${fmtDate(a.finish)}`, p.x + 6, p.y + 46, BOX_W - 12);
+        g.fillText(boxFields.slice(2).map((_, k) => txt(k + 2)).filter(Boolean).join("  "), p.x + 6, p.y + 46, bw - 12);
       }
     }
-  }, [layout, schedule, view, size, selected, byId]);
+  }, [layout, schedule, view, size, selected, byId, bw, boxFields, fctx]);
 
   if (!schedule || !layout) return <div className="empty">No project open.</div>;
 
   const hit = (cx: number, cy: number) => {
     const x = (cx - view.x) / view.k;
     const y = (cy - view.y) / view.k;
-    const col = Math.floor(x / (BOX_W + GAP_X));
+    const col = Math.floor(x / (bw + GAP_X));
     const row = Math.floor(y / (BOX_H + GAP_Y));
-    if (x - col * (BOX_W + GAP_X) > BOX_W || y - row * (BOX_H + GAP_Y) > BOX_H) return null;
+    if (x - col * (bw + GAP_X) > bw || y - row * (BOX_H + GAP_Y) > BOX_H) return null;
     for (const n of layout.nodes.values()) if (n.col === col && n.row === row) return n.id;
     return null;
   };
@@ -887,9 +922,12 @@ export function NetworkView({ only }: { only?: Set<string> | null }) {
         </svg>
       )}
       <div className="p6-net-tools">
+        <button title="Box Template" onClick={() => useP6.getState().open("netBox")}>
+          Box…
+        </button>
         <button onClick={() => setView({ ...view, k: Math.min(3, view.k * 1.3) })}>+</button>
         <button onClick={() => setView({ ...view, k: Math.max(0.08, view.k / 1.3) })}>−</button>
-        <button onClick={() => setView({ x: 20, y: 20, k: Math.min(1, Math.max(0.08, size.w / Math.max(1, layout.cols * (BOX_W + GAP_X)))) })}>Fit</button>
+        <button onClick={() => setView({ x: 20, y: 20, k: Math.min(1, Math.max(0.08, size.w / Math.max(1, layout.cols * (bw + GAP_X)))) })}>Fit</button>
         <span className="muted small">
           {layout.nodes.size.toLocaleString()} activities · drag to pan, wheel to zoom, click to select
         </span>

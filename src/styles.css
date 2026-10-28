@@ -1540,3 +1540,6 @@ td.neg { color: #b42318; }
 
 .p6-wbs-details { border-top: 1px solid var(--line, #d0d4da); max-height: 42%; overflow: auto; }
 .p6-list2 input.cell, .p6-list2 select { width: 100%; min-width: 0; box-sizing: border-box; }
+
+.cap-table td.cap-over { background: rgba(196, 50, 40, 0.18); color: #9b1c12; font-weight: 600; }
+.cap-table tr.cap-limit td { border-bottom: 1px solid var(--line, #d0d4da); font-size: 11.5px; }

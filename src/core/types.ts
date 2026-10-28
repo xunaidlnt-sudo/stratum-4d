@@ -505,6 +505,10 @@ export interface RegisterItem {
   /** Linked activity (internal id), if any. */
   activityId?: string | null;
   values: Record<string, string>;
+  /** P6 issue history: what changed, when. */
+  history?: { at: string; text: string }[];
+  /** P6 risk response plan steps. */
+  responsePlan?: { id: string; step: string; owner: string; start: number | null; finish: number | null; cost: number; status: "proposed" | "sanctioned" | "rejected" | "done" }[];
 }
 
 export interface BaselineInfo {

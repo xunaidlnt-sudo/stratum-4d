@@ -18,7 +18,7 @@ Last updated for release 0.6.
 | Copy and paste a range of cells, paste from Excel | Done | Tab-separated cells both ways |
 | Hot keys and shortcut keys | Done | Ins, Del, F2, F9, F10, Ctrl+C/X/V/Z/Y/A/E/L/F |
 | User preferences: time units, dates, currency, codes | Done | Time Units, Dates and Currency tabs (symbol and decimals on cost columns) |
-| Startup filters, financial periods, resource analysis options | Missing | |
+| Startup filters, financial periods, resource analysis options | Done | Startup Window preference; Financial Period Calendar with batch create; usage by financial period |
 | Wizards | Partial | Setup wizard; no new-activity / new-resource wizards |
 
 ## Structuring projects (Pro ch. 4, EPPM "Structuring Projects")
@@ -31,10 +31,10 @@ Last updated for release 0.6.
 | Roles: rates and limits over time, assign to activities and resources | Done | General, Resources, Units & Prices (prices and limits over time); role assignments and staffing; Del./Merge |
 | Resource curves | Done | 8 standard curves plus custom 21-point curves |
 | WBS: add, edit, copy, move, indent | Done | WBS window |
-| WBS weighted milestones, categories, status, earned value settings | Missing | |
+| WBS weighted milestones, categories, status, earned value settings | Done | WBS details: status, anticipated dates, weighted milestones, earned value technique |
 | Project codes, resource codes | Done | Project Codes and Resource Codes dictionaries; Project Details › Codes, Resources window columns; imported from XER |
 | Global / EPS / project activity codes and colours | Partial | Project-level codes with values, descriptions, colours |
-| User-defined fields, data types, indicator UDFs | Partial | Activity UDFs with types; no indicator icons or formulas |
+| User-defined fields, data types, indicator UDFs | Partial | Activity UDFs with types and red/yellow/green/blue indicators; no formulas |
 | Calendars: project, global, default hours per period | Done | Calendars dialog: work week, holidays, exceptions, hours per day |
 | Resource calendars | Done | Calendar per resource, used by levelling; imported from XER |
 | Project details: dates, must finish by, status, defaults | Done | General, Dates (anticipated), Defaults (duration/percent/activity type, calendar, Activity ID auto-numbering), Settings, Codes, Summary |
@@ -55,10 +55,10 @@ Last updated for release 0.6.
 | Assign by role, rate types, rate source | Partial | Assign Roles, staff from the Assignments window; one rate type |
 | Resource curves on assignments | Done | Spread usage profiles and recalculated costs |
 | Budgeting: budget log, funding sources, spending plan | Done | Budgets dialog per WBS: original, changes (approved / pending), distributed, funding, monthly spending and benefit plan against schedule cost |
-| Future period bucket planning | Missing | |
+| Future period bucket planning | Done | Remaining units per future period on each assignment |
 | Expenses and expense categories, accrual | Done | Expense Categories dictionary, accrual type, cost accounts; imported from XER PROJCOST |
 | Cost accounts | Done | Account tree, default account, assignment and expense booking, roll-up totals |
-| Top-down estimation | Missing | |
+| Top-down estimation | Done | Total units by WBS weight, spread by remaining duration, for a resource or role |
 | Notebooks and notebook topics | Done (0.6) | Notebook tab with topics |
 | Global Change: If/Then/Else, arithmetic, combine text | Done | With change report |
 
@@ -71,14 +71,14 @@ Last updated for release 0.6.
 | Update progress for all / spotlighted activities, Progress Spotlight | Done | |
 | Estimate progress automatically (auto compute actuals) | Done (0.6) | Tools → Estimate Progress |
 | Remove progress, suspend / resume | Done (0.6) | |
-| Apply actuals, store period performance | Partial | Period actuals stored; no past-period editing |
+| Apply actuals, store period performance | Done | Store, delete and edit past period actuals; periods named after financial periods |
 | Earned value | Done | Activity Usage Profile, dashboards |
 | Reflections | Done | Create Reflection, change it, Merge Reflection with a change summary |
 | Check out / check in | Out of scope | |
 | Schedule, schedule automatically, multiple float paths, critical paths | Done | Schedule Options; "schedule automatically" from 0.6 |
 | Check Schedule | Done | DCMA 14-point |
 | Level resources, leveling priorities | Partial | Serial levelling by priority |
-| Issues: add, responsibility, history | Partial | Issues register |
+| Issues: add, responsibility, history | Done | Issues register with a change history and notes |
 | Thresholds and threshold monitoring | Done (0.6) | Monitor creates issues |
 | Risks: create, assign, respond, scoring matrix | Done | Risks register with score and level from the scoring matrix, heat map |
 | Work products and documents | Partial | WPs & Docs register |
@@ -94,7 +94,7 @@ Last updated for release 0.6.
 | Curtain and text attachments | Done | Bar Chart Options › Curtains and Text attachments |
 | Change dates and durations in the Gantt chart | Done | Drag |
 | Progress line | Done | |
-| Activity Network: display, layout, box templates | Partial | Canvas network; fixed box layout |
+| Activity Network: display, layout, box templates | Done | Box template (fields per line, width), drag to link |
 | Usage profiles and spreadsheets | Done | |
 | Tracking layouts | Partial | Dashboards and Reports |
 | Grouping by field, hierarchy, WBS path; band formatting; hide empty bands | Done | Several levels, To Level, grand totals, summaries only, hide if empty, font and colour per level |
@@ -107,9 +107,9 @@ Last updated for release 0.6.
 
 | Topic | Status | Notes |
 |---|---|---|
-| Portfolios, capacity planning | Partial | Project Portfolios dialog and Projects window filter; no capacity planning |
+| Portfolios, capacity planning | Done | Project Portfolios; Capacity Planning by resource or role across a portfolio, month by month |
 | Team Member status updates, timesheets, email statusing | Out of scope | |
 | Workflows, document repository and reviews | Out of scope | |
-| Risk scoring matrices, risk thresholds, response plans | Partial | Editable 5×5 matrix and thresholds; response text per risk, no response plan items |
+| Risk scoring matrices, risk thresholds, response plans | Done | Editable 5×5 matrix and thresholds, heat map, response plan steps with owner, dates, cost, status |
 | Activity views (web), filters, grouping | Done | Same as the P6 layout |
 | Summarizer service, publication services | Out of scope | |

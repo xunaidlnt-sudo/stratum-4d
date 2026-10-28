@@ -28,8 +28,8 @@ import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
-import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
-import { BucketsDialog, ExpenseCategoriesDialog, FinancialPeriodsDialog, PeriodPerformanceDialog, TopDownDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
+import { CapacityDialog, EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
+import { BucketsDialog, ExpenseCategoriesDialog, FinancialPeriodsDialog, NetBoxDialog, PeriodPerformanceDialog, RegisterDetailDialog, TopDownDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
@@ -1765,6 +1765,9 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     financialPeriods: () => <FinancialPeriodsDialog />,
     buckets: () => <BucketsDialog />,
     topDown: () => <TopDownDialog />,
+    registerDetail: () => <RegisterDetailDialog />,
+    capacity: () => <CapacityDialog />,
+    netBox: () => <NetBoxDialog />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,

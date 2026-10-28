@@ -3,10 +3,12 @@
 // dialog layout.
 
 import { useState } from "react";
+import { create } from "zustand";
+import { fieldsFor } from "../../core/fields";
 import { batchFinancialPeriods } from "../../core/budget";
 import { DEFAULT_PROJECT_DEFAULTS, editPeriodActual, setBuckets, storePeriodPerformance, topDownEstimate } from "../../core/ops";
 import { useP6 } from "./commands";
-import type { Activity, CodeType, ProjectDefaults, Schedule } from "../../core/types";
+import type { Activity, CodeType, ProjectDefaults, RegisterItem, Schedule } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { close } from "./Dialogs";
 import { DetailTabs, ListHead, P6Dlg, SideArrows, SideBtn, SideGap, SideHelp } from "./P6Dlg";
@@ -946,6 +948,233 @@ export function PeriodPerformanceDialog() {
           </div>
         </>
       )}
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Issue history and risk response plans
+
+let regTarget: { kind: "issues" | "risks"; id: string } | null = null;
+export const openRegisterDetail = (kind: "issues" | "risks", id: string) => {
+  regTarget = { kind, id };
+  useP6.getState().open("registerDetail");
+};
+
+export function RegisterDetailDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [target] = useState(regTarget);
+  const [note, setNote] = useState("");
+  if (!schedule || !target) return null;
+  const list = schedule.registers?.[target.kind] ?? [];
+  const it = list.find((x) => x.id === target.id);
+  if (!it) return null;
+  const put = (patch: Partial<RegisterItem>, label: string) => {
+    const cur = useStore.getState().schedule!;
+    const l = cur.registers?.[target.kind] ?? [];
+    commit({ ...cur, registers: { ...(cur.registers ?? {}), [target.kind]: l.map((x) => (x.id === it.id ? { ...x, ...patch } : x)) } }, label);
+  };
+  const plan = it.responsePlan ?? [];
+  const setStep = (i: number, p: Partial<(typeof plan)[number]>) => put({ responsePlan: plan.map((x, k) => (k === i ? { ...x, ...p } : x)) }, `Response plan ${it.id}`);
+  const title = target.kind === "issues" ? `Issue – ${it.values["Issue Name"] || it.values["Issue"] || it.id}` : `Risk – ${it.values["Risk ID"] || ""} ${it.values["Risk Name"] || ""}`.trim();
+  return (
+    <P6Dlg
+      title={title}
+      width={760}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideGap />
+          {target.kind === "risks" && (
+            <SideBtn kind="add" label="Add Step" onClick={() => put({ responsePlan: [...plan, { id: `rp-${Date.now()}`, step: `Step ${plan.length + 1}`, owner: "", start: null, finish: null, cost: 0, status: "proposed" }] }, "Add response step")} />
+          )}
+          <SideGap />
+          <SideHelp topic={target.kind} />
+        </>
+      }
+    >
+      {target.kind === "issues" ? (
+        <>
+          <div>
+            <ListHead>History</ListHead>
+            <div className="p6-list2">
+              <table>
+                <thead>
+                  <tr>
+                    <td style={{ width: 170 }}>Date</td>
+                    <td>Change or note</td>
+                  </tr>
+                </thead>
+                <tbody>
+                  {[...(it.history ?? [])].reverse().map((h, i) => (
+                    <tr key={i}>
+                      <td>{new Date(h.at).toLocaleString([], { dateStyle: "medium", timeStyle: "short" })}</td>
+                      <td style={{ whiteSpace: "normal" }}>{h.text}</td>
+                    </tr>
+                  ))}
+                  {!it.history?.length && (
+                    <tr>
+                      <td colSpan={2} className="muted small">
+                        No history yet. Changes made in the Issues window are logged here.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div className="row" style={{ gap: 6 }}>
+            <input style={{ flex: 1 }} placeholder="Add a note to the history" value={note} onChange={(e) => setNote(e.target.value)} onKeyDown={(e) => e.key === "Enter" && note.trim() && (put({ history: [...(it.history ?? []), { at: new Date().toISOString(), text: note.trim() }] }, "Issue note"), setNote(""))} />
+            <button disabled={!note.trim()} onClick={() => (put({ history: [...(it.history ?? []), { at: new Date().toISOString(), text: note.trim() }] }, "Issue note"), setNote(""))}>
+              Add note
+            </button>
+          </div>
+        </>
+      ) : (
+        <>
+          <p className="small">
+            Probability {it.values["Probability"] || "–"}, schedule impact {it.values["Impact (Schedule)"] || "–"}, cost impact {it.values["Impact (Cost)"] || "–"}. Response: {it.values["Response"] || "–"}.
+          </p>
+          <div>
+            <ListHead>Response Plan</ListHead>
+            <div className="p6-list2">
+              <table>
+                <thead>
+                  <tr>
+                    <td>Step</td>
+                    <td style={{ width: 120 }}>Owner</td>
+                    <td style={{ width: 130 }}>Start</td>
+                    <td style={{ width: 130 }}>Finish</td>
+                    <td style={{ width: 100 }}>Cost</td>
+                    <td style={{ width: 110 }}>Status</td>
+                    <td style={{ width: 30 }} />
+                  </tr>
+                </thead>
+                <tbody>
+                  {plan.map((x, i) => (
+                    <tr key={x.id}>
+                      <td>
+                        <input className="cell" value={x.step} onChange={(e) => setStep(i, { step: e.target.value })} />
+                      </td>
+                      <td>
+                        <input className="cell" value={x.owner} onChange={(e) => setStep(i, { owner: e.target.value })} />
+                      </td>
+                      <td>
+                        <input type="date" value={isoDay(x.start)} onChange={(e) => setStep(i, { start: fromDay(e.target.value, 8) })} />
+                      </td>
+                      <td>
+                        <input type="date" value={isoDay(x.finish)} onChange={(e) => setStep(i, { finish: fromDay(e.target.value, 17) })} />
+                      </td>
+                      <td>
+                        <input className="cell num" type="number" min={0} value={x.cost} onChange={(e) => setStep(i, { cost: Math.max(0, Number(e.target.value) || 0) })} />
+                      </td>
+                      <td>
+                        <select value={x.status} onChange={(e) => setStep(i, { status: e.target.value as typeof x.status })}>
+                          <option value="proposed">Proposed</option>
+                          <option value="sanctioned">Sanctioned</option>
+                          <option value="rejected">Rejected</option>
+                          <option value="done">Done</option>
+                        </select>
+                      </td>
+                      <td>
+                        <button className="link" aria-label="Remove step" onClick={() => put({ responsePlan: plan.filter((_, k) => k !== i) }, "Remove response step")}>
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  {!plan.length && (
+                    <tr>
+                      <td colSpan={7} className="muted small">
+                        No response steps. Click Add Step.
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <p className="small">
+            Response cost: <b>{plan.filter((x) => x.status !== "rejected").reduce((t, x) => t + x.cost, 0).toLocaleString()}</b> ({plan.filter((x) => x.status === "done").length} of {plan.length} steps done)
+          </p>
+        </>
+      )}
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Activity Network box template
+
+interface NetBox {
+  fields: string[];
+  width: number;
+}
+const NB_KEY = "stratum.netbox.v1";
+const NB_DEFAULT: NetBox = { fields: ["code", "name", "start", "finish"], width: 150 };
+const readNetBox = (): NetBox => {
+  try {
+    return { ...NB_DEFAULT, ...JSON.parse(localStorage.getItem(NB_KEY) ?? "{}") };
+  } catch {
+    return NB_DEFAULT;
+  }
+};
+export const useNetBox = create<NetBox & { set: (p: Partial<NetBox>) => void }>((set, get) => ({
+  ...readNetBox(),
+  set: (p) => {
+    set(p);
+    try {
+      localStorage.setItem(NB_KEY, JSON.stringify({ fields: get().fields, width: get().width }));
+    } catch {
+      /* ignore */
+    }
+  },
+}));
+
+export function NetBoxDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const tpl = useNetBox();
+  const fields = fieldsFor(schedule);
+  const rows = ["Line 1 (bold)", "Line 2", "Line 3", "Line 3 (continued)"];
+  return (
+    <P6Dlg
+      title="Activity Network – Box Template"
+      width={560}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideBtn kind="default" label="Default" onClick={() => tpl.set(NB_DEFAULT)} />
+          <SideGap />
+          <SideHelp topic="activity-network" />
+        </>
+      }
+    >
+      <table className="p6-grid">
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={r}>
+              <td style={{ width: 150 }}>{r}</td>
+              <td>
+                <select value={tpl.fields[i] ?? ""} onChange={(e) => tpl.set({ fields: [...rows.map((_, k) => (k === i ? e.target.value : tpl.fields[k] ?? ""))] })}>
+                  <option value="">(blank)</option>
+                  {fields.map((f) => (
+                    <option key={f.id} value={f.id}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </td>
+            </tr>
+          ))}
+          <tr>
+            <td>Box width</td>
+            <td>
+              <input type="range" min={110} max={300} step={10} value={tpl.width} onChange={(e) => tpl.set({ width: Number(e.target.value) })} /> {tpl.width}px
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="muted small">Boxes keep the colour of their status (blue complete, red critical, green other). The template is kept for this device.</p>
     </P6Dlg>
   );
 }

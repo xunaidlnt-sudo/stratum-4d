@@ -1,9 +1,10 @@
 // P6 Projects window: the EPS tree of every project in the database, opening
 // several projects together, and reflections.
 
-import { useEffect, useMemo, useState } from "react";
+import { Fragment, useEffect, useMemo, useState } from "react";
 import { useConfig } from "../../backend/config";
 import type { ProjectSummary } from "../../backend/types";
+import { capacityPlan, type CapacityPlan } from "../../core/capacity";
 import { combineSchedules, epsNode, epsTree, isCombined, mergeReflection, reflect, reflectionChanges, splitSchedule } from "../../core/multiproject";
 import { uid } from "../../core/ops";
 import type { StratumProject } from "../../core/project";
@@ -815,6 +816,135 @@ export function PortfoliosDialog() {
           ]}
         />
       )}
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Capacity Planning (Enterprise)
+
+export function CapacityDialog() {
+  const backend = useConfig((c) => c.backend);
+  const open = useStore((s) => s.schedule);
+  const currentId = useStore((s) => s.currentProjectId);
+  const [portfolio, setPortfolio] = useState("");
+  const [by, setBy] = useState<"resource" | "role">("resource");
+  const [plan, setPlan] = useState<CapacityPlan | null>(null);
+  const [msg, setMsg] = useState("Loading projects…");
+  const portfolios = loadPortfolios();
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      setMsg("Loading projects…");
+      const pf = portfolios.find((p) => p.id === portfolio);
+      const rows = (await backend.listProjects().catch(() => [] as ProjectSummary[])).filter((r) => !pf || pf.projectIds.includes(r.id));
+      const scheds: Schedule[] = [];
+      for (const r of rows) {
+        if (r.id === currentId && open) scheds.push(open);
+        else {
+          const s = (await backend.getProject(r.id).catch(() => null))?.project.schedule;
+          if (s) scheds.push(s);
+        }
+      }
+      if (!rows.length && open && !pf) scheds.push(open);
+      if (!live) return;
+      setPlan(capacityPlan(scheds, by));
+      setMsg(`${scheds.length} project${scheds.length === 1 ? "" : "s"}: ${scheds.map((s) => s.projectCode).join(", ") || "none"}`);
+    })();
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [backend, portfolio, by, open, currentId]);
+  const fmt = (v: number) => (v ? Math.round(v).toLocaleString() : "");
+  return (
+    <P6Dlg
+      title="Capacity Planning"
+      width={1100}
+      onClose={closeDlg}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={closeDlg} />
+          <SideGap />
+          <SideHelp topic="capacity" />
+        </>
+      }
+    >
+      <div className="row" style={{ gap: 10, alignItems: "end" }}>
+        <label>
+          Portfolio
+          <select value={portfolio} onChange={(e) => setPortfolio(e.target.value)}>
+            <option value="">All Projects</option>
+            {portfolios.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Show
+          <select value={by} onChange={(e) => setBy(e.target.value as "resource" | "role")}>
+            <option value="resource">Resources</option>
+            <option value="role">Roles</option>
+          </select>
+        </label>
+        <span className="muted small">{msg}</span>
+      </div>
+      <div className="p6-list2" style={{ maxHeight: "60vh" }}>
+        <table className="cap-table">
+          <thead>
+            <tr>
+              <td style={{ position: "sticky", left: 0, zIndex: 2, minWidth: 200 }}>{by === "role" ? "Role" : "Resource"}</td>
+              <td />
+              {(plan?.months ?? []).map((m) => (
+                <td key={m.start} className="num">
+                  {m.label}
+                </td>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {(plan?.rows ?? []).map((r) => (
+              <Fragment key={r.key}>
+                <tr>
+                  <td rowSpan={2} style={{ position: "sticky", left: 0, background: "var(--surface, #fff)", whiteSpace: "normal" }}>
+                    {r.label}
+                  </td>
+                  <td className="muted small">Demand</td>
+                  {r.demand.map((v, i) => (
+                    <td
+                      key={i}
+                      className={`num ${v > r.capacity[i] + 1e-6 ? "cap-over" : ""}`}
+                      title={Object.entries(r.byProject)
+                        .filter(([, a]) => a[i] > 0)
+                        .map(([p, a]) => `${p}: ${Math.round(a[i]).toLocaleString()}`)
+                        .join("\n")}
+                    >
+                      {fmt(v)}
+                    </td>
+                  ))}
+                </tr>
+                <tr className="cap-limit">
+                  <td className="muted small">Capacity</td>
+                  {r.capacity.map((v, i) => (
+                    <td key={i} className="num muted">
+                      {fmt(v)}
+                    </td>
+                  ))}
+                </tr>
+              </Fragment>
+            ))}
+            {plan && !plan.rows.length && (
+              <tr>
+                <td colSpan={3} className="muted small">
+                  No resource demand in these projects.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted small">Units per month across the projects (hover a cell for each project&apos;s share). Capacity is each resource&apos;s max units per hour × its calendar&apos;s working hours, counted once per resource ID; red marks months where demand is higher.</p>
     </P6Dlg>
   );
 }

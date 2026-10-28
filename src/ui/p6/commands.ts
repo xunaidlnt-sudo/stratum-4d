@@ -58,7 +58,10 @@ export type P6Dialog =
   | "expenseCategories"
   | "financialPeriods"
   | "buckets"
-  | "topDown";
+  | "topDown"
+  | "registerDetail"
+  | "capacity"
+  | "netBox";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 
