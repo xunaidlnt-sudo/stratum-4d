@@ -1537,3 +1537,5 @@ td.neg { color: #b42318; }
 .p6-dlg2-main .p6-check { display: flex; align-items: center; gap: 6px; margin: 2px 0; }
 
 .p6-net-rubber { position: absolute; left: 0; top: 0; pointer-events: none; }
+
+.p6-wbs-details { border-top: 1px solid var(--line, #d0d4da); max-height: 42%; overflow: auto; }

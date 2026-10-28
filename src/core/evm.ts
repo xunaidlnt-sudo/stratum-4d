@@ -8,7 +8,7 @@
 // Two measures are supported so the panel is useful with or without a costed
 // schedule: "cost" (assignment costs) and "hours" (labour quantities).
 
-import type { Activity, Assignment, Resource, Schedule } from "./types";
+import type { Activity, Assignment, Resource, Schedule, WbsNode } from "./types";
 
 export type Measure = "cost" | "hours";
 
@@ -129,9 +129,52 @@ export function evmByWbs(s: Schedule, measure: Measure = "cost", dataDate = s.da
   return s.wbs
     .map((w) => {
       const ids = under(w.id);
-      return { wbs: w, metrics: metricsFor(values.filter((v) => ids.has(v.a.wbsId ?? "")), dataDate) };
+      const mine = values.filter((v) => ids.has(v.a.wbsId ?? ""));
+      const m = metricsFor(mine, dataDate);
+      const tech = w.evTechnique ?? "activity-pct";
+      return { wbs: w, metrics: tech === "activity-pct" ? m : withEv(m, m.bac * performanceOf(w, mine)) };
     })
     .filter((r) => r.metrics.bac > 0 || r.metrics.ac > 0);
+}
+
+/** Performance % complete of a WBS element by its earned value technique (P6 WBS › Earned Value). */
+function performanceOf(w: WbsNode, values: ActValues[]): number {
+  const tech = w.evTechnique ?? "activity-pct";
+  if (tech === "wbs-milestones") {
+    const ms = w.milestones ?? [];
+    const total = ms.reduce((t, m) => t + Math.max(0, m.weight), 0);
+    return total ? ms.filter((m) => m.done).reduce((t, m) => t + Math.max(0, m.weight), 0) / total : 0;
+  }
+  let bac = 0;
+  let earned = 0;
+  for (const v of values) {
+    bac += v.budget;
+    const a = v.a;
+    const started = a.status !== "not-started";
+    const done = a.status === "complete";
+    const part =
+      tech === "0-100" ? (done ? 1 : 0) : tech === "50-50" ? (done ? 1 : started ? 0.5 : 0) : tech === "custom" ? (done ? 1 : started ? Math.min(1, Math.max(0, (w.evCustomStartPct ?? 50) / 100)) : 0) : a.percentComplete / 100;
+    earned += v.budget * part;
+  }
+  return bac ? earned / bac : 0;
+}
+
+/** Performance % complete (0–1) of a WBS element and everything below it. */
+export function wbsPerformance(s: Schedule, wbsId: string, measure: Measure = "cost"): number {
+  const w = s.wbs.find((x) => x.id === wbsId);
+  if (!w) return 0;
+  const kids = new Map<string | null, string[]>();
+  for (const x of s.wbs) (kids.get(x.parentId) ?? kids.set(x.parentId, []).get(x.parentId)!).push(x.id);
+  const ids = new Set<string>([wbsId]);
+  const stack = [wbsId];
+  while (stack.length) for (const c of kids.get(stack.pop()!) ?? []) if (!ids.has(c)) (ids.add(c), stack.push(c));
+  return performanceOf(w, activityValues(s, measure).filter((v) => ids.has(v.a.wbsId ?? "")));
+}
+
+function withEv(m: EvmMetrics, ev: number): EvmMetrics {
+  const spi = m.pv > 0 ? ev / m.pv : null;
+  const cpi = m.ac > 0 ? ev / m.ac : null;
+  return { ...m, ev, sv: ev - m.pv, cv: ev - m.ac, spi, cpi, eacCpi: cpi ? m.bac / cpi : null, tcpi: m.bac - m.ac !== 0 ? (m.bac - ev) / (m.bac - m.ac) : null, earnedPct: m.bac ? ev / m.bac : 0 };
 }
 
 export interface CurvePoint {

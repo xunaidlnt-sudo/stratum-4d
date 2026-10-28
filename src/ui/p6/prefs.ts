@@ -11,6 +11,8 @@ export interface Prefs {
   decimals: number;
   currency: string;
   currencyDecimals: number;
+  /** P6 User Preferences › Application › Startup Window. */
+  startupWindow?: string;
 }
 
 const KEY = "stratum.p6.prefs.v1";

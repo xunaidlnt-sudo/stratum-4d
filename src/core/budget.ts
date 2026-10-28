@@ -260,3 +260,40 @@ export function riskHeatMap(s: Schedule): { counts: number[][]; unscored: number
   }
   return { counts, unscored };
 }
+
+// ---------------------------------------------------------------- financial periods
+
+export type FinancialPeriod = NonNullable<Schedule["financialPeriods"]>[number];
+const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+/** P6 Financial Period Calendar › Batch Create: periods of a week, a month or a quarter between two dates. */
+export function batchFinancialPeriods(start: number, end: number, interval: "week" | "month" | "quarter", endDay = 0): FinancialPeriod[] {
+  const out: FinancialPeriod[] = [];
+  const DAY = 86_400_000;
+  let t = Math.floor(start / DAY) * DAY;
+  for (let i = 0; t < end && i < 2000; i++) {
+    const d = new Date(t);
+    let next: number;
+    if (interval === "week") {
+      // Weeks end on endDay (0 = Sunday).
+      const toEnd = (endDay - d.getUTCDay() + 7) % 7;
+      next = t + (toEnd + 1) * DAY;
+    } else {
+      const months = interval === "month" ? 1 : 3;
+      next = Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + months - (interval === "quarter" ? d.getUTCMonth() % 3 : 0), 1);
+    }
+    const f = new Date(next - DAY);
+    const name =
+      interval === "week"
+        ? `W/E ${String(f.getUTCDate()).padStart(2, "0")}-${MONTHS[f.getUTCMonth()]}-${String(f.getUTCFullYear()).slice(2)}`
+        : interval === "month"
+          ? `${MONTHS[d.getUTCMonth()]}-${String(d.getUTCFullYear()).slice(2)}`
+          : `Q${Math.floor(d.getUTCMonth() / 3) + 1}-${d.getUTCFullYear()}`;
+    out.push({ id: `fp-${t}`, name, start: t, finish: next });
+    t = next;
+  }
+  return out;
+}
+
+/** The financial period containing a date. */
+export const financialPeriodAt = (s: Schedule, t: number) => (s.financialPeriods ?? []).find((p) => p.start <= t && t < p.finish) ?? null;

@@ -23,7 +23,7 @@ export interface UsageSheet {
 
 const M = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; step: "week" | "month"; measure: "units" | "cost"; activityIds?: Set<string> }): UsageSheet {
+export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; step: "week" | "month" | "financial"; measure: "units" | "cost"; activityIds?: Set<string> }): UsageSheet {
   const dd = s.dataDate ?? Date.now();
   const acts = new Map(s.activities.map((a) => [a.id, a]));
   const res = new Map((s.resources ?? []).map((r) => [r.id, r]));
@@ -52,7 +52,9 @@ export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; ste
   }
   if (!pieces.length) return { periods: [], rows: [], totals: [] };
   const periods: UsageSheet["periods"] = [];
-  if (opts.step === "month") {
+  if (opts.step === "financial" && s.financialPeriods?.length) {
+    for (const f of [...s.financialPeriods].sort((a, b) => a.start - b.start)) if (f.finish > lo && f.start < hi) periods.push({ start: f.start, end: f.finish, label: f.name });
+  } else if (opts.step === "month" || opts.step === "financial") {
     const d = new Date(lo);
     for (let t = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), 1); t < hi; ) {
       const x = new Date(t);

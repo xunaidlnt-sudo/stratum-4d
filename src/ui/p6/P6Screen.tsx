@@ -73,6 +73,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { usePrefs } from "./prefs";
 import { useConfig } from "../../backend/config";
 import { estimateProgress, recalcAssignmentCosts, removeProgress } from "../../core/ops";
 import { ActivityEditor, type EditorSection } from "../ActivityEditor";
@@ -446,6 +447,11 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
   const setLayout = useLayout((s) => s.set);
   const win = useP6((s) => s.window);
   const tabs = useP6((s) => s.tabs);
+  // User Preferences › Application › Startup Window.
+  useEffect(() => {
+    const w = usePrefs.getState().startupWindow;
+    if (w) useP6.getState().show(w as P6Window);
+  }, []);
   const P = useP6();
   const findRef = useRef<HTMLInputElement>(null);
   const none = !schedule;
@@ -652,6 +658,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Database…", onClick: () => a.settings("data") },
         { label: "Email (SMTP)…", onClick: () => a.settings("email") },
         "sep",
+        { label: "Financial Period Calendar…", onClick: () => P.open("financialPeriods"), disabled: none },
         { label: "Preferences…", onClick: () => a.settings("interface") },
       ],
     ],

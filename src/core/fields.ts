@@ -467,6 +467,29 @@ export const BASE_FIELDS: FieldDef[] = [
   { id: "steps", label: "Steps", group: "Status", type: "number", width: 46, align: "right", get: (a) => (a.steps?.length ? a.steps.length : null) },
 ];
 
+/** P6 indicator UDFs: a coloured flag per activity. */
+export const INDICATORS: Record<string, string> = { Red: "🔴", Yellow: "🟡", Green: "🟢", Blue: "🔵" };
+function indicatorField(k: string): FieldDef {
+  return {
+    id: `user:${k}`,
+    label: k,
+    group: "User Defined Fields",
+    type: "enum",
+    width: 70,
+    align: "center",
+    options: ["", ...Object.keys(INDICATORS)],
+    get: (a) => a.userFields?.[k] ?? "",
+    text: (a) => INDICATORS[a.userFields?.[k] ?? ""] ?? "",
+    set: (a, v) => {
+      const next = { ...(a.userFields ?? {}) };
+      const key = Object.keys(INDICATORS).find((x) => x.toLowerCase() === String(v ?? "").toLowerCase());
+      if (!key) delete next[k];
+      else next[k] = key;
+      return { userFields: next };
+    },
+  };
+}
+
 /** All fields for a schedule: built-ins plus its activity codes and user-defined fields. */
 export function fieldsFor(s: Schedule | null): FieldDef[] {
   if (!s) return BASE_FIELDS;
@@ -493,7 +516,8 @@ export function fieldsFor(s: Schedule | null): FieldDef[] {
       return { codes: next };
     },
   }));
-  const udfFields: FieldDef[] = [...udfs].sort().map((k) => ({
+  const udfType = new Map((s.udfDefs ?? []).map((u) => [u.name, u.type]));
+  const udfFields: FieldDef[] = [...udfs].sort().map((k) => udfType.get(k) === "indicator" ? indicatorField(k) : ({
     id: `user:${k}`,
     label: k,
     group: "User Defined Fields",

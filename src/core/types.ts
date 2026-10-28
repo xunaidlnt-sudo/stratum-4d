@@ -187,6 +187,16 @@ export interface WbsNode {
   obsId?: string | null;
   /** Original budget of this WBS element (P6 budget log). */
   originalBudget?: number;
+  /** P6 WBS status and anticipated dates. */
+  status?: "planned" | "active" | "inactive" | "what-if";
+  anticipatedStart?: number | null;
+  anticipatedFinish?: number | null;
+  /** Earned value technique for this WBS (P6 WBS › Earned Value). */
+  evTechnique?: "activity-pct" | "0-100" | "50-50" | "wbs-milestones" | "custom";
+  /** Percent earned at the start of an activity for the custom technique. */
+  evCustomStartPct?: number;
+  /** Weighted WBS milestones (P6 WBS Milestones tab). */
+  milestones?: { id: string; name: string; weight: number; done: boolean }[];
 }
 
 export interface Relationship {
@@ -279,6 +289,8 @@ export interface Schedule {
   projectCodes?: Record<string, string>;
   /** Project code types that came with the project (e.g. from an XER). */
   projectCodeTypes?: CodeType[];
+  /** P6 financial period calendar (Admin › Financial Period Calendar). */
+  financialPeriods?: { id: string; name: string; start: number; finish: number }[];
   /** P6 expense categories (Enterprise › Expense Categories). */
   expenseCategories?: string[];
   /** Resource code types (P6 Enterprise › Resource Codes); values sit on each resource. */

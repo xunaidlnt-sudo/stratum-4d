@@ -3,6 +3,7 @@
 // dialog layout.
 
 import { useState } from "react";
+import { batchFinancialPeriods } from "../../core/budget";
 import { DEFAULT_PROJECT_DEFAULTS } from "../../core/ops";
 import type { Activity, CodeType, ProjectDefaults, Schedule } from "../../core/types";
 import { fmtDate, useStore } from "../store";
@@ -566,6 +567,111 @@ export function ExpenseCategoriesDialog() {
           </tbody>
         </table>
       </div>
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Financial Period Calendar (Admin)
+
+export function FinancialPeriodsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [sel, setSel] = useState<string | null>(null);
+  const [batch, setBatch] = useState({ start: "", end: "", interval: "month" as "week" | "month" | "quarter" });
+  if (!schedule) return null;
+  const s = schedule;
+  const list = [...(s.financialPeriods ?? [])].sort((a, b) => a.start - b.start);
+  const put = (next: typeof list, label: string) => commit({ ...useStore.getState().schedule!, financialPeriods: next }, label);
+  const dd = s.dataDate ?? Date.now();
+  return (
+    <P6Dlg
+      title="Financial Period Calendar"
+      width={680}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="close" label="Close" primary onClick={close} />
+          <SideGap />
+          <SideBtn
+            kind="add"
+            label="Add"
+            onClick={() => {
+              const last = list[list.length - 1];
+              const start = last ? last.finish : Math.floor(dd / 86_400_000) * 86_400_000;
+              const p = batchFinancialPeriods(start, start + 1, "month")[0];
+              put([...list, p], "Add financial period");
+              setSel(p.id);
+            }}
+          />
+          <SideBtn kind="delete" label="Delete" disabled={!sel} onClick={() => sel && (put(list.filter((p) => p.id !== sel), "Delete financial period"), setSel(null))} />
+          <SideGap />
+          <SideHelp topic="financial-periods" />
+        </>
+      }
+    >
+      <fieldset className="p6-fieldset">
+        <legend>Batch Create</legend>
+        <div className="row" style={{ gap: 8, alignItems: "end", flexWrap: "wrap" }}>
+          <label>
+            Start date <input type="date" value={batch.start} onChange={(e) => setBatch({ ...batch, start: e.target.value })} />
+          </label>
+          <label>
+            End date <input type="date" value={batch.end} onChange={(e) => setBatch({ ...batch, end: e.target.value })} />
+          </label>
+          <label>
+            Period
+            <select value={batch.interval} onChange={(e) => setBatch({ ...batch, interval: e.target.value as typeof batch.interval })}>
+              <option value="week">Week (ending Sunday)</option>
+              <option value="month">Month</option>
+              <option value="quarter">Quarter</option>
+            </select>
+          </label>
+          <button
+            disabled={!batch.start || !batch.end || batch.end <= batch.start}
+            onClick={() => {
+              const made = batchFinancialPeriods(Date.parse(`${batch.start}T00:00:00Z`), Date.parse(`${batch.end}T00:00:00Z`) + 86_400_000, batch.interval);
+              const keep = list.filter((p) => !made.some((m) => m.start < p.finish && p.start < m.finish));
+              put([...keep, ...made], "Batch create financial periods");
+            }}
+          >
+            Batch Create
+          </button>
+        </div>
+      </fieldset>
+      <div>
+        <ListHead>Financial Periods</ListHead>
+        <div className="p6-list2">
+          <table>
+            <thead>
+              <tr>
+                <td>Period Name</td>
+                <td>Start Date</td>
+                <td>End Date</td>
+                <td style={{ width: 90 }}>Stored</td>
+              </tr>
+            </thead>
+            <tbody>
+              {list.map((p) => (
+                <tr key={p.id} className={sel === p.id ? "on" : ""} onClick={() => setSel(p.id)}>
+                  <td>
+                    <input className="cell" value={p.name} onChange={(e) => put(list.map((x) => (x.id === p.id ? { ...x, name: e.target.value } : x)), `Financial period ${p.id}`)} />
+                  </td>
+                  <td>{fmtDate(p.start)}</td>
+                  <td>{fmtDate(p.finish - 1)}</td>
+                  <td>{(s.periods ?? []).some((x) => x.date >= p.start && x.date < p.finish) ? "Yes" : ""}</td>
+                </tr>
+              ))}
+              {!list.length && (
+                <tr>
+                  <td colSpan={4} className="muted small">
+                    No financial periods. Use Batch Create, e.g. monthly from the project start to its finish.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p className="muted small">Store Period Performance names each stored period after the financial period that holds the data date; usage spreadsheets can step by financial period.</p>
     </P6Dlg>
   );
 }

@@ -43,6 +43,23 @@ export function PreferencesDialog() {
       <DetailTabs
         tabs={[
           [
+            "Application",
+            <>
+              <label>
+                Startup Window
+                <select value={p.startupWindow ?? ""} onChange={(e) => p.set({ startupWindow: e.target.value })}>
+                  <option value="">Activities (default)</option>
+                  <option value="projects">Projects</option>
+                  <option value="wbs">WBS</option>
+                  <option value="resources">Resources</option>
+                  <option value="assignments">Resource Assignments</option>
+                  <option value="issues">Issues</option>
+                </select>
+              </label>
+              <p className="muted small">The window shown when Stratum opens in the P6 layout.</p>
+            </>,
+          ],
+          [
             "Time Units",
             <>
               <fieldset className="p6-fieldset">

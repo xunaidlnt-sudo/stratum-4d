@@ -55,7 +55,8 @@ export type P6Dialog =
   | "scheduleRun"
   | "projectCodes"
   | "resourceCodes"
-  | "expenseCategories";
+  | "expenseCategories"
+  | "financialPeriods";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

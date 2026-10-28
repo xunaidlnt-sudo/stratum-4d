@@ -12,6 +12,8 @@ import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
 import { openRates } from "./Dialogs4";
+import { DetailTabs } from "./P6Dlg";
+import { wbsPerformance } from "../../core/evm";
 import { openBudgets } from "./Dialogs5";
 import { budgetSummary, obsPath, obsTree, riskMatrixOf, riskScore, wbsObs } from "../../core/budget";
 
@@ -157,6 +159,126 @@ export function WbsWindow() {
           </tbody>
         </table>
       </div>
+      {cur && <WbsDetails key={cur.id} w={cur} />}
+    </div>
+  );
+}
+
+/** P6 WBS details: General, WBS Milestones and Earned Value tabs under the WBS window. */
+function WbsDetails({ w }: { w: WbsNode }) {
+  const schedule = useStore((st) => st.schedule)!;
+  const node = schedule.wbs.find((x) => x.id === w.id) ?? w;
+  const put = (patch: Partial<WbsNode>) => {
+    const s = useStore.getState().schedule!;
+    commit({ ...s, wbs: s.wbs.map((x) => (x.id === node.id ? { ...x, ...patch } : x)) }, `WBS details ${node.id}`);
+  };
+  const ms = node.milestones ?? [];
+  const tech = node.evTechnique ?? "activity-pct";
+  const perf = wbsPerformance(schedule, node.id);
+  const day = (t: number | null | undefined) => (t != null ? new Date(t).toISOString().slice(0, 10) : "");
+  const parse = (v: string, h: number) => (v ? Date.parse(`${v}T00:00:00Z`) + h * 3_600_000 : null);
+  return (
+    <div className="p6-wbs-details">
+      <DetailTabs
+        tabs={[
+          [
+            "General",
+            <div className="row" style={{ gap: 12, flexWrap: "wrap" }}>
+              <label>
+                WBS Code <input value={node.code} onChange={(e) => put({ code: e.target.value })} />
+              </label>
+              <label style={{ flex: 1, minWidth: 200 }}>
+                WBS Name <input value={node.name} onChange={(e) => put({ name: e.target.value })} />
+              </label>
+              <label>
+                Status
+                <select value={node.status ?? "active"} onChange={(e) => put({ status: e.target.value as WbsNode["status"] })}>
+                  <option value="planned">Planned</option>
+                  <option value="active">Active</option>
+                  <option value="inactive">Inactive</option>
+                  <option value="what-if">What-If</option>
+                </select>
+              </label>
+              <label>
+                Anticipated Start <input type="date" value={day(node.anticipatedStart)} onChange={(e) => put({ anticipatedStart: parse(e.target.value, 8) })} />
+              </label>
+              <label>
+                Anticipated Finish <input type="date" value={day(node.anticipatedFinish)} onChange={(e) => put({ anticipatedFinish: parse(e.target.value, 17) })} />
+              </label>
+            </div>,
+          ],
+          [
+            "WBS Milestones",
+            <>
+              <table className="p6-grid">
+                <thead>
+                  <tr>
+                    <td>Done</td>
+                    <td>WBS Milestone</td>
+                    <td>Weight</td>
+                    <td />
+                  </tr>
+                </thead>
+                <tbody>
+                  {ms.map((m, i) => (
+                    <tr key={m.id}>
+                      <td style={{ textAlign: "center" }}>
+                        <input type="checkbox" checked={m.done} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, done: e.target.checked } : x)) })} aria-label={`${m.name} done`} />
+                      </td>
+                      <td>
+                        <input className="cell" value={m.name} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, name: e.target.value } : x)) })} />
+                      </td>
+                      <td>
+                        <input className="cell num" type="number" min={0} value={m.weight} onChange={(e) => put({ milestones: ms.map((x, k) => (k === i ? { ...x, weight: Math.max(0, Number(e.target.value) || 0) } : x)) })} style={{ width: 80 }} />
+                      </td>
+                      <td>
+                        <button className="link" onClick={() => put({ milestones: ms.filter((_, k) => k !== i) })}>
+                          Remove
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <div className="row">
+                <button onClick={() => put({ milestones: [...ms, { id: uid("wms"), name: `Milestone ${ms.length + 1}`, weight: 1, done: false }] })}>Add</button>
+                <span className="muted small">Used when the Earned Value technique is WBS Milestones percent complete: done weight ÷ total weight.</span>
+              </div>
+            </>,
+          ],
+          [
+            "Earned Value",
+            <>
+              <fieldset className="p6-fieldset">
+                <legend>Technique for computing performance percent complete</legend>
+                {(
+                  [
+                    ["activity-pct", "Activity percent complete"],
+                    ["0-100", "0 / 100 percent complete"],
+                    ["50-50", "50 / 50 percent complete"],
+                    ["custom", "Custom percent complete"],
+                    ["wbs-milestones", "WBS milestones percent complete"],
+                  ] as const
+                ).map(([k, l]) => (
+                  <label key={k} className="p6-check">
+                    <input type="radio" checked={tech === k} onChange={() => put({ evTechnique: k })} /> {l}
+                    {k === "custom" && tech === "custom" && (
+                      <>
+                        {" "}
+                        – earned at start{" "}
+                        <input type="number" min={0} max={100} value={node.evCustomStartPct ?? 50} onChange={(e) => put({ evCustomStartPct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} style={{ width: 70 }} aria-label="Percent earned at start" />%
+                      </>
+                    )}
+                  </label>
+                ))}
+              </fieldset>
+              <p>
+                Performance % Complete: <b>{(perf * 100).toFixed(1)}%</b>
+              </p>
+            </>,
+          ],
+        ]}
+      />
     </div>
   );
 }
@@ -800,7 +922,7 @@ export function TraceLogicView() {
 export function UsageSpreadsheet({ by }: { by: "resource" | "activity" }) {
   const schedule = useStore((s) => s.schedule);
   const selected = useStore((s) => s.selectedActivities);
-  const [step, setStep] = useState<"month" | "week">("month");
+  const [step, setStep] = useState<"month" | "week" | "financial">("month");
   const [measure, setMeasure] = useState<"units" | "cost">("units");
   const [onlySel, setOnlySel] = useState(false);
   const sheet = useMemo(() => (schedule ? usageSheet(schedule, { by, step, measure, activityIds: onlySel && selected.size ? selected : undefined }) : null), [schedule, by, step, measure, onlySel, selected]);
@@ -815,7 +937,8 @@ export function UsageSpreadsheet({ by }: { by: "resource" | "activity" }) {
           <option value="units">Units</option>
           <option value="cost">Cost</option>
         </select>
-        <select value={step} onChange={(e) => setStep(e.target.value as "month" | "week")}>
+        <select value={step} onChange={(e) => setStep(e.target.value as "month" | "week" | "financial")}>
+          {!!schedule?.financialPeriods?.length && <option value="financial">Financial Period</option>}
           <option value="month">Month</option>
           <option value="week">Week</option>
         </select>

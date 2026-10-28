@@ -30,7 +30,7 @@ import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
-import { ExpenseCategoriesDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
+import { ExpenseCategoriesDialog, FinancialPeriodsDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
@@ -1817,6 +1817,7 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     projectCodes: () => <ProjectCodesDialog />,
     resourceCodes: () => <ResourceCodesDialog />,
     expenseCategories: () => <ExpenseCategoriesDialog />,
+    financialPeriods: () => <FinancialPeriodsDialog />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,

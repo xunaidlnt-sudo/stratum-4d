@@ -431,7 +431,8 @@ export function storePeriodPerformance(s: Schedule, name?: string): Schedule {
     if (res.get(x.resourceId)?.type === "labor") t.actualUnits += x.actualQty;
   }
   const d = new Date(date);
-  const label = name ?? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
+  const fin = (s.financialPeriods ?? []).find((p) => p.start <= date && date < p.finish);
+  const label = name ?? fin?.name ?? `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}-${String(d.getUTCDate()).padStart(2, "0")}`;
   return { ...s, periods: [...(s.periods ?? []).filter((p) => p.date !== date), { id: uid("per"), date, name: label, actuals }] };
 }
 
