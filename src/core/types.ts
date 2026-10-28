@@ -399,6 +399,14 @@ export interface ScheduleOptions {
   useExpectedFinish?: boolean;
   /** Multiple float paths to an end activity (internal id); null = off. */
   floatPaths: { endActivityId: string | null; count: number } | null;
+  /** Ignore relationships to and from other projects. */
+  ignoreExternal?: boolean;
+  /** Calendar used for relationship lags. */
+  lagCalendar?: "predecessor" | "successor" | "24h" | "project";
+  /** Total float from each project's finish (P6 default) or from the finish of all opened projects. */
+  floatBasis?: "each-project" | "opened-projects";
+  /** Recalculate assignment costs after scheduling. */
+  recalcCosts?: boolean;
 }
 
 export interface LevelingOptions {

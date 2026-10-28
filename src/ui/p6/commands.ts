@@ -51,7 +51,8 @@ export type P6Dialog =
   | "budgets"
   | "riskMatrix"
   | "eps"
-  | "portfolios";
+  | "portfolios"
+  | "scheduleRun";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

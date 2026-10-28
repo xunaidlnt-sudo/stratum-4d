@@ -212,3 +212,28 @@ describe("round 4 operations", () => {
     expect(s.activities.filter((a) => filterMatches(look, a, fields, c)).map((a) => a.id)).toEqual(["A"]);
   });
 });
+
+describe("Schedule Options from P6's General tab", () => {
+  it("measures lags on the predecessor, successor or a 24-hour calendar", () => {
+    // A (Mon) → B with 24 h lag. Working calendar: 24 h of lag = 3 working days; 24-hour calendar: 1 day.
+    const s = sched([act("A", 8), act("B", 8)], [rel("A", "B", "FS", 24)]);
+    const pred = get(scheduleCpm(s).schedule, "B").start!;
+    const h24 = get(scheduleCpm(s, { settings: { lagCalendar: "24h" } }).schedule, "B").start!;
+    expect(h24).toBeLessThan(pred);
+  });
+
+  it("ignores relationships to other projects and floats on each project's finish", () => {
+    const a = act("A", 40, { projectId: "p1" });
+    const b = act("B", 8, { projectId: "p2" });
+    const c = act("C", 80, { projectId: "p2" });
+    const s = sched([a, b, c], [rel("A", "B")]);
+    expect(get(scheduleCpm(s).schedule, "B").start!).toBeGreaterThan(get(scheduleCpm(s).schedule, "A").start!);
+    const ign = scheduleCpm(s, { settings: { ignoreExternal: true } }).schedule;
+    expect(get(ign, "B").start).toBe(get(ign, "C").start);
+    // Each project: A is the last activity of p1, so it is critical even though p2 runs longer.
+    const each = scheduleCpm(s, { settings: { ignoreExternal: true } }).schedule;
+    expect(get(each, "A").totalFloatHours).toBe(0);
+    const opened = scheduleCpm(s, { settings: { ignoreExternal: true, floatBasis: "opened-projects" } }).schedule;
+    expect(get(opened, "A").totalFloatHours!).toBeGreaterThan(0);
+  });
+});

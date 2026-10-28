@@ -33,7 +33,7 @@ import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
-import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, UdfDialog } from "./Dialogs2";
+import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, ScheduleOptionsDialog, ScheduleRunDialog, UdfDialog } from "./Dialogs2";
 import { allFilters, DEFAULT_GROUP_OPTIONS, DEFAULT_LAYOUT, P6_CLASSIC_BANDS, SOFT_BANDS, STOCK_LAYOUTS, useLayout, type BandStyle, type GroupOptions, type TimescaleUnit } from "./layout";
 
 export function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
@@ -1893,6 +1893,7 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,
+    scheduleRun: () => <ScheduleRunDialog onSchedule={onSchedule} />,
     calendars: () => <CalendarsDialog />,
     activityCodes: () => <ActivityCodesDialog />,
     udfs: () => <UdfDialog />,

@@ -16,7 +16,7 @@
 // Level-of-effort and WBS-summary activities do not drive anything; their
 // dates are derived from the activities around them after the passes.
 
-import { addWorkHours, nextWorkStart, prevWorkEnd, standardCalendar, subtractWorkHours, workHoursBetween } from "./calendar";
+import { addWorkHours, continuousCalendar, nextWorkStart, prevWorkEnd, standardCalendar, subtractWorkHours, workHoursBetween } from "./calendar";
 import type { Activity, Calendar, Relationship, Schedule, ScheduleOptions } from "./types";
 
 export const DEFAULT_SCHEDULE_OPTIONS: ScheduleOptions = {
@@ -110,7 +110,16 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
     });
   }
 
-  const rels = schedule.relationships.filter((r) => nodes.has(r.predecessorId) && nodes.has(r.successorId));
+  // Schedule Options › Ignore relationships to and from other projects (when several projects are open).
+  const rels = schedule.relationships.filter((r) => {
+    const p = nodes.get(r.predecessorId);
+    const s = nodes.get(r.successorId);
+    if (!p || !s) return false;
+    return !(opt.ignoreExternal && p.a.projectId !== s.a.projectId);
+  });
+  // Calendar for relationship lags: predecessor (P6 default), successor, 24-hour or the project default.
+  const h24 = continuousCalendar();
+  const lagCal = (p: Node, s: Node): Calendar => (opt.lagCalendar === "successor" ? s.cal : opt.lagCalendar === "24h" ? h24 : opt.lagCalendar === "project" ? fallback : p.cal);
   const preds = new Map<string, Relationship[]>();
   const succs = new Map<string, Relationship[]>();
   for (const r of rels) {
@@ -160,16 +169,16 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       const pStart = opt.ssLagFrom === "early-start" ? p.remES : p.ES;
       switch (r.type) {
         case "FS":
-          startBound = Math.max(startBound, addWorkHours(p.cal, p.EF, r.lagHours));
+          startBound = Math.max(startBound, addWorkHours(lagCal(p, n), p.EF, r.lagHours));
           break;
         case "SS":
-          startBound = Math.max(startBound, addWorkHours(p.cal, pStart, r.lagHours));
+          startBound = Math.max(startBound, addWorkHours(lagCal(p, n), pStart, r.lagHours));
           break;
         case "FF":
-          finishBound = Math.max(finishBound, addWorkHours(p.cal, p.EF, r.lagHours));
+          finishBound = Math.max(finishBound, addWorkHours(lagCal(p, n), p.EF, r.lagHours));
           break;
         case "SF":
-          finishBound = Math.max(finishBound, addWorkHours(p.cal, pStart, r.lagHours));
+          finishBound = Math.max(finishBound, addWorkHours(lagCal(p, n), pStart, r.lagHours));
           break;
       }
     }
@@ -217,24 +226,28 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
   // ---- Backward pass ----
   // Late dates run back from the project's Must Finish By date when it is set, as in P6.
   const lateEnd = schedule.mustFinishBy ?? projectFinish;
+  // Float on each project's own finish (P6 default) or on the finish of all open projects.
+  const finishByProject = new Map<string, number>();
+  if (opt.floatBasis !== "opened-projects")
+    for (const n of nodes.values()) if (n.a.projectId) finishByProject.set(n.a.projectId, Math.max(finishByProject.get(n.a.projectId) ?? -Infinity, n.EF));
   for (let i = order.length - 1; i >= 0; i--) {
     const n = nodes.get(order[i])!;
     const { a, cal } = n;
-    let lf = lateEnd;
+    let lf = schedule.mustFinishBy ?? (a.projectId ? finishByProject.get(a.projectId) ?? lateEnd : lateEnd);
     for (const r of succs.get(a.id) ?? []) {
       const s = nodes.get(r.successorId)!;
       switch (r.type) {
         case "FS":
-          lf = Math.min(lf, subtractWorkHours(cal, s.LS, r.lagHours));
+          lf = Math.min(lf, subtractWorkHours(lagCal(n, s), s.LS, r.lagHours));
           break;
         case "SS":
-          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(cal, s.LS, r.lagHours), n.dur));
+          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(lagCal(n, s), s.LS, r.lagHours), n.dur));
           break;
         case "FF":
-          lf = Math.min(lf, subtractWorkHours(cal, s.LF, r.lagHours));
+          lf = Math.min(lf, subtractWorkHours(lagCal(n, s), s.LF, r.lagHours));
           break;
         case "SF":
-          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(cal, s.LF, r.lagHours), n.dur));
+          lf = Math.min(lf, addWorkHours(cal, subtractWorkHours(lagCal(n, s), s.LF, r.lagHours), n.dur));
           break;
       }
     }
@@ -279,16 +292,16 @@ export function scheduleCpm(input: Schedule, options: CpmOptions = {}): CpmResul
       let slack: number;
       switch (r.type) {
         case "FS":
-          slack = workHoursBetween(cal, addWorkHours(cal, n.EF, r.lagHours), s.ES);
+          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.EF, r.lagHours), s.ES);
           break;
         case "SS":
-          slack = workHoursBetween(cal, addWorkHours(cal, n.ES, r.lagHours), s.ES);
+          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.ES, r.lagHours), s.ES);
           break;
         case "FF":
-          slack = workHoursBetween(cal, addWorkHours(cal, n.EF, r.lagHours), s.EF);
+          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.EF, r.lagHours), s.EF);
           break;
         case "SF":
-          slack = workHoursBetween(cal, addWorkHours(cal, n.ES, r.lagHours), s.EF);
+          slack = workHoursBetween(cal, addWorkHours(lagCal(n, s), n.ES, r.lagHours), s.EF);
           break;
       }
       relFloat.set(r, s.fixed ? null : Math.round(slack * 100) / 100);

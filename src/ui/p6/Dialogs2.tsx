@@ -1,7 +1,7 @@
 // More P6 dialogs: Schedule Options, Level Resources, Calendars, Activity
 // Codes, User Defined Fields and Claim Digger.
 
-import { download as saveFile } from "../files";
+import { download as saveFile, download } from "../files";
 import { useMemo, useState } from "react";
 import { claimDigger, claimDiggerCsv, type ClaimDiggerReport } from "../../core/compare";
 import { DEFAULT_SCHEDULE_OPTIONS } from "../../core/cpm";
@@ -12,6 +12,9 @@ import type { Calendar, CodeType, LevelingOptions, Schedule, ScheduleOptions, Ud
 import { parseXer } from "../../core/xer";
 import { fmtDate, useStore } from "../store";
 import { close, Shell } from "./Dialogs";
+import { DetailTabs, P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
+import { useP6 } from "./commands";
+import { scheduleLogText } from "../../core/scheduleLog";
 
 const commit = (s: Schedule, label: string) => useStore.getState().commit(s, label);
 const say = (m: string) => useStore.getState().setStatus(m);
@@ -23,123 +26,208 @@ export function ScheduleOptionsDialog({ onSchedule }: { onSchedule: () => void }
   const [o, setO] = useState<ScheduleOptions>({ ...DEFAULT_SCHEDULE_OPTIONS, ...(schedule?.scheduleOptions ?? {}) });
   const [endCode, setEndCode] = useState(() => schedule?.activities.find((a) => a.id === o.floatPaths?.endActivityId)?.code ?? "");
   if (!schedule) return null;
+  void onSchedule;
   const hpd = (schedule.calendars?.find((c) => c.id === schedule.defaultCalendarId) ?? schedule.calendars?.[0])?.hoursPerDay ?? 8;
   const save = () => {
     const end = schedule.activities.find((a) => a.code.toLowerCase() === endCode.trim().toLowerCase());
-    const next: ScheduleOptions = { ...o, floatPaths: o.floatPaths && end ? { ...o.floatPaths, endActivityId: end.id } : null };
+    const next: ScheduleOptions = { ...o, floatPaths: o.floatPaths && end ? { ...o.floatPaths, endActivityId: end.id } : o.floatPaths ? { ...o.floatPaths, endActivityId: null } : null };
     commit({ ...schedule, scheduleOptions: next }, "Schedule Options");
-    return next;
   };
+  const tick = (k: keyof ScheduleOptions, label: string) => (
+    <label className="p6-check">
+      <input type="checkbox" checked={!!o[k]} onChange={(e) => setO({ ...o, [k]: e.target.checked })} /> {label}
+    </label>
+  );
+  const radio = <K extends keyof ScheduleOptions>(k: K, v: ScheduleOptions[K], label: string) => (
+    <label className="p6-check" style={{ flex: 1 }}>
+      <input type="radio" checked={o[k] === v} onChange={() => setO({ ...o, [k]: v })} /> {label}
+    </label>
+  );
   return (
-    <Shell
+    <P6Dlg
       title="Schedule Options"
-      wide
+      width={720}
       onClose={close}
-      foot={
+      side={
         <>
-          <button onClick={() => (setO(DEFAULT_SCHEDULE_OPTIONS), setEndCode(""))}>P6 defaults</button>
-          <span className="spacer" />
-          <button
-            className="primary"
-            onClick={() => {
-              save();
-              close();
-              onSchedule();
-            }}
-          >
-            Schedule now (F9)
-          </button>
-          <button
-            onClick={() => {
-              save();
-              close();
-            }}
-          >
-            OK
-          </button>
-          <button onClick={close}>Cancel</button>
+          <SideBtn kind="close" label="Close" primary onClick={() => (save(), close())} />
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideGap />
+          <SideBtn kind="default" label="Default" onClick={() => (setO(DEFAULT_SCHEDULE_OPTIONS), setEndCode(""))} />
+          <SideGap />
+          <SideHelp topic="schedule-options" />
         </>
       }
     >
-      <p className="muted">Saved with the project and used every time you schedule. Data date: {fmtDate(schedule.dataDate)}.</p>
-      <div className="grid2">
-        <label>
-          When scheduling progressed activities use
-          <select value={o.outOfSequence} onChange={(e) => setO({ ...o, outOfSequence: e.target.value as ScheduleOptions["outOfSequence"] })}>
-            <option value="retained-logic">Retained Logic</option>
-            <option value="progress-override">Progress Override</option>
-            <option value="actual-dates">Actual Dates</option>
-          </select>
-        </label>
-        <label>
-          Compute Total Float as
-          <select value={o.floatType} onChange={(e) => setO({ ...o, floatType: e.target.value as ScheduleOptions["floatType"] })}>
-            <option value="finish">Finish Float = Late Finish − Early Finish</option>
-            <option value="start">Start Float = Late Start − Early Start</option>
-            <option value="smallest">Smallest of Start Float and Finish Float</option>
-          </select>
-        </label>
-        <label>
-          Define critical activities as
-          <select value={o.criticalBy} onChange={(e) => setO({ ...o, criticalBy: e.target.value as ScheduleOptions["criticalBy"] })}>
-            <option value="float">Total Float less than or equal to</option>
-            <option value="longest-path">Longest Path</option>
-          </select>
-        </label>
-        <label>
-          Critical float threshold (days)
-          <input type="number" step={0.5} disabled={o.criticalBy !== "float"} value={o.criticalFloatHours / hpd} onChange={(e) => setO({ ...o, criticalFloatHours: (Number(e.target.value) || 0) * hpd })} />
-        </label>
-        <label>
-          Calculate start-to-start lag from
-          <select value={o.ssLagFrom} onChange={(e) => setO({ ...o, ssLagFrom: e.target.value as ScheduleOptions["ssLagFrom"] })}>
-            <option value="actual-start">Actual Start</option>
-            <option value="early-start">Early Start</option>
-          </select>
-        </label>
-        <div className="stack">
-          <label className="p6-check">
-            <input type="checkbox" checked={o.openEndsCritical} onChange={(e) => setO({ ...o, openEndsCritical: e.target.checked })} /> Make open-ended activities critical
-          </label>
-          <label className="p6-check">
-            <input type="checkbox" checked={o.levelWhenScheduling} onChange={(e) => setO({ ...o, levelWhenScheduling: e.target.checked })} /> Level resources during scheduling
-          </label>
-          <label className="p6-check">
-            <input type="checkbox" checked={!!o.autoSchedule} onChange={(e) => setO({ ...o, autoSchedule: e.target.checked })} /> Schedule automatically when a change affects dates
-          </label>
-          <label className="p6-check">
-            <input type="checkbox" checked={!!o.useExpectedFinish} onChange={(e) => setO({ ...o, useExpectedFinish: e.target.checked })} /> Use Expected Finish dates
-          </label>
-        </div>
+      <label>
+        Use scheduling options from
+        <select value="current" disabled>
+          <option value="current">
+            {schedule.projectCode} – {schedule.projectName}
+          </option>
+        </select>
+      </label>
+      <DetailTabs
+        tabs={[
+          [
+            "General",
+            <>
+              <div>
+                {tick("ignoreExternal", "Ignore relationships to and from other projects")}
+                {tick("openEndsCritical", "Make open-ended activities critical")}
+                {tick("useExpectedFinish", "Use Expected Finish Dates")}
+                {tick("autoSchedule", "Schedule automatically when a change affects dates")}
+                {tick("levelWhenScheduling", "Level resources during scheduling")}
+                {tick("recalcCosts", "Recalculate assignment costs after scheduling")}
+              </div>
+              <fieldset className="p6-fieldset">
+                <legend>When scheduling progressed activities use</legend>
+                <div className="row">
+                  {radio("outOfSequence", "retained-logic", "Retained Logic")}
+                  {radio("outOfSequence", "progress-override", "Progress Override")}
+                  {radio("outOfSequence", "actual-dates", "Actual Dates")}
+                </div>
+              </fieldset>
+              <fieldset className="p6-fieldset">
+                <legend>Calculate start-to-start lag from</legend>
+                <div className="row">
+                  {radio("ssLagFrom", "early-start", "Early Start")}
+                  {radio("ssLagFrom", "actual-start", "Actual Start")}
+                </div>
+              </fieldset>
+              <fieldset className="p6-fieldset">
+                <legend>Define critical activities as</legend>
+                {radio("criticalBy", "float", "Total Float less than or equal to")}
+                <div style={{ paddingLeft: 24 }}>
+                  <input type="number" step={0.5} disabled={o.criticalBy !== "float"} value={o.criticalFloatHours / hpd} onChange={(e) => setO({ ...o, criticalFloatHours: (Number(e.target.value) || 0) * hpd })} style={{ width: 90 }} aria-label="Critical float threshold in days" /> d
+                </div>
+                {radio("criticalBy", "longest-path", "Longest Path")}
+              </fieldset>
+              <fieldset className="p6-fieldset">
+                <legend>Calculate float based on finish date of</legend>
+                <div className="row">
+                  <label className="p6-check" style={{ flex: 1 }}>
+                    <input type="radio" checked={o.floatBasis !== "opened-projects"} onChange={() => setO({ ...o, floatBasis: "each-project" })} /> Each project
+                  </label>
+                  {radio("floatBasis", "opened-projects", "Opened projects")}
+                </div>
+              </fieldset>
+              <label>
+                Compute Total Float as
+                <select value={o.floatType} onChange={(e) => setO({ ...o, floatType: e.target.value as ScheduleOptions["floatType"] })}>
+                  <option value="finish">Finish Float = Late Finish - Early Finish</option>
+                  <option value="start">Start Float = Late Start - Early Start</option>
+                  <option value="smallest">Smallest of Start Float and Finish Float</option>
+                </select>
+              </label>
+              <label>
+                Calendar for scheduling Relationship Lag
+                <select value={o.lagCalendar ?? "predecessor"} onChange={(e) => setO({ ...o, lagCalendar: e.target.value as ScheduleOptions["lagCalendar"] })}>
+                  <option value="predecessor">Predecessor Activity Calendar</option>
+                  <option value="successor">Successor Activity Calendar</option>
+                  <option value="24h">24-Hour Calendar</option>
+                  <option value="project">Project Default Calendar</option>
+                </select>
+              </label>
+            </>,
+          ],
+          [
+            "Advanced",
+            <>
+              {tick("floatPaths", "Calculate multiple float paths")}
+              <div className="row" style={{ gap: 12 }}>
+                <label>
+                  Display multiple float paths ending with activity
+                  <input list="p6-end-acts" disabled={!o.floatPaths} value={endCode} onChange={(e) => setEndCode(e.target.value)} placeholder="Activity ID" />
+                  <datalist id="p6-end-acts">
+                    {schedule.activities
+                      .filter((a) => a.type === "finish-milestone" || a.longestPath)
+                      .slice(0, 300)
+                      .map((a) => (
+                        <option key={a.id} value={a.code}>
+                          {a.name}
+                        </option>
+                      ))}
+                  </datalist>
+                </label>
+                <label>
+                  Number of paths to calculate
+                  <input type="number" min={1} max={50} disabled={!o.floatPaths} value={o.floatPaths?.count ?? 10} onChange={(e) => o.floatPaths && setO({ ...o, floatPaths: { ...o.floatPaths, count: Math.max(1, Number(e.target.value) || 1) } })} style={{ width: 80 }} />
+                </label>
+              </div>
+              <p className="muted small">Paths are ranked by the least relationship free float to the ending activity: path 1 drives it. Show the Float Path and Float Path Order columns and group by Float Path to read them.</p>
+            </>,
+          ],
+        ]}
+      />
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Schedule (F9)
+
+export function ScheduleRunDialog({ onSchedule }: { onSchedule: () => void }) {
+  const schedule = useStore((s) => s.schedule);
+  const report = useStore((s) => s.scheduleReport);
+  const combined = !!schedule?.projects && schedule.projects.length > 1;
+  const [own, setOwn] = useState(true);
+  const [dd, setDd] = useState(() => (schedule?.dataDate ? new Date(schedule.dataDate).toISOString().slice(0, 10) : ""));
+  const [forecast, setForecast] = useState("");
+  const [log, setLog] = useState(false);
+  if (!schedule) return null;
+  const run = () => {
+    const st = useStore.getState();
+    let s = st.schedule!;
+    const date = dd ? Date.parse(`${dd}T00:00:00Z`) : null;
+    const time = (s.dataDate ?? 0) % 86_400_000 || 8 * 3_600_000;
+    if (date !== null && (!combined || !own)) s = { ...s, dataDate: date + time, projects: s.projects?.map((p) => ({ ...p, rest: { ...p.rest, dataDate: date + time } })) };
+    if (forecast) s = { ...s, plannedStart: Date.parse(`${forecast}T00:00:00Z`) + 8 * 3_600_000 };
+    if (s !== st.schedule) commit(s, "Data date");
+    close();
+    onSchedule();
+    if (log) {
+      const r = useStore.getState().scheduleReport;
+      const cur = useStore.getState().schedule;
+      if (r?.log && cur) download(`SchedLog-${cur.projectCode}.txt`, scheduleLogText(cur, r.log), "text/plain");
+    }
+  };
+  return (
+    <P6Dlg
+      title="Schedule"
+      width={620}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideBtn kind="run" label="Schedule" primary onClick={run} />
+          <SideBtn kind="modify" label="View Log" disabled={!report?.log} onClick={() => useP6.getState().open("scheduleLog")} />
+          <SideHelp topic="schedule" />
+          <SideBtn kind="apply" label="Options..." onClick={() => useP6.getState().open("scheduleOptions")} />
+        </>
+      }
+    >
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span>Project(s) to schedule</span>
+        <b>{combined ? schedule.projects!.length : 1}</b>
       </div>
-      <h4>Multiple float paths</h4>
-      <div className="row">
+      <label className="p6-check">
+        <input type="radio" checked={own} disabled={!combined} onChange={() => setOwn(true)} /> All Projects use their own data date
+      </label>
+      <div className="row" style={{ justifyContent: "space-between" }}>
         <label className="p6-check">
-          <input type="checkbox" checked={!!o.floatPaths} onChange={(e) => setO({ ...o, floatPaths: e.target.checked ? { endActivityId: null, count: 10 } : null })} /> Calculate multiple float paths
+          <input type="radio" checked={!own || !combined} onChange={() => setOwn(false)} /> {combined ? "Apply selected data date to all open projects" : "Current Data Date"}
         </label>
-        <label>
-          Ending activity{" "}
-          <input list="p6-end-acts" disabled={!o.floatPaths} value={endCode} onChange={(e) => setEndCode(e.target.value)} placeholder="Activity ID" style={{ width: 130 }} />
-          <datalist id="p6-end-acts">
-            {schedule.activities
-              .filter((a) => a.type === "finish-milestone" || a.longestPath)
-              .slice(0, 300)
-              .map((a) => (
-                <option key={a.id} value={a.code}>
-                  {a.name}
-                </option>
-              ))}
-          </datalist>
-        </label>
-        <label>
-          Number of paths{" "}
-          <input type="number" min={1} max={50} disabled={!o.floatPaths} value={o.floatPaths?.count ?? 10} onChange={(e) => o.floatPaths && setO({ ...o, floatPaths: { ...o.floatPaths, count: Math.max(1, Number(e.target.value) || 1) } })} style={{ width: 60 }} />
-        </label>
+        <input type="date" value={dd} onChange={(e) => (setDd(e.target.value), setOwn(false))} aria-label="Data date" />
       </div>
-      <p className="muted small">
-        Paths are ranked by the least relationship free float to the ending activity: path 1 drives it. Show the Float Path and Float Path Order columns and group by Float Path to read them. Retained Logic keeps the remaining work of an out-of-sequence activity behind its unfinished predecessors; Progress Override lets it carry on from the data date; Actual Dates keeps only the predecessors that have actually finished.
-      </p>
-    </Shell>
+      <div className="row" style={{ justifyContent: "space-between" }}>
+        <span>Project Forecast Start Date</span>
+        <input type="date" value={forecast} onChange={(e) => setForecast(e.target.value)} aria-label="Project forecast start date" />
+      </div>
+      <hr />
+      <label className="p6-check">
+        <input type="checkbox" checked={log} onChange={(e) => setLog(e.target.checked)} /> Log to file (saves the schedule log as a text file after scheduling)
+      </label>
+    </P6Dlg>
   );
 }
 

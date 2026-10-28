@@ -223,7 +223,7 @@ function CommandBar({ a }: { a: ClassicActions }) {
         side="right"
         label="Commands"
         items={[
-          { id: "f9", label: "Schedule", title: "Schedule (F9)", Icon: Calculator, onClick: a.schedule, disabled: none },
+          { id: "f9", label: "Schedule", title: "Schedule (F9)", Icon: Calculator, onClick: () => useP6.getState().open("scheduleRun"), disabled: none },
           { id: "save", label: "Commit", title: "Commit changes to the database (Ctrl+S)", Icon: Save, onClick: a.save, disabled: none },
           { id: "undo", label: "Undo", title: "Undo (Ctrl+Z)", Icon: Undo2, onClick: () => useStore.getState().undo(), disabled: !canUndo },
           "sep",
@@ -256,7 +256,7 @@ function CommandBar({ a }: { a: ClassicActions }) {
         "sep",
         { id: "expand", label: "Expand All", title: "Expand all bands", Icon: ChevronsUpDown, onClick: expandAll, disabled: none },
         { id: "collapse", label: "Collapse All", title: "Collapse all WBS bands", Icon: ChevronsDownUp, onClick: collapseAll, disabled: none },
-        { id: "f9", label: "Schedule", title: "Schedule (F9)", Icon: Calculator, onClick: a.schedule, disabled: none },
+        { id: "f9", label: "Schedule", title: "Schedule (F9)", Icon: Calculator, onClick: () => useP6.getState().open("scheduleRun"), disabled: none },
         { id: "save", label: "Commit", title: "Commit changes to the database (Ctrl+S)", Icon: Save, onClick: a.save, disabled: none },
       ]}
     />
@@ -568,7 +568,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
     [
       "Project",
       [
-        { label: "Schedule", onClick: a.schedule, disabled: none, shortcut: "F9" },
+        { label: "Schedule…", onClick: () => P.open("scheduleRun"), disabled: none, shortcut: "F9" },
         { label: "Schedule Options…", onClick: () => P.open("scheduleOptions"), disabled: none },
         { label: "Level Resources…", onClick: () => P.open("level"), disabled: none, shortcut: "F10" },
         { label: "Check Schedule…", onClick: () => P.open("checkSchedule"), disabled: none },
@@ -771,7 +771,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         <IconBtn Icon={ZoomOut} title="Zoom out" onClick={() => ganttCommand("zoom-out")} disabled={none} />
         <IconBtn Icon={MoveHorizontal} title="Fit timescale" onClick={() => ganttCommand("fit")} disabled={none} />
         <span className="tsep" />
-        <IconBtn Icon={Calculator} title="Schedule (F9)" onClick={a.schedule} disabled={none} />
+        <IconBtn Icon={Calculator} title="Schedule (F9)" onClick={() => P.open("scheduleRun")} disabled={none} />
         <IconBtn Icon={BarChart3} title="Level Resources (F10)" onClick={() => P.open("level")} disabled={none} />
         <IconBtn Icon={CalendarClock} title="Update Progress" onClick={() => P.open("updateProgress")} disabled={none} />
         <IconBtn Icon={Wand2} title="Global Change" onClick={() => P.open("globalChange")} disabled={none} />

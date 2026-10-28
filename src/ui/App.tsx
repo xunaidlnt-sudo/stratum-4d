@@ -1,4 +1,6 @@
 import type * as THREE from "three";
+import { recalcAssignmentCosts } from "../core/ops";
+import { useP6 } from "./p6/commands";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { scheduleCpm, ScheduleLoopError } from "../core/cpm";
 import { demoModel, demoPaths, demoProfileFor, demoXer, DEMO_LINK_RULE, type DemoBox } from "../core/demo";
@@ -205,6 +207,7 @@ function Workspace() {
       const prevFinish = scheduleRange(s.schedule)?.finish ?? null;
       const r = scheduleCpm(s.schedule);
       // Schedule Options → "Level resources during scheduling".
+      if (s.schedule.scheduleOptions?.recalcCosts) r.schedule = recalcAssignmentCosts(r.schedule).schedule;
       if (s.schedule.scheduleOptions?.levelWhenScheduling) {
         const lv = levelResources(r.schedule);
         r.schedule = lv.schedule;
@@ -250,12 +253,21 @@ function Workspace() {
     };
   }, []);
 
+  // Help buttons in the P6 dialogs open the help panel.
+  useEffect(() => {
+    const on = () => setHelpOpen(true);
+    window.addEventListener("stratum:help", on);
+    return () => window.removeEventListener("stratum:help", on);
+  }, []);
+
   // Keyboard: Space play/pause, arrows step, Home/End, F9 schedule, ? help, Esc.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       const s = useStore.getState();
       if (e.key === "F9") {
         e.preventDefault();
+        // P6 layout: F9 opens the Schedule dialog, as in P6.
+        if (useConfig.getState().config.mode === "p6" && useStore.getState().schedule) return useP6.getState().open("scheduleRun");
         return runSchedule();
       }
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "s") {
