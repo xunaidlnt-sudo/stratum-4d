@@ -23,6 +23,7 @@ import {
   Pencil,
   PieChart,
   Plus,
+  Presentation,
   Wand2,
   Printer,
   Redo2,
@@ -284,6 +285,17 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
       updatedAt: new Date().toISOString(),
     });
 
+  const exportPptx = async () => {
+    if (!dash) return;
+    const main = data.rawFor({ id: "", kind: "kpi", title: "", w: 3, h: 1 });
+    if (!main) return setMsg("Open or pick a project first.");
+    setMsg("Building the PowerPoint…");
+    const ready = baselineReady(dashboardReadiness(main, dash.baselineId));
+    const { dashboardToPptx } = await import("../services/pptx");
+    const bytes = await dashboardToPptx({ dashboard: dash, scheduleFor: data.scheduleFor, portfolio: data.portfolio, blocked: (w) => !ready && !w.projectId && widgetNeedsBaseline(w) });
+    download(`${main.projectCode}_${dash.name}.pptx`.replace(/[^\w.-]+/g, "_"), bytes, "application/vnd.openxmlformats-officedocument.presentationml.presentation");
+    setMsg("PowerPoint saved: charts and tables are native, so you can edit them and their data in PowerPoint.");
+  };
   const exportExcel = async () => {
     const s = dash ? data.scheduleFor({ id: "", kind: "kpi", title: "", w: 3, h: 1 }) : null;
     if (!s) return setMsg("Open or pick a project first.");
@@ -469,6 +481,9 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
                     </button>
                     <button onClick={exportExcel} title="Excel workbook">
                       <FileSpreadsheet size={15} aria-hidden /> Excel
+                    </button>
+                    <button onClick={() => void exportPptx()} title="PowerPoint: editable native charts and tables">
+                      <Presentation size={15} aria-hidden /> PowerPoint
                     </button>
                     <button className={panel === "email" ? "active" : ""} onClick={() => setPanel(panel === "email" ? "none" : "email")}>
                       <Mail size={15} aria-hidden /> Email

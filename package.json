@@ -28,7 +28,8 @@
     "@capacitor/share": "6.0.4",
     "@fontsource-variable/montserrat": "^5.3.0",
     "fflate": "^0.8.3",
-    "oracledb": "^6.7.0"
+    "oracledb": "^6.7.0",
+    "pptxgenjs": "^4.0.1"
   },
   "devDependencies": {
     "@capacitor/android": "6.2.1",
