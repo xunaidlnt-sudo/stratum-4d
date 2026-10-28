@@ -15,6 +15,9 @@ export interface Prefs {
   startupWindow?: string;
   /** Visual style of the P6 layout: P6 Professional's Windows look, or Stratum's modern one. */
   p6Look?: "classic" | "modern";
+  /** P6 User Preferences › Assistance: open the New Activity / New Resource wizards when adding. */
+  useActivityWizard?: boolean;
+  useResourceWizard?: boolean;
 }
 
 const KEY = "stratum.p6.prefs.v1";

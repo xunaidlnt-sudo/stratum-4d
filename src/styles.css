@@ -1597,3 +1597,13 @@ html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-layoutb
 
 .cloud-folders { display: flex; flex-direction: column; max-height: 220px; overflow: auto; border: 1px solid var(--line); border-radius: 4px; }
 .cloud-folders button { justify-content: flex-start; border: none; border-bottom: 1px solid var(--line-soft, #eee); border-radius: 0; background: transparent; }
+
+/* P6 New Activity / New Resource wizards */
+.p6-wizard { display: grid; grid-template-columns: 190px 1fr; gap: 14px; min-height: 300px; }
+.p6-wizard-steps { margin: 0; padding: 6px 0; list-style: none; border-right: 1px solid var(--line); }
+.p6-wizard-steps li { padding: 3px 10px; }
+.p6-wizard-steps li.on { background: var(--accent-soft); font-weight: 600; }
+.p6-wizard-steps li.done .link { color: inherit; opacity: 0.7; }
+.p6-wizard-page h3 { margin: 0 0 10px; font-size: 14px; }
+.p6-scope { gap: 14px; padding: 2px 0 8px; align-items: center; }
+@media (max-width: 640px) { .p6-wizard { grid-template-columns: 1fr; } .p6-wizard-steps { display: none; } }

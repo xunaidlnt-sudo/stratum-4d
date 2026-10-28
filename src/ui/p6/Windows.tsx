@@ -2,6 +2,9 @@
 // Assignments, Projects and the project registers), plus the Activity
 // Network, Trace Logic and the usage spreadsheets.
 
+import { docActivities, DOC_COLUMNS, DOC_STATUSES } from "../../core/documents";
+import { openDocument, safeUrl } from "./Documents";
+import { usePrefs } from "./prefs";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { networkLayout, traceLogic } from "../../core/network";
 import { monitorThresholds, THRESHOLD_PARAMETERS, uid } from "../../core/ops";
@@ -300,7 +303,7 @@ export function ResourcesWindow() {
   return (
     <div className="p6-win">
       <div className="p6-win-bar">
-        <button onClick={() => commit({ ...s, resources: [...res, { id: uid("rsrc"), code: `R${res.length + 1}`, name: "New Resource", type: "labor", unit: "h", pricePerUnit: 0 }] }, "Add resource")}>Add</button>
+        <button onClick={() => (usePrefs.getState().useResourceWizard ? useP6.getState().open("resourceWizard") : commit({ ...s, resources: [...res, { id: uid("rsrc"), code: `R${res.length + 1}`, name: "New Resource", type: "labor", unit: "h", pricePerUnit: 0 }] }, "Add resource"))}>Add</button>
         <span className="spacer" />
         <span className="muted">{res.length} resources</span>
       </div>
@@ -637,7 +640,7 @@ export function ProjectsWindow({ onOpen }: { onOpen: () => void }) {
 export const REGISTER_COLUMNS: Record<RegisterKind, { title: string; cols: string[] }> = {
   issues: { title: "Issues", cols: ["Issue Name", "Priority", "Status", "Responsible", "Date Identified", "Tracking Layout", "Notes"] },
   risks: { title: "Risks", cols: ["Risk ID", "Risk Name", "Category", "Probability", "Impact (Schedule)", "Impact (Cost)", "Response", "Owner", "Status"] },
-  documents: { title: "WPs & Docs", cols: ["Title", "Reference No.", "Version", "Status", "Author", "Location / URL", "Deliverable"] },
+  documents: { title: "WPs & Docs", cols: DOC_COLUMNS },
   expenses: { title: "Expenses", cols: ["Expense Item", "Category", "Vendor", "Budgeted Cost", "Actual Cost", "Remaining Cost", "Accrual Type"] },
   thresholds: { title: "Thresholds", cols: ["Parameter", "Lower Threshold", "Upper Threshold", "WBS", "From Date", "To Date", "Responsible", "Status"] },
 };
@@ -700,6 +703,7 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                 </>
               )}
               {kind === "issues" && <td>History</td>}
+              {kind === "documents" && <td>Assignments / Review</td>}
               {kind === "risks" && <td>Response Plan</td>}
               {usesActivity && <td>Activity</td>}
               <td />
@@ -708,7 +712,32 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
           <tbody>
             {items.map((it) => (
               <tr key={it.id}>
-                {def.cols.map((c) => (
+                {def.cols.map((c) =>
+                  kind === "documents" && (c === "Status" || c === "Deliverable" || c === "Public Location" || c === "Revision Date") ? (
+                    <td key={c}>
+                      {c === "Status" ? (
+                        <select value={it.values.Status ?? ""} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, Status: e.target.value } } : x)), "Document status")}>
+                          <option value="" />
+                          {[...new Set([...DOC_STATUSES, it.values.Status ?? ""])].filter(Boolean).map((v) => (
+                            <option key={v}>{v}</option>
+                          ))}
+                        </select>
+                      ) : c === "Deliverable" ? (
+                        <input type="checkbox" aria-label="Deliverable" checked={/^(y|yes|true|1)$/i.test(it.values.Deliverable ?? "")} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, Deliverable: e.target.checked ? "Yes" : "" } } : x)), "Document deliverable")} />
+                      ) : c === "Revision Date" ? (
+                        <input type="date" value={it.values["Revision Date"] ?? ""} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, "Revision Date": e.target.value } } : x)), "Document date")} />
+                      ) : (
+                        <span className="row" style={{ gap: 4, flexWrap: "nowrap" }}>
+                          <input className="cell" value={it.values["Public Location"] ?? it.values["Location / URL"] ?? ""} onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, "Public Location": e.target.value } } : x)), "Document location")} />
+                          {safeUrl(it.values["Public Location"] ?? it.values["Location / URL"]) && (
+                            <a href={safeUrl(it.values["Public Location"] ?? it.values["Location / URL"])!} target="_blank" rel="noopener noreferrer" title="Open">
+                              ↗
+                            </a>
+                          )}
+                        </span>
+                      )}
+                    </td>
+                  ) : (
                   <td key={c}>
                     <input
                       className="cell"
@@ -727,7 +756,19 @@ export function RegisterWindow({ kind }: { kind: RegisterKind }) {
                       onChange={(e) => put(items.map((x) => (x.id === it.id ? { ...x, values: { ...x.values, [c]: e.target.value } } : x)), `${def.title} ${it.id}`)}
                     />
                   </td>
-                ))}
+                  ),
+                )}
+                {kind === "documents" && (
+                  <td>
+                    <button className="link" onClick={() => openDocument(it.id)}>
+                      {(() => {
+                        const n = docActivities(it).length;
+                        const w = it.links?.wbs?.length ?? 0;
+                        return n || w ? `${n} act${w ? `, ${w} WBS` : ""}${it.reviews?.length ? ` · ${it.reviews.length} review${it.reviews.length === 1 ? "" : "s"}` : ""}` : "Details…";
+                      })()}
+                    </button>
+                  </td>
+                )}
                 {kind === "risks" &&
                   (() => {
                     const sc = riskScore(it, matrix);

@@ -503,6 +503,10 @@ export interface CodeType {
 export interface UdfDef {
   name: string;
   type: "text" | "number" | "date" | "cost" | "indicator";
+  /** Number / cost UDF calculated from other columns, e.g. "[Budgeted Total Cost] * 0.05". */
+  formula?: string;
+  /** Indicator UDF coloured by thresholds on a numeric column; the first condition met wins. */
+  indicatorRule?: { field: string; rules: { op: "<" | "<=" | "=" | ">=" | ">"; value: number; color: string }[]; otherwise?: string };
 }
 
 export interface StoredBaseline {
@@ -533,6 +537,11 @@ export interface RegisterItem {
   values: Record<string, string>;
   /** P6 issue history: what changed, when. */
   history?: { at: string; text: string }[];
+  /** Work products & documents: further activities and WBS elements the document is assigned to (P6 WPs & Docs Assignments). */
+  links?: { activities?: string[]; wbs?: string[] };
+  /** Work products & documents: description and review log (who, when, decision, comment). */
+  description?: string;
+  reviews?: { at: string; by: string; decision: string; comment: string }[];
   /** P6 risk response plan steps. */
   responsePlan?: { id: string; step: string; owner: string; start: number | null; finish: number | null; cost: number; status: "proposed" | "sanctioned" | "rejected" | "done" }[];
 }

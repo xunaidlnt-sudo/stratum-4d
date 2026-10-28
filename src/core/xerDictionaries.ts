@@ -7,7 +7,8 @@
 
 import { formatXerDate } from "./xerExport";
 import type { XerTables } from "./xer";
-import type { Schedule } from "./types";
+import type { Activity, Schedule } from "./types";
+import { fieldCtx, fieldsFor } from "./fields";
 
 type Row = Record<string, string>;
 
@@ -399,6 +400,20 @@ export function writeDictionaries(t: XerTables, s: Schedule, taskId: Map<string,
     const udfId = idGen(t, "UDFTYPE", "udf_type_id");
     const kind = new Map((s.udfDefs ?? []).map((u) => [u.name, u.type]));
     let k = (t.UDFTYPE ?? []).length;
+    // Calculated UDFs (formulas, indicator rules) are written as their current values.
+    const calc = (s.udfDefs ?? []).filter((u) => u.formula || u.indicatorRule?.field);
+    const fields = calc.length ? new Map(fieldsFor(s).map((f) => [f.id, f])) : null;
+    const ctx = calc.length ? fieldCtx(s) : null;
+    const udfValues = (a: Activity): Record<string, string> => {
+      if (!fields) return a.userFields ?? {};
+      const out = { ...(a.userFields ?? {}) };
+      for (const u of calc) {
+        const v = fields.get(`user:${u.name}`)?.get(a, ctx!);
+        if (v === null || v === undefined || v === "") delete out[u.name];
+        else out[u.name] = String(v);
+      }
+      return out;
+    };
     for (const name of udfNames) {
       const id = udfType.get(name) ?? udfId(`udf:${name}`, false);
       udfType.set(name, id);
@@ -413,7 +428,7 @@ export function writeDictionaries(t: XerTables, s: Schedule, taskId: Map<string,
       s.activities
         .filter((a) => taskId.has(a.id))
         .flatMap((a) =>
-          Object.entries(a.userFields ?? {})
+          Object.entries(udfValues(a))
             .filter(([, v]) => v !== "" && v !== undefined)
             .map(([name, v]) => {
               const ty = kind.get(name) ?? "text";
@@ -446,7 +461,9 @@ export function writeDictionaries(t: XerTables, s: Schedule, taskId: Map<string,
       ),
     proj,
   );
-  const topics = new Set(s.activities.flatMap((a) => Object.keys(a.notebook ?? {})));
+  // General activity notes go to P6 as a "Notes" topic unless that topic is already used.
+  const notebookOf = (a: Schedule["activities"][number]): Record<string, string> => (a.notes && !a.notebook?.Notes ? { Notes: a.notes, ...(a.notebook ?? {}) } : a.notebook ?? {});
+  const topics = new Set(s.activities.flatMap((a) => Object.keys(notebookOf(a))));
   if (topics.size) {
     const memoType = new Map((t.MEMOTYPE ?? []).map((m) => [m.memo_type, m.memo_type_id]));
     const mtId = idGen(t, "MEMOTYPE", "memo_type_id");
@@ -463,7 +480,7 @@ export function writeDictionaries(t: XerTables, s: Schedule, taskId: Map<string,
       s.activities
         .filter((a) => taskId.has(a.id))
         .flatMap((a) =>
-          Object.entries(a.notebook ?? {})
+          Object.entries(notebookOf(a))
             .filter(([, text]) => text)
             .map(([topic, text]) => ({ memo_id: memoId(`${a.id}|${topic}`, false), task_id: taskId.get(a.id)!, memo_type_id: memoType.get(topic)!, proj_id: projId, task_memo: `<html><body>${text.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/\n/g, "<br>")}</body></html>` })),
         ),

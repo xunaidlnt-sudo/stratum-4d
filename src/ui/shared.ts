@@ -1,12 +1,12 @@
 // Enterprise data everyone using the same store should see: EPS nodes,
-// portfolios, project code types and EPS managers. Read from a local cache so
+// portfolios, project code types, global and EPS activity codes and EPS managers. Read from a local cache so
 // the UI stays synchronous; writes go to the cache and, when the store
 // supports it (a cloud folder), to the shared file.
 
 import { useConfig } from "../backend/config";
 import type { Backend } from "../backend/types";
 
-export const SHARED_KEYS = ["stratum.eps.v1", "stratum.portfolios.v1", "stratum.projectcodes.v1", "stratum.epsobs.v1"] as const;
+export const SHARED_KEYS = ["stratum.eps.v1", "stratum.portfolios.v1", "stratum.projectcodes.v1", "stratum.epsobs.v1", "stratum.activitycodes.v1"] as const;
 export type SharedKey = (typeof SHARED_KEYS)[number];
 
 export function sharedGet<T>(key: SharedKey, fallback: T): T {

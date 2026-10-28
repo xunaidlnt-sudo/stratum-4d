@@ -534,6 +534,7 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     ...(expenses.length ? { registers: { expenses } } : {}),
     ...(rcat.types.length ? { resourceCodeTypes: rcat.types } : {}),
     ...(codeTypes.length ? { codeTypes } : {}),
+    ...(notes.size ? { notebookTopics: [...new Set([...notes.values()].flatMap((n) => Object.keys(n)))].sort() } : {}),
     ...(udfDefs.length ? { udfDefs } : {}),
     ...(project.plan_start_date && parseXerDate(project.plan_start_date) ? { plannedStart: parseXerDate(project.plan_start_date) } : {}),
     ...(project.anticip_start_date && parseXerDate(project.anticip_start_date) ? { anticipatedStart: parseXerDate(project.anticip_start_date) } : {}),

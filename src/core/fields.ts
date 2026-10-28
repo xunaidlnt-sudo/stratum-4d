@@ -2,6 +2,7 @@
 // and changes with Global Change. One registry drives all of them so a field
 // behaves the same everywhere.
 
+import { compileFormula, indicatorFromRule, type FieldLookup } from "./udfFormula";
 import { obsPath, wbsObs } from "./budget";
 import { projectCodeOf } from "./multiproject";
 import { workHoursBetween } from "./calendar";
@@ -546,7 +547,45 @@ export function fieldsFor(s: Schedule | null): FieldDef[] {
       return { userFields: next };
     },
   }));
-  return [...BASE_FIELDS, ...codeFields, ...udfFields];
+  // Formula and rule-based UDFs read the other columns (not each other) and are read-only.
+  const plain = [...BASE_FIELDS, ...codeFields, ...udfFields];
+  const byLabel = new Map(plain.map((f) => [f.label.toLowerCase(), f]));
+  const lookup: FieldLookup = (name) => {
+    const f = byLabel.get(name.toLowerCase());
+    if (!f) return null;
+    return (a, k) => {
+      const v = f.get(a, k as FieldCtx);
+      if (v === null || v === "" || typeof v === "boolean") return v === true ? 1 : v === false ? 0 : null;
+      const x = Number(v);
+      return Number.isFinite(x) ? x : null;
+    };
+  };
+  const computed = new Map<string, FieldDef>();
+  for (const u of s.udfDefs ?? []) {
+    try {
+      if (u.formula && (u.type === "number" || u.type === "cost")) {
+        const calc = compileFormula(u.formula, lookup);
+        computed.set(u.name, {
+          id: `user:${u.name}`,
+          label: u.name,
+          group: u.type === "cost" ? "Costs" : "User Defined Fields",
+          type: "number",
+          width: 110,
+          align: "right",
+          get: (a, c) => {
+            const v = calc(a, c);
+            return v === null ? null : Math.round(v * 100) / 100;
+          },
+        });
+      } else if (u.type === "indicator" && u.indicatorRule?.field) {
+        const color = indicatorFromRule(u.indicatorRule, lookup);
+        computed.set(u.name, { ...indicatorField(u.name), get: (a, c) => color(a, c), text: (a, c) => INDICATORS[color(a, c)] ?? "", set: undefined });
+      }
+    } catch {
+      /* an invalid formula leaves the field as a plain value column; the UDF dialog shows the error */
+    }
+  }
+  return computed.size ? plain.map((f) => (f.id.startsWith("user:") && computed.get(f.label)) || f) : plain;
 }
 
 export function fieldText(f: FieldDef, a: Activity, c: FieldCtx): string {

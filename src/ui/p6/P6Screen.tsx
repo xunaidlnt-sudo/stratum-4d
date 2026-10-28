@@ -4,6 +4,7 @@
 // Details, usage profiles / spreadsheets or Trace Logic), the Command bar
 // (right) and the status bar.
 
+import { ActivityDocs } from "./Documents";
 import { download as saveFile } from "../files";
 import {
   AlignVerticalSpaceAround,
@@ -138,6 +139,7 @@ const LOWER_TABS: [LowerTab, string, EditorSection[]][] = [
   ["steps", "Steps", ["steps"]],
   ["notebook", "Notebook", ["notebook"]],
   ["udf", "UDFs", ["udf"]],
+  ["wpdocs", "WPs & Docs", []],
 ];
 
 const LOWER_VIEWS: [LowerView | "resourceProfile" | "activityProfile", string][] = [
@@ -400,7 +402,7 @@ function LowerPane() {
           ))}
         </div>
         <div className="p6-lowerbody">
-          <ActivityEditor bare only={(LOWER_TABS.find((d) => d[0] === tab) ?? LOWER_TABS[0])[2]} />
+          {tab === "wpdocs" ? act ? <ActivityDocs activityId={act.id} /> : <p className="muted">Select an activity.</p> : <ActivityEditor bare only={(LOWER_TABS.find((d) => d[0] === tab) ?? LOWER_TABS[0])[2]} />}
         </div>
       </>
     );

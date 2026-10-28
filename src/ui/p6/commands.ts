@@ -2,6 +2,7 @@
 // and keyboard shortcuts. Each one acts on the current selection and is a
 // single undoable step.
 
+import { usePrefs } from "./prefs";
 import { create } from "zustand";
 import { standardCalendar } from "../../core/calendar";
 import { fieldCtx, fieldsFor, fieldText } from "../../core/fields";
@@ -61,7 +62,10 @@ export type P6Dialog =
   | "topDown"
   | "registerDetail"
   | "capacity"
-  | "netBox";
+  | "netBox"
+  | "activityWizard"
+  | "documentDetail"
+  | "resourceWizard";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 
@@ -129,6 +133,7 @@ const say = (msg: string) => st().setStatus(msg);
 export function addActivity() {
   const s = st().schedule;
   if (!s) return;
+  if (usePrefs.getState().useActivityWizard) return useP6.getState().open("activityWizard");
   const sel = s.activities.find((a) => a.id === st().selectedActivity) ?? null;
   const cals = s.calendars ?? [];
   const def = newActivityDefaults(s, sel);

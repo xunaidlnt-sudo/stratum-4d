@@ -4,6 +4,10 @@
 // Activity Codes, Page Setup and Print, Project details, Spelling and Store
 // Period Performance.
 
+import { DocumentDialog } from "./Documents";
+import { NewActivityWizard, NewResourceWizard } from "./Wizards";
+import { allCodeTypes } from "../../core/codes";
+import { sharedGet } from "../shared";
 import { printPage } from "../files";
 import { download as saveFile } from "../files";
 import { Filter } from "lucide-react";
@@ -24,7 +28,7 @@ import {
   type ChangeRule,
   type GlobalChangeDef,
 } from "../../core/ops";
-import type { RelationshipType } from "../../core/types";
+import type { CodeType, RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { P6Dlg, SideBtn, SideColumn, SideGap, SideHelp } from "./P6Dlg";
@@ -1511,11 +1515,8 @@ function AssignCodeDialog() {
   const schedule = useStore((s) => s.schedule);
   const commit = useStore((s) => s.commit);
   const ids = selectedInOrder();
-  const types = useMemo(() => {
-    const m = new Map<string, Set<string>>();
-    for (const a of schedule?.activities ?? []) for (const k in a.codes) (m.get(k) ?? m.set(k, new Set()).get(k)!).add(a.codes[k]);
-    return m;
-  }, [schedule]);
+  const all = useMemo(() => (schedule ? allCodeTypes(schedule, sharedGet<CodeType[]>("stratum.activitycodes.v1", [])) : []), [schedule]);
+  const types = useMemo(() => new Map(all.map((t) => [t.name, new Set(t.values.map((v) => v.value))])), [all]);
   const [type, setType] = useState([...types.keys()][0] ?? "");
   const [value, setValue] = useState("");
   if (!schedule) return null;
@@ -1532,9 +1533,13 @@ function AssignCodeDialog() {
             onClick={() => {
               const set = new Set(ids);
               const t = type.trim();
+              // A shared (global / EPS) type used here for the first time is copied into the project.
+              const known = (schedule.codeTypes ?? []).some((x) => x.name === t);
+              const sharedType = all.find((x) => x.name === t && x.scope && x.scope !== "project");
               commit(
                 {
                   ...schedule,
+                  ...(!known && sharedType ? { codeTypes: [...(schedule.codeTypes ?? []), sharedType] } : {}),
                   activities: schedule.activities.map((a) => {
                     if (!set.has(a.id)) return a;
                     const codes = { ...a.codes };
@@ -1771,6 +1776,9 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     registerDetail: () => <RegisterDetailDialog />,
     capacity: () => <CapacityDialog />,
     netBox: () => <NetBoxDialog />,
+    activityWizard: () => <NewActivityWizard />,
+    documentDetail: () => <DocumentDialog />,
+    resourceWizard: () => <NewResourceWizard />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,

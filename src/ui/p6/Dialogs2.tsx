@@ -1,6 +1,11 @@
 // More P6 dialogs: Schedule Options, Level Resources, Calendars, Activity
 // Codes, User Defined Fields and Claim Digger.
 
+import { compileFormula } from "../../core/udfFormula";
+import { fieldsFor, INDICATORS } from "../../core/fields";
+import { allCodeTypes, mergeSharedCodes, scopeOf, type CodeScope } from "../../core/codes";
+import { epsNode } from "../../core/multiproject";
+import { sharedGet, sharedSet } from "../shared";
 import { download as saveFile, download } from "../files";
 import { useMemo, useState } from "react";
 import { claimDigger, claimDiggerCsv, type ClaimDiggerReport } from "../../core/compare";
@@ -551,28 +556,27 @@ export function CalendarsDialog() {
 
 // ---------------------------------------------------------------- Activity Codes
 
-/** Code types: the dictionary plus any code names found on activities. */
-function codeTypesOf(s: Schedule): CodeType[] {
-  const map = new Map<string, CodeType>((s.codeTypes ?? []).map((t) => [t.name, { name: t.name, values: [...t.values] }]));
-  for (const a of s.activities)
-    for (const k in a.codes) {
-      const t = map.get(k) ?? map.set(k, { name: k, values: [] }).get(k)!;
-      if (!t.values.some((v) => v.value === a.codes[k])) t.values.push({ value: a.codes[k] });
-    }
-  for (const t of map.values()) t.values.sort((x, y) => x.value.localeCompare(y.value, undefined, { numeric: true }));
-  return [...map.values()].sort((x, y) => x.name.localeCompare(y.name));
-}
-
 export function ActivityCodesDialog() {
   const schedule = useStore((s) => s.schedule);
-  const types = useMemo(() => (schedule ? codeTypesOf(schedule) : []), [schedule]);
+  const [shared, setShared] = useState<CodeType[]>(() => sharedGet<CodeType[]>("stratum.activitycodes.v1", []));
+  const types = useMemo(() => (schedule ? allCodeTypes(schedule, shared) : []), [schedule, shared]);
+  const epsIds = schedule ? (schedule.eps ?? []).map((x) => epsNode(x)) : [];
+  const [scope, setScope] = useState<CodeScope>("project");
+  const shown = types.filter((x) => scopeOf(x) === scope);
   const [sel, setSel] = useState<string | null>(types[0]?.name ?? null);
   const [newType, setNewType] = useState("");
+  const [newEps, setNewEps] = useState(epsIds.at(-1)?.id ?? "");
   const [newVal, setNewVal] = useState({ value: "", description: "" });
   if (!schedule) return null;
-  const t = types.find((x) => x.name === sel) ?? null;
+  const t = shown.find((x) => x.name === sel) ?? shown[0] ?? null;
   const count = (name: string, value?: string) => schedule.activities.filter((a) => (value === undefined ? a.codes[name] !== undefined : a.codes[name] === value)).length;
-  const save = (next: CodeType[], acts = schedule.activities, label = "Activity codes") => commit({ ...schedule, codeTypes: next, activities: acts }, label);
+  const save = (next: CodeType[], acts = schedule.activities, label = "Activity codes") => {
+    // Global and EPS types are kept in the project too (XER export, assignment) and shared with other projects.
+    const sh = mergeSharedCodes(shared, types.map((x) => x.name), next);
+    sharedSet("stratum.activitycodes.v1", sh);
+    setShared(sh);
+    commit({ ...schedule, codeTypes: next, activities: acts }, label);
+  };
   const renameType = (from: string, to: string) => {
     if (!to.trim() || types.some((x) => x.name === to)) return;
     save(
@@ -595,22 +599,49 @@ export function ActivityCodesDialog() {
     );
   return (
     <Shell title="Activity Codes" wide onClose={close}>
+      <div className="row p6-scope" role="radiogroup" aria-label="Code scope">
+        {(
+          [
+            ["global", "Global"],
+            ["eps", "EPS"],
+            ["project", "Project"],
+          ] as const
+        ).map(([k, label]) => (
+          <label key={k} className="p6-check">
+            <input type="radio" name="code-scope" checked={scope === k} onChange={() => setScope(k)} /> {label}
+          </label>
+        ))}
+        <span className="muted small">
+          {scope === "global" ? "Global codes are available to every project." : scope === "eps" ? "EPS codes are available to every project under their EPS node." : `Project codes belong to ${schedule.projectCode} only.`}
+        </span>
+      </div>
       <div className="p6-cal">
         <div className="p6-list">
-          <div className="p6-list-head">Code types</div>
+          <div className="p6-list-head">{scope === "global" ? "Global" : scope === "eps" ? "EPS" : "Project"} activity codes</div>
           <div className="p6-list-body">
-            {types.map((x) => (
-              <button key={x.name} className={sel === x.name ? "on" : ""} onClick={() => setSel(x.name)}>
-                {x.name} <span className="muted small">{x.values.length} values</span>
+            {shown.map((x) => (
+              <button key={x.name} className={t?.name === x.name ? "on" : ""} onClick={() => setSel(x.name)}>
+                {x.name} <span className="muted small">{scope === "eps" && x.epsNode ? `${x.epsNode} · ` : ""}{x.values.length} values</span>
               </button>
             ))}
+            {!shown.length && <div className="muted small" style={{ padding: 6 }}>None yet.</div>}
           </div>
-          <div className="row" style={{ padding: 6 }}>
+          <div className="row" style={{ padding: 6, flexWrap: "wrap" }}>
             <input placeholder="New code type" value={newType} onChange={(e) => setNewType(e.target.value)} style={{ width: 130 }} />
+            {scope === "eps" && (
+              <select aria-label="EPS node" value={newEps} onChange={(e) => setNewEps(e.target.value)} disabled={!epsIds.length}>
+                {epsIds.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.id}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
-              disabled={!newType.trim() || types.some((x) => x.name === newType.trim())}
+              disabled={!newType.trim() || types.some((x) => x.name === newType.trim()) || (scope === "eps" && !newEps)}
+              title={scope === "eps" && !epsIds.length ? "Place the project in the EPS first (Project Details › General)" : undefined}
               onClick={() => {
-                save([...types, { name: newType.trim(), values: [] }]);
+                save([...types, { name: newType.trim(), values: [], ...(scope !== "project" ? { scope } : {}), ...(scope === "eps" ? { epsNode: newEps } : {}) }]);
                 setSel(newType.trim());
                 setNewType("");
               }}
@@ -625,10 +656,20 @@ export function ActivityCodesDialog() {
               <label>
                 Code type name <input defaultValue={t.name} onBlur={(e) => e.target.value !== t.name && renameType(t.name, e.target.value.trim())} />
               </label>
+              <label>
+                Scope{" "}
+                <select value={scopeOf(t)} onChange={(e) => save(types.map((x) => (x.name === t.name ? { ...x, scope: e.target.value === "project" ? undefined : (e.target.value as CodeScope), epsNode: e.target.value === "eps" ? x.epsNode ?? epsIds.at(-1)?.id : undefined } : x)), schedule.activities, "Code scope")}>
+                  <option value="global">Global</option>
+                  <option value="eps" disabled={!epsIds.length}>
+                    EPS
+                  </option>
+                  <option value="project">Project</option>
+                </select>
+              </label>
               <span className="spacer" />
               <button
                 onClick={() =>
-                  window.confirm(`Delete code type ${t.name}? It is assigned to ${count(t.name)} activities.`) &&
+                  window.confirm(`Delete code type ${t.name}?${scopeOf(t) !== "project" ? " It is removed from every project that shares it." : ""} It is assigned to ${count(t.name)} activities here.`) &&
                   save(
                     types.filter((x) => x.name !== t.name),
                     schedule.activities.map((a) => {
@@ -706,7 +747,7 @@ export function ActivityCodesDialog() {
             <p className="muted small">Assign codes from Edit → Assign Activity Codes, the Codes tab, or a code column in the table. Group by a code in Group and Sort.</p>
           </div>
         ) : (
-          <p className="muted">No activity codes yet. Add a code type such as Area, Discipline or Phase.</p>
+          <p className="muted">No {scope} activity codes yet. Add a code type such as Area, Discipline or Phase.</p>
         )}
       </div>
     </Shell>
@@ -719,61 +760,99 @@ export function UdfDialog() {
   const schedule = useStore((s) => s.schedule);
   const [name, setName] = useState("");
   const [type, setType] = useState<UdfDef["type"]>("text");
+  const [sel, setSel] = useState<string | null>(null);
+  const numericFields = useMemo(() => (schedule ? fieldsFor({ ...schedule, udfDefs: (schedule.udfDefs ?? []).filter((u) => !u.formula && !u.indicatorRule) }).filter((f) => ["number", "percent", "duration", "date"].includes(f.type)) : []), [schedule]);
   if (!schedule) return null;
   const defs = new Map((schedule.udfDefs ?? []).map((d) => [d.name, d]));
   for (const a of schedule.activities) for (const k in a.userFields ?? {}) if (!defs.has(k)) defs.set(k, { name: k, type: "text" });
   const list = [...defs.values()].sort((x, y) => x.name.localeCompare(y.name));
   const used = (n: string) => schedule.activities.filter((a) => a.userFields?.[n] !== undefined && a.userFields[n] !== "").length;
+  const put = (d: UdfDef, label: string) => commit({ ...schedule, udfDefs: list.map((x) => (x.name === d.name ? d : x)) }, label);
+  const lookup = (n: string) => (numericFields.some((f) => f.label.toLowerCase() === n.toLowerCase()) ? () => 0 : null);
+  const formulaError = (f: string) => {
+    try {
+      compileFormula(f, lookup);
+      return "";
+    } catch (e) {
+      return (e as Error).message;
+    }
+  };
+  const cur = list.find((x) => x.name === sel) ?? null;
+  const rule = cur?.indicatorRule ?? { field: "", rules: [] };
+  const putRule = (r: NonNullable<UdfDef["indicatorRule"]>) => cur && put({ ...cur, indicatorRule: r.field || r.rules.length ? r : undefined }, "Indicator rule");
   return (
-    <Shell title="User Defined Fields – Activities" onClose={close}>
+    <Shell title="User Defined Fields – Activities" wide onClose={close}>
       <table className="p6-grid">
         <thead>
           <tr>
             <td>Title</td>
             <td>Data type</td>
+            <td>Formula / condition</td>
             <td>Activities with a value</td>
             <td />
           </tr>
         </thead>
         <tbody>
-          {list.map((d) => (
-            <tr key={d.name}>
-              <td>{d.name}</td>
-              <td>
-                <select value={d.type} onChange={(e) => commit({ ...schedule, udfDefs: list.map((x) => (x.name === d.name ? { ...x, type: e.target.value as UdfDef["type"] } : x)) }, "UDF type")}>
-                  {["text", "number", "date", "cost", "indicator"].map((t) => (
-                    <option key={t}>{t}</option>
-                  ))}
-                </select>
-              </td>
-              <td className="num">{used(d.name)}</td>
-              <td>
-                <button
-                  className="link"
-                  onClick={() =>
-                    window.confirm(`Delete ${d.name} and its values on ${used(d.name)} activities?`) &&
-                    commit(
-                      {
-                        ...schedule,
-                        udfDefs: list.filter((x) => x.name !== d.name),
-                        activities: schedule.activities.map((a) => {
-                          if (a.userFields?.[d.name] === undefined) return a;
-                          const userFields = { ...a.userFields };
-                          delete userFields[d.name];
-                          return { ...a, userFields };
-                        }),
-                      },
-                      "Delete UDF",
-                    )
-                  }
-                >
-                  ✕
-                </button>
-              </td>
-            </tr>
-          ))}
+          {list.map((d) => {
+            const err = d.formula ? formulaError(d.formula) : "";
+            return (
+              <tr key={d.name} className={sel === d.name ? "sel" : ""} onClick={() => setSel(d.name)}>
+                <td>{d.name}</td>
+                <td>
+                  <select value={d.type} onChange={(e) => put({ ...d, type: e.target.value as UdfDef["type"], ...(e.target.value === "number" || e.target.value === "cost" ? {} : { formula: undefined }), ...(e.target.value === "indicator" ? {} : { indicatorRule: undefined }) }, "UDF type")}>
+                    {["text", "number", "date", "cost", "indicator"].map((t) => (
+                      <option key={t}>{t}</option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  {d.type === "number" || d.type === "cost" ? (
+                    <>
+                      <input className="cell" list="p6-udf-fields" placeholder="(entered by hand)" defaultValue={d.formula ?? ""} onBlur={(e) => (e.target.value.trim() || undefined) !== d.formula && put({ ...d, formula: e.target.value.trim() || undefined }, "UDF formula")} style={{ width: 260 }} />
+                      {err && <div className="bad small">{err}</div>}
+                    </>
+                  ) : d.type === "indicator" ? (
+                    <button className="link" onClick={() => setSel(d.name)}>
+                      {d.indicatorRule?.field ? `Based on ${d.indicatorRule.field}` : "Set by hand – define condition…"}
+                    </button>
+                  ) : (
+                    <span className="muted">–</span>
+                  )}
+                </td>
+                <td className="num">{d.formula || d.indicatorRule?.field ? "calculated" : used(d.name)}</td>
+                <td>
+                  <button
+                    className="link"
+                    onClick={() =>
+                      window.confirm(`Delete ${d.name} and its values on ${used(d.name)} activities?`) &&
+                      commit(
+                        {
+                          ...schedule,
+                          udfDefs: list.filter((x) => x.name !== d.name),
+                          activities: schedule.activities.map((a) => {
+                            if (a.userFields?.[d.name] === undefined) return a;
+                            const userFields = { ...a.userFields };
+                            delete userFields[d.name];
+                            return { ...a, userFields };
+                          }),
+                        },
+                        "Delete UDF",
+                      )
+                    }
+                  >
+                    ✕
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
         </tbody>
       </table>
+      <datalist id="p6-udf-fields">
+        {numericFields.map((f) => (
+          <option key={f.id} value={`[${f.label}]`} />
+        ))}
+      </datalist>
       <div className="row">
         <input placeholder="New field title" value={name} onChange={(e) => setName(e.target.value)} />
         <select value={type} onChange={(e) => setType(e.target.value as UdfDef["type"])}>
@@ -785,13 +864,98 @@ export function UdfDialog() {
           disabled={!name.trim() || defs.has(name.trim())}
           onClick={() => {
             commit({ ...schedule, udfDefs: [...list, { name: name.trim(), type }] }, "Add UDF");
+            setSel(name.trim());
             setName("");
           }}
         >
           Add
         </button>
       </div>
-      <p className="muted small">New fields appear in Columns, Filters, Group and Sort and Global Change under User Defined Fields.</p>
+      {cur?.type === "indicator" && (
+        <div className="p6-detail">
+          <div className="p6-detail-tabs">
+            <button className="on">Indicator condition – {cur.name}</button>
+          </div>
+          <div className="p6-detail-body stack">
+            <label>
+              Based on field{" "}
+              <select value={rule.field} onChange={(e) => putRule({ ...rule, field: e.target.value, rules: rule.rules.length ? rule.rules : [{ op: "<", value: 0, color: "Red" }, { op: "<", value: 10, color: "Yellow" }], otherwise: rule.otherwise ?? "Green" })}>
+                <option value="">(none: set by hand)</option>
+                {numericFields.map((f) => (
+                  <option key={f.id} value={f.label}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+            {rule.field && (
+              <table className="p6-grid">
+                <thead>
+                  <tr>
+                    <td>If {rule.field} is</td>
+                    <td>Value</td>
+                    <td>Show</td>
+                    <td />
+                  </tr>
+                </thead>
+                <tbody>
+                  {rule.rules.map((r, i) => (
+                    <tr key={i}>
+                      <td>
+                        <select value={r.op} onChange={(e) => putRule({ ...rule, rules: rule.rules.map((x, k) => (k === i ? { ...x, op: e.target.value as typeof r.op } : x)) })}>
+                          {["<", "<=", "=", ">=", ">"].map((o) => (
+                            <option key={o}>{o}</option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <input className="cell num" type="number" value={r.value} onChange={(e) => putRule({ ...rule, rules: rule.rules.map((x, k) => (k === i ? { ...x, value: Number(e.target.value) || 0 } : x)) })} style={{ width: 90 }} />
+                      </td>
+                      <td>
+                        <select value={r.color} onChange={(e) => putRule({ ...rule, rules: rule.rules.map((x, k) => (k === i ? { ...x, color: e.target.value } : x)) })}>
+                          {Object.entries(INDICATORS).map(([c, icon]) => (
+                            <option key={c} value={c}>
+                              {icon} {c}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
+                      <td>
+                        <button className="link" onClick={() => putRule({ ...rule, rules: rule.rules.filter((_, k) => k !== i) })}>
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                  <tr>
+                    <td colSpan={2}>Otherwise</td>
+                    <td>
+                      <select value={rule.otherwise ?? ""} onChange={(e) => putRule({ ...rule, otherwise: e.target.value || undefined })}>
+                        <option value="">(blank)</option>
+                        {Object.entries(INDICATORS).map(([c, icon]) => (
+                          <option key={c} value={c}>
+                            {icon} {c}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td />
+                  </tr>
+                </tbody>
+              </table>
+            )}
+            {rule.field && (
+              <button className="link" onClick={() => putRule({ ...rule, rules: [...rule.rules, { op: ">=", value: 0, color: "Blue" }] })}>
+                Add condition
+              </button>
+            )}
+            <span className="muted small">Conditions are checked from the top; the first one met sets the colour. Durations and float are in days.</span>
+          </div>
+        </div>
+      )}
+      <p className="muted small">
+        A formula calculates a number or cost UDF from other columns, e.g. <code>[Budgeted Total Cost] * 0.05</code> or <code>max([Total Float], 0)</code>. Operators + − × ÷, brackets, and min, max, abs, round. Calculated fields are read-only and are exported to XER as values. New fields appear in Columns, Filters, Group and Sort and Global Change.
+      </p>
     </Shell>
   );
 }

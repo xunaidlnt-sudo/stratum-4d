@@ -19,7 +19,7 @@ Last updated for release 0.6.
 | Hot keys and shortcut keys | Done | Ins, Del, F2, F9, F10, Ctrl+C/X/V/Z/Y/A/E/L/F |
 | User preferences: time units, dates, currency, codes | Done | Time Units, Dates and Currency tabs (symbol and decimals on cost columns) |
 | Startup filters, financial periods, resource analysis options | Done | Startup Window preference; Financial Period Calendar with batch create; usage by financial period |
-| Wizards | Partial | Setup wizard; no new-activity / new-resource wizards |
+| Wizards | Done (0.9) | Setup wizard; New Activity wizard (ID and name, WBS, type, duration and calendar, predecessors, successors, resources) and New Resource wizard (ID, type, units and prices, calendar, roles, codes), switched on in User Preferences › Assistance |
 
 ## Structuring projects (Pro ch. 4, EPPM "Structuring Projects")
 
@@ -33,8 +33,8 @@ Last updated for release 0.6.
 | WBS: add, edit, copy, move, indent | Done | WBS window |
 | WBS weighted milestones, categories, status, earned value settings | Done | WBS details: status, anticipated dates, weighted milestones, earned value technique |
 | Project codes, resource codes | Done | Project Codes and Resource Codes dictionaries; Project Details › Codes, Resources window columns; imported from XER |
-| Global / EPS / project activity codes and colours | Partial | Project-level codes with values, descriptions, colours |
-| User-defined fields, data types, indicator UDFs | Partial | Activity UDFs with types and red/yellow/green/blue indicators; no formulas |
+| Global / EPS / project activity codes and colours | Done (0.9) | Global, EPS and Project scopes as in P6; global and EPS codes are shared through the enterprise store (and the cloud folder) with every project they apply to; scope written to XER |
+| User-defined fields, data types, indicator UDFs | Done (0.9) | Activity UDFs with types; number and cost formulas over other columns (+ − × ÷, min, max, abs, round); indicator UDFs set by hand or by conditions on any numeric column; calculated values exported to XER |
 | Calendars: project, global, default hours per period | Done | Calendars dialog: work week, holidays, exceptions, hours per day |
 | Resource calendars | Done | Calendar per resource, used by levelling; imported from XER |
 | Project details: dates, must finish by, status, defaults | Done | General, Dates (anticipated), Defaults (duration/percent/activity type, calendar, Activity ID auto-numbering), Settings, Codes, Summary |
@@ -82,7 +82,7 @@ Last updated for release 0.6.
 | Issues: add, responsibility, history | Done | Issues register with a change history and notes |
 | Thresholds and threshold monitoring | Done (0.6) | Monitor creates issues |
 | Risks: create, assign, respond, scoring matrix | Done | Risks register with score and level from the scoring matrix, heat map |
-| Work products and documents | Partial | WPs & Docs register |
+| Work products and documents | Done (0.9) | Category, status, deliverable, author, reviewer, revision date, public (link) and private locations; assigned to several activities and WBS elements; review log whose decision sets the status; WPs & Docs tab in Activity Details |
 
 ## Layouts and views (Pro ch. 7)
 

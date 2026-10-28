@@ -67,6 +67,19 @@ export function PreferencesDialog() {
             </>,
           ],
           [
+            "Assistance",
+            <fieldset className="p6-fieldset" key="assist">
+              <legend>Wizards</legend>
+              <label className="p6-check">
+                <input type="checkbox" checked={!!p.useResourceWizard} onChange={(e) => p.set({ useResourceWizard: e.target.checked })} /> Use New Resource Wizard
+              </label>
+              <label className="p6-check">
+                <input type="checkbox" checked={!!p.useActivityWizard} onChange={(e) => p.set({ useActivityWizard: e.target.checked })} /> Use New Activity Wizard
+              </label>
+              <p className="muted small">With a wizard on, Add steps through ID and name, WBS, type, duration, logic and resources (or type, prices, calendar, roles and codes for a resource).</p>
+            </fieldset>,
+          ],
+          [
             "Time Units",
             <>
               <fieldset className="p6-fieldset">
