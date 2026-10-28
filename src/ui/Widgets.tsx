@@ -1,4 +1,6 @@
 import { useMemo, useState, type CSSProperties, type ReactNode } from "react";
+import { createPortal } from "react-dom";
+import { kpiActivities } from "../core/drill";
 import { EXTRA_KPIS, type ExtraMetric } from "../core/kpiExtra";
 import {
   activityRows,
@@ -213,14 +215,20 @@ export function WidgetView({ w, schedule, portfolio, slice }: { w: Widget; sched
     case "kpi": {
       const k = kpiFormatted(schedule, w);
       return (
-        <div className="kpi" title={k.hint}>
-          <div className={`kpi-value ${k.tone ?? ""}`}>{k.value}</div>
-          {k.hint && <div className="muted kpi-hint">{k.hint}</div>}
-        </div>
+        <Drill w={w} schedule={schedule}>
+          <div className="kpi" title={k.hint}>
+            <div className={`kpi-value ${k.tone ?? ""}`}>{k.value}</div>
+            {k.hint && <div className="muted kpi-hint">{k.hint}</div>}
+          </div>
+        </Drill>
       );
     }
     case "gauge":
-      return <GaugeWidget w={w} schedule={schedule} />;
+      return (
+        <Drill w={w} schedule={schedule}>
+          <GaugeWidget w={w} schedule={schedule} />
+        </Drill>
+      );
     case "donut":
       return <DonutWidget w={w} schedule={schedule} slice={slice} />;
     case "cards":
@@ -230,7 +238,7 @@ export function WidgetView({ w, schedule, portfolio, slice }: { w: Widget; sched
     case "combo":
       return <ComboWidget w={w} schedule={schedule} />;
     case "groupbars":
-      return <GroupBarsWidget w={w} schedule={schedule} />;
+      return <GroupBarsWidget w={w} schedule={schedule} slice={slice} />;
     case "phasecurves":
       return <PhaseCurves w={w} schedule={schedule} />;
     case "milestones":
@@ -373,7 +381,7 @@ function ActivityTable({ schedule, w }: { schedule: Schedule; w: Widget }) {
       </thead>
       <tbody>
         {rows.map((r) => (
-          <tr key={r.id}>
+          <tr key={r.id} className="clickable" title="Open in the schedule" onClick={() => goToActivity(schedule, r.id)}>
             {cols.map((c) => {
               const v = cellOf(r, c, schedule);
               return (
@@ -472,7 +480,17 @@ function StatusDonut({ w, schedule }: { w: Widget; schedule: Schedule }) {
   return <Donut caption={w.split && w.split !== "status" ? "open" : "activities"} slices={mix.map((m) => ({ id: m.id, label: m.label, value: m.value, color: TONE_COLOR[m.tone] }))} />;
 }
 
-function GroupBarsWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
+function GroupBarsWidget({ w, schedule, slice }: { w: Widget; schedule: Schedule; slice?: SliceProps }) {
+  const dim = w.dimension ?? "wbs1";
+  const picked = slice?.slices.find((x) => x.dimension === dim)?.values ?? [];
+  // Click a group to filter the whole dashboard to it (click again to clear).
+  const pick = slice?.onSlices
+    ? (key: string) => {
+        if (key === "__total") return;
+        const rest = (slice.slices ?? []).filter((x) => x.dimension !== dim);
+        slice.onSlices!(picked.includes(key) ? rest : [...rest, { dimension: dim, values: [key] }]);
+      }
+    : undefined;
   const t = useMemo(() => progressTable(schedule, { dimension: w.dimension ?? "wbs1", basis: w.basis ?? "cost", weightage: w.weightage }), [schedule, w.dimension, w.basis, w.weightage]);
   const series = [
     { id: "plan", label: "Cum. BL plan %", color: SERIES[0] },
@@ -481,6 +499,8 @@ function GroupBarsWidget({ w, schedule }: { w: Widget; schedule: Schedule }) {
   ].filter((x) => !(w.hiddenSeries ?? ["forecast"]).includes(x.id));
   return (
     <GroupBars
+      onPick={pick}
+      picked={picked}
       legend={w.showLegend !== false}
       fmt={(v) => `${(v * 100).toFixed(w.decimals ?? 1)}%`}
       series={series}
@@ -562,7 +582,7 @@ function MilestoneTable({ w, schedule }: { w: Widget; schedule: Schedule }) {
         {rows.map((r) => {
           const st = MS_LABEL[r.state];
           return (
-            <tr key={r.id}>
+            <tr key={r.id} className="clickable" title="Open in the schedule" onClick={() => goToActivity(schedule, r.id)}>
               <td>
                 <b>{r.code}</b> {r.name}
               </td>
@@ -605,7 +625,7 @@ function Lookahead({ w, schedule }: { w: Widget; schedule: Schedule }) {
             </td>
           </tr>,
           ...wk.rows.map((r) => (
-            <tr key={r.id}>
+            <tr key={r.id} className="clickable" title="Open in the schedule" onClick={() => goToActivity(schedule, r.id)}>
               <td>
                 <b>{r.code}</b>
               </td>
@@ -995,4 +1015,84 @@ export function pageStyle(dash: Dashboard): { className: string; style: CSSPrope
     className: `${dash.theme === "report" ? "theme-report" : dash.theme === "executive" ? "theme-exec" : ""} orient-${pg.orientation ?? "landscape"} ${pg.dense ? "dense" : ""}`,
     style: { "--page-accent": pg.accent, "--page-bg": pg.background, "--dash-gap": pg.gap !== undefined ? `${pg.gap}px` : undefined },
   };
+}
+
+/** Open an activity in the schedule, when the widget shows the open project. */
+export function goToActivity(schedule: Schedule, id: string) {
+  const st = useStore.getState();
+  if (st.schedule?.projectId !== schedule.projectId) {
+    st.setStatus("That activity belongs to another project: open the project first, then click it again.");
+    return;
+  }
+  st.selectActivity(id);
+  st.setView("workspace");
+}
+
+/** Click a figure to list the activities behind it; click one to open it in the schedule. */
+function Drill({ w, schedule, children }: { w: Widget; schedule: Schedule; children: ReactNode }) {
+  const [open, setOpen] = useState(false);
+  const d = useMemo(() => (open && w.metric ? kpiActivities(schedule, w.metric, { days: w.days }) : null), [open, schedule, w.metric, w.days]);
+  const can = !!w.metric && kpiActivities(schedule, w.metric, { days: w.days }) !== null;
+  if (!can) return <>{children}</>;
+  return (
+    <>
+      <div className="drillable" role="button" tabIndex={0} title="Show the activities behind this figure" onClick={(e) => (e.stopPropagation(), setOpen(true))} onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && setOpen(true)}>
+        {children}
+      </div>
+      {open &&
+        d &&
+        createPortal(
+          <div className="help-backdrop" onMouseDown={(e) => e.target === e.currentTarget && setOpen(false)}>
+            <div className="drill-panel" role="dialog" aria-label={d.title}>
+              <header>
+                <b>{d.title}</b>
+                <span className="muted">
+                  {d.rows.length} activit{d.rows.length === 1 ? "y" : "ies"} · {schedule.projectCode}
+                </span>
+                <span className="spacer" />
+                <button className="icon-only" aria-label="Close" onClick={() => setOpen(false)}>
+                  ✕
+                </button>
+              </header>
+              {d.rows.length ? (
+                <div className="drill-scroll">
+                  <table className="data">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Activity</th>
+                        <th>Start</th>
+                        <th>Finish</th>
+                        <th>BL finish</th>
+                        <th>TF (d)</th>
+                        <th>%</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {d.rows.slice(0, 500).map((a) => (
+                        <tr key={a.id} className="clickable" title="Open in the schedule" onClick={() => goToActivity(schedule, a.id)}>
+                          <td>
+                            <b>{a.code}</b>
+                          </td>
+                          <td>{a.name}</td>
+                          <td>{fmtDay(a.actualStart ?? a.start)}</td>
+                          <td>{fmtDay(a.actualFinish ?? a.finish)}</td>
+                          <td>{fmtDay(a.baselineFinish)}</td>
+                          <td className={(a.totalFloatHours ?? 0) < 0 ? "bad" : ""}>{a.totalFloatHours === null ? "" : Math.round(a.totalFloatHours / 8)}</td>
+                          <td>{Math.round(a.percentComplete)}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  {d.rows.length > 500 && <p className="muted small">First 500 shown.</p>}
+                </div>
+              ) : (
+                <p className="muted">None. Nothing to follow up here.</p>
+              )}
+            </div>
+          </div>,
+          document.body,
+        )}
+    </>
+  );
 }

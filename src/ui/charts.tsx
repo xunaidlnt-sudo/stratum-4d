@@ -560,12 +560,17 @@ export function GroupBars({
   fmt,
   max = 1,
   legend = true,
+  onPick,
+  picked = [],
 }: {
   rows: { key: string; label: string; values: Record<string, number> }[];
   series: StackSeries[];
   fmt: (v: number) => string;
   max?: number;
   legend?: boolean;
+  /** Click a group to filter by it. */
+  onPick?: (key: string) => void;
+  picked?: string[];
 }) {
   if (!rows.length) return <p className="muted">No groups to show.</p>;
   return (
@@ -581,7 +586,12 @@ export function GroupBars({
       )}
       <div className="gbars-grid">
         {rows.map((r) => (
-          <div key={r.key} className="gbars-row" title={`${r.label}: ${series.map((s) => `${s.label} ${fmt(r.values[s.id] ?? 0)}`).join(" · ")}`}>
+          <div
+            key={r.key}
+            className={`gbars-row ${onPick && r.key !== "__total" ? "clickable" : ""} ${picked.includes(r.key) ? "picked" : ""} ${picked.length && !picked.includes(r.key) && r.key !== "__total" ? "dimmed" : ""}`}
+            title={`${r.label}: ${series.map((s) => `${s.label} ${fmt(r.values[s.id] ?? 0)}`).join(" · ")}${onPick && r.key !== "__total" ? " — click to filter the dashboard" : ""}`}
+            onClick={onPick ? (e) => (e.stopPropagation(), onPick(r.key)) : undefined}
+          >
             <span className="gbars-label">{r.label}</span>
             <span className="gbars-bars">
               {series.map((s) => (
