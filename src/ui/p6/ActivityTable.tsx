@@ -14,7 +14,7 @@ import { uid } from "../../core/ops";
 import { addActivity, collapseAll, copySelected, cutSelected, deleteSelected, dissolveSelected, expandAll, fillDownSelected, linkSelected, paste, selectAll, setCell, tableOrder, unlinkSelected, useP6 } from "./commands";
 import { useCtx, type CtxItem } from "./ContextMenu";
 import { usePrefs } from "./prefs";
-import { allFilters, DEFAULT_GROUP_OPTIONS, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
+import { allFilters, DEFAULT_GROUP_OPTIONS, P6_CLASSIC_BANDS, useLayout, type P6Layout, type TimescaleUnit } from "./layout";
 
 const HEAD = 36;
 
@@ -185,8 +185,10 @@ export function ActivityTable({ onSchedule, trace }: { onSchedule?: () => void; 
   }, [layout.filters, custom]);
 
   const go = layout.groupOptions ?? DEFAULT_GROUP_OPTIONS;
+  const classic = usePrefs((p) => (p.p6Look ?? "classic") === "classic");
+  const bands = go.bandStyles ?? (classic ? P6_CLASSIC_BANDS : null);
   const bandStyle = (depth: number): CSSProperties | undefined => {
-    const b = go.bandStyles?.[Math.min(depth, (go.bandStyles?.length ?? 1) - 1)];
+    const b = bands?.[Math.min(depth, bands.length - 1)];
     return b ? { background: b.bg, color: b.fg, fontSize: b.size } : undefined;
   };
   const { rows, shown } = useMemo(() => {

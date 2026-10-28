@@ -447,6 +447,14 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
   const setLayout = useLayout((s) => s.set);
   const win = useP6((s) => s.window);
   const tabs = useP6((s) => s.tabs);
+  // User Preferences › Application › Look: P6 Professional's classic Windows look by default.
+  const look = usePrefs((p) => p.p6Look ?? "classic");
+  useEffect(() => {
+    document.documentElement.dataset.p6look = look;
+    return () => {
+      delete document.documentElement.dataset.p6look;
+    };
+  }, [look]);
   // User Preferences › Application › Startup Window.
   useEffect(() => {
     const w = usePrefs.getState().startupWindow;

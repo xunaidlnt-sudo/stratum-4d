@@ -57,6 +57,13 @@ export function PreferencesDialog() {
                 </select>
               </label>
               <p className="muted small">The window shown when Stratum opens in the P6 layout.</p>
+              <label>
+                Look
+                <select value={p.p6Look ?? "classic"} onChange={(e) => p.set({ p6Look: e.target.value as "classic" | "modern" })}>
+                  <option value="classic">P6 Professional (classic Windows look, P6 band colours)</option>
+                  <option value="modern">Stratum (modern, softer colours)</option>
+                </select>
+              </label>
             </>,
           ],
           [

@@ -81,8 +81,8 @@ export const DEFAULT_GROUP_OPTIONS: GroupOptions = { thenBy: [], wbsToLevel: 0, 
 
 /** P6 Professional's default band colours, level 1 first. */
 export const P6_CLASSIC_BANDS: BandStyle[] = [
-  { bg: "#0000ff", fg: "#ffff00", size: 15 },
-  { bg: "#80ff80", fg: "#000000", size: 14 },
+  { bg: "#0000ff", fg: "#ffff00", size: 13 },
+  { bg: "#80ff80", fg: "#000000", size: 12 },
   { bg: "#ffff00", fg: "#0000ff", size: 12 },
   { bg: "#0000ff", fg: "#ffffff", size: 11 },
   { bg: "#ff0000", fg: "#ffffff", size: 11 },

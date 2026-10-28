@@ -19,7 +19,7 @@ import {
   X,
   XCircle,
 } from "lucide-react";
-import { useState, type ReactNode } from "react";
+import { Children, cloneElement, Fragment, isValidElement, useState, type ReactElement, type ReactNode } from "react";
 import { useP6 } from "./commands";
 
 export function P6Dlg({ title, children, side, onClose, width = 760 }: { title: string; children: ReactNode; side: ReactNode; onClose: () => void; width?: number }) {
@@ -33,7 +33,7 @@ export function P6Dlg({ title, children, side, onClose, width = 760 }: { title: 
           </button>
         </div>
         <div className="p6-dlg2-body">
-          <div className="p6-dlg2-main">{children}</div>
+          <div className="p6-dlg2-main p6-dlg-body">{children}</div>
           <div className="p6-dlg2-side">{side}</div>
         </div>
       </div>
@@ -114,3 +114,55 @@ export function DetailTabs({ tabs }: { tabs: [string, ReactNode][] }) {
 }
 
 export const closeDlg = () => useP6.getState().open(null);
+
+/** Icon for a command button, picked from its label (P6 puts an icon on every command button). */
+function iconFor(label: string): keyof typeof ICONS | null {
+  const t = label.toLowerCase();
+  if (/^ok\b/.test(t)) return "ok";
+  if (/^close/.test(t)) return "close";
+  if (/^cancel/.test(t)) return "cancel";
+  if (/^apply/.test(t)) return "apply";
+  if (/^(add|new|insert)/.test(t)) return "add";
+  if (/^(delete|remove|clear|unassign)/.test(t)) return "delete";
+  if (/^(default|reset|p6 defaults)/.test(t)) return "default";
+  if (/^(modify|edit|rename)/.test(t)) return "modify";
+  if (/^copy/.test(t)) return "copy";
+  if (/^paste/.test(t)) return "paste";
+  if (/^help/.test(t)) return "help";
+  return "run";
+}
+
+const textOf = (n: ReactNode): string =>
+  typeof n === "string" || typeof n === "number" ? String(n) : Array.isArray(n) ? n.map(textOf).join("") : isValidElement(n) ? textOf((n.props as { children?: ReactNode }).children) : "";
+
+/** Turn a row of footer buttons into P6's command column: spacers become gaps, buttons get icons. */
+export function SideColumn({ children }: { children: ReactNode }) {
+  const out: ReactNode[] = [];
+  const walk = (n: ReactNode) =>
+    Children.forEach(n, (c) => {
+      if (!isValidElement(c)) return;
+      if (c.type === Fragment) return walk((c.props as { children?: ReactNode }).children);
+      const props = c.props as { className?: string; children?: ReactNode };
+      if (c.type === "span" && /spacer/.test(props.className ?? "")) return out.push(<SideGap key={`g${out.length}`} />);
+      if (c.type === "button") {
+        const label = textOf(props.children).trim();
+        const k = iconFor(label);
+        out.push(
+          cloneElement(c as ReactElement<{ className?: string; children?: ReactNode }>, {
+            key: `b${out.length}`,
+            className: `p6-side-btn ${/primary/.test(props.className ?? "") ? "primary-side" : ""} ${(props.className ?? "").replace(/\bprimary\b/, "")}`,
+            children: (
+              <>
+                {k ? ICONS[k] : null}
+                <span>{props.children}</span>
+              </>
+            ),
+          }),
+        );
+        return;
+      }
+      out.push(c);
+    });
+  walk(children);
+  return <>{out}</>;
+}

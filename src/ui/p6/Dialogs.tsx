@@ -6,7 +6,7 @@
 
 import { printPage } from "../files";
 import { download as saveFile } from "../files";
-import { Filter, X } from "lucide-react";
+import { Filter } from "lucide-react";
 import { Fragment, useMemo, useState, type ReactNode } from "react";
 import { fieldCtx, fieldsFor, OP_LABEL, STANDARD_FILTERS, type FilterDef, type FilterOp, type FilterRule } from "../../core/fields";
 import {
@@ -27,7 +27,7 @@ import {
 import type { RelationshipType } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
-import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
+import { P6Dlg, SideBtn, SideColumn, SideGap, SideHelp } from "./P6Dlg";
 import { CapacityDialog, EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
 import { BucketsDialog, ExpenseCategoriesDialog, FinancialPeriodsDialog, NetBoxDialog, PeriodPerformanceDialog, RegisterDetailDialog, TopDownDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
@@ -37,19 +37,22 @@ import { ActivityCodesDialog, CalendarsDialog, ClaimDiggerDialog, LevelDialog, S
 import { allFilters, DEFAULT_GROUP_OPTIONS, DEFAULT_LAYOUT, P6_CLASSIC_BANDS, SOFT_BANDS, STOCK_LAYOUTS, useLayout, type BandStyle, type GroupOptions, type TimescaleUnit } from "./layout";
 
 export function Shell({ title, children, foot, wide, onClose }: { title: string; children: ReactNode; foot?: ReactNode; wide?: boolean; onClose: () => void }) {
+  // Every dialog uses P6's frame: content on the left, command buttons in a column on the right.
   return (
-    <div className="help-backdrop p6-dlg-back" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
-      <div className={`p6-dlg ${wide ? "wide" : ""}`} role="dialog" aria-label={title} onKeyDown={(e) => e.key === "Escape" && onClose()}>
-        <div className="p6-dlg-title">
-          <span>{title}</span>
-          <button className="icon-btn" onClick={onClose} aria-label="Close" title="Close">
-            <X size={14} aria-hidden />
-          </button>
-        </div>
-        <div className="p6-dlg-body">{children}</div>
-        <div className="p6-dlg-foot">{foot ?? <button onClick={onClose}>Close</button>}</div>
-      </div>
-    </div>
+    <P6Dlg
+      title={title}
+      width={wide ? 900 : 620}
+      onClose={onClose}
+      side={
+        <>
+          <SideColumn>{foot ?? <button onClick={onClose}>Close</button>}</SideColumn>
+          <SideGap />
+          <SideHelp topic={title} />
+        </>
+      }
+    >
+      {children}
+    </P6Dlg>
   );
 }
 
