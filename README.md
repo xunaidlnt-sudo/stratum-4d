@@ -29,7 +29,7 @@ Release 0.6 follows the chapters of Oracle's P6 Professional and EPPM user guide
 **Planning**
 - **CPM scheduler (F9)**: FS/SS/FF/SF with lags on working calendars and holidays, nine constraint types, retained logic from the data date, total and free float, critical path, LOE/WBS summaries, loop detection, open-end warnings.
 - **Activity editor**: add or delete activities; edit durations, status and actual dates, logic, constraints, calendars, user fields and resource assignments.
-- **Export**: P6 XER that updates the original project (untouched tables pass straight through), or CSV for Excel.
+- **Export**: P6 XER that updates the original project, including resources, roles, assignments, codes, UDFs, steps, notebooks, expenses and budgets made in Stratum (untouched tables pass straight through), or CSV for Excel.
 
 **Cost, resources, quantities**
 - **Earned value**: BAC, PV, EV, AC, SPI, CPI, EAC, VAC, TCPI; S-curves for planned, earned, actual and forecast; WBS roll-up; in cost or labour hours.

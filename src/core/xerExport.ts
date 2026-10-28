@@ -3,12 +3,14 @@
 // When the schedule came from an XER, every original table is kept and only
 // the fields Stratum edits are rewritten: activity dates, durations, status,
 // float, constraints, names, relationships, and any activities added or
-// deleted in Stratum. Everything else (codes, UDFs, resources, notebooks…)
-// passes through untouched, so P6 can import it as an update.
+// deleted in Stratum. Dictionaries and project data created in Stratum
+// (resources, roles, codes, UDFs, steps, notebooks, budgets…) are written by
+// xerDictionaries.ts; other tables pass through untouched, so P6 can import it as an update.
 //
 // Schedules from other sources get a minimal XER (project, WBS, calendar,
 // activities, relationships) that P6 imports as a new project.
 
+import { writeDictionaries } from "./xerDictionaries";
 import { standardCalendar, toP6CalendarData } from "./calendar";
 import { CONSTRAINT_MAP, CP1252_HIGH, type XerTables } from "./xer";
 import type { Activity, Schedule } from "./types";
@@ -169,6 +171,7 @@ export function scheduleToXerTables(s: Schedule): XerTables {
   }
 
   for (const p of t.PROJECT ?? []) if (p.proj_id === projId && s.dataDate !== null) p.last_recalc_date = formatXerDate(s.dataDate);
+  writeDictionaries(t, s, idMap);
   return t;
 }
 

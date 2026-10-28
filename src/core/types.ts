@@ -113,10 +113,12 @@ export interface Resource {
   unit: string;
   /** Default cost per unit (hour for labour/equipment). */
   pricePerUnit: number;
+  /** P6 Price/Unit 1-5 (rate types); index 0 mirrors pricePerUnit. */
+  prices?: number[];
   /** Max units per working hour (labour/equipment), for levelling; default 1 per resource unit. */
   maxUnitsPerHour?: number;
   /** Price and max units that change over time (P6 resource rates); entries apply from their date. */
-  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number }[];
+  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number; prices?: number[] }[];
   /** Shift that sets max units by hour of day (P6 resource shifts). */
   shiftId?: string | null;
   /** Roles this resource can fill. */
@@ -145,6 +147,12 @@ export interface Assignment {
   costAccountId?: string | null;
   /** Future period bucket planning: remaining units entered per period (overrides the curve). */
   buckets?: { start: number; finish: number; qty: number }[];
+  /** P6 Rate Type: which of the five Price/Unit columns prices the assignment (1-5, default 1). */
+  rateType?: number;
+  /** P6 Rate Source: price from the resource, the role, or the override price. */
+  rateSource?: "resource" | "role" | "override";
+  /** Price per unit used when rateSource is "override". */
+  priceOverride?: number;
 }
 
 /** A saved set of model elements, e.g. "Tower crane 1" or "Level 2 formwork". */
@@ -400,10 +408,12 @@ export interface Role {
   code: string;
   name: string;
   pricePerUnit: number;
+  /** P6 Price/Unit 1-5; index 0 mirrors pricePerUnit. */
+  prices?: number[];
   /** Role limit for planning, units per hour. */
   maxUnitsPerHour?: number;
   /** Prices and limits over time (P6 role Units & Prices). */
-  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number }[];
+  rates?: { from: number; pricePerUnit: number; maxUnitsPerHour?: number; prices?: number[] }[];
   /** P6 role Responsibilities text. */
   responsibilities?: string;
 }
@@ -471,6 +481,10 @@ export interface LevelingOptions {
 
 export interface CodeType {
   name: string;
+  /** P6 activity code scope: global (all projects), EPS (projects under one EPS node) or this project. */
+  scope?: "global" | "eps" | "project";
+  /** EPS node the code belongs to when scope is "eps". */
+  epsNode?: string;
   values: { value: string; description?: string; color?: string }[];
 }
 

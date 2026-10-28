@@ -6,6 +6,8 @@
 
 import { parseP6CalendarData, standardCalendar } from "./calendar";
 import type {
+  ActivityStep,
+  UdfDef,
   Activity,
   ActivityStatus,
   ActivityType,
@@ -156,6 +158,30 @@ function projectName(tables: XerTables, projId: string): string | null {
   return root?.wbs_name ?? null;
 }
 
+const RATE_TYPE_IN: Record<string, number> = { COST_PER_QTY: 1, COST_PER_QTY2: 2, COST_PER_QTY3: 3, COST_PER_QTY4: 4, COST_PER_QTY5: 5 };
+
+/** Price/Unit 1-5 of a rate row, or undefined when only the first is set. */
+function pricesOf(r: Record<string, string> | undefined): number[] | undefined {
+  if (!r) return undefined;
+  const p = ["cost_per_qty", "cost_per_qty2", "cost_per_qty3", "cost_per_qty4", "cost_per_qty5"].map((k) => Number(r[k]) || 0);
+  return p.slice(1).some((x) => x) ? p : undefined;
+}
+
+/** Plain text from a P6 memo (HTML or RTF-ish). */
+export function memoText(html: string): string {
+  return html
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/(p|div|li)>/gi, "\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, "&")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 export function xerToSchedule(tables: XerTables, options: XerImportOptions = {}): Schedule {
   const projects = tables.PROJECT ?? [];
   if (projects.length === 0) throw new Error("No PROJECT table found. Is this a P6 XER export?");
@@ -170,6 +196,24 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
   for (const c of tables.ACTVCODE ?? []) {
     codeValue.set(c.actv_code_id, { type: c.actv_code_type_id, value: c.short_name || c.actv_code_name });
   }
+  const SCOPE_IN: Record<string, CodeType["scope"]> = { AS_Global: "global", AS_EPS: "eps", AS_Project: "project" };
+  const codeTypes: CodeType[] = (tables.ACTVTYPE ?? [])
+    .filter((t) => !t.proj_id || t.proj_id === projId)
+    .map((t) => ({
+      name: t.actv_code_type,
+      ...(SCOPE_IN[t.actv_code_type_scope] ? { scope: SCOPE_IN[t.actv_code_type_scope] } : {}),
+      values: (tables.ACTVCODE ?? [])
+        .filter((c) => c.actv_code_type_id === t.actv_code_type_id)
+        .sort((a, b) => (num(a.seq_num) ?? 0) - (num(b.seq_num) ?? 0))
+        .map((c) => {
+          const col = num(c.color);
+          return {
+            value: c.short_name || c.actv_code_name,
+            ...(c.actv_code_name && c.actv_code_name !== c.short_name ? { description: c.actv_code_name } : {}),
+            ...(col ? { color: `#${col.toString(16).padStart(6, "0")}` } : {}),
+          };
+        }),
+    }));
   const taskCodes = new Map<string, Record<string, string>>();
   for (const a of tables.TASKACTV ?? []) {
     if (a.proj_id && a.proj_id !== projId) continue;
@@ -231,16 +275,34 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
 
   // P6 user-defined fields on activities.
   const udfLabel = new Map<string, string>();
-  for (const u of tables.UDFTYPE ?? []) if (u.table_name === "TASK") udfLabel.set(u.udf_type_id, u.udf_type_label || u.udf_type_name);
+  const UDF_KIND: Record<string, UdfDef["type"]> = { FT_TEXT: "text", FT_INT: "number", FT_FLOAT_2_DECIMALS: "number", FT_MONEY: "cost", FT_START_DATE: "date", FT_END_DATE: "date", FT_STATICTYPE: "indicator" };
+  const udfDefs: UdfDef[] = [];
+  for (const u of tables.UDFTYPE ?? [])
+    if (u.table_name === "TASK") {
+      udfLabel.set(u.udf_type_id, u.udf_type_label || u.udf_type_name);
+      udfDefs.push({ name: u.udf_type_label || u.udf_type_name, type: UDF_KIND[u.logical_data_type] ?? "text" });
+    }
+  const INDICATOR_IN: Record<string, string> = { UDF_R: "Red", UDF_Y: "Yellow", UDF_G: "Green", UDF_B: "Blue" };
   const udfs = new Map<string, Record<string, string>>();
   for (const v of tables.UDFVALUE ?? []) {
     const label = udfLabel.get(v.udf_type_id);
     if (!label) continue;
-    const value = v.udf_text || v.udf_number || (v.udf_date ? v.udf_date.slice(0, 10) : "") || v.udf_code_id || "";
+    const value = INDICATOR_IN[v.udf_text] ?? (v.udf_text || v.udf_number || (v.udf_date ? v.udf_date.slice(0, 10) : "") || v.udf_code_id || "");
     if (!value) continue;
     const rec = udfs.get(v.fk_id) ?? {};
     rec[label] = value;
     udfs.set(v.fk_id, rec);
+  }
+  // Steps (TASKPROC) and notebook topics (TASKMEMO / MEMOTYPE).
+  const steps = new Map<string, (ActivityStep & { seq: number })[]>();
+  for (const p of tables.TASKPROC ?? [])
+    (steps.get(p.task_id) ?? steps.set(p.task_id, []).get(p.task_id)!).push({ id: p.proc_id, name: p.proc_name || "", weight: num(p.proc_wt) ?? 1, pct: num(p.complete_pct) ?? (p.complete_flag === "Y" ? 100 : 0), seq: num(p.seq_num) ?? 0 });
+  const memoTopic = new Map((tables.MEMOTYPE ?? []).map((m) => [m.memo_type_id, m.memo_type || m.memo_type_id]));
+  const notes = new Map<string, Record<string, string>>();
+  for (const m of tables.TASKMEMO ?? []) {
+    const topic = memoTopic.get(m.memo_type_id) ?? "Notes";
+    const text = memoText(m.task_memo ?? "");
+    if (text) (notes.get(m.task_id) ?? notes.set(m.task_id, {}).get(m.task_id)!)[topic] = text;
   }
   const taskRows = new Map((tables.TASK ?? []).map((t) => [t.task_id, t]));
   for (const a of activities) {
@@ -249,6 +311,10 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     a.constraint = ct ? { type: ct, date: parseXerDate(t.cstr_date) } : null;
     const u = udfs.get(a.id);
     if (u) a.userFields = u;
+    const st = steps.get(a.id);
+    if (st) a.steps = st.sort((x, y) => x.seq - y.seq).map(({ seq: _seq, ...rest }) => rest);
+    const nb = notes.get(a.id);
+    if (nb) a.notebook = nb;
   }
 
   // Calendars: global ones plus this project's.
@@ -314,8 +380,15 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       unit: unitName.get(r.unit_id) || (RSRC_TYPE[r.rsrc_type] === "material" ? "unit" : "h"),
       pricePerUnit: num(rows[0]?.cost_per_qty) ?? 0,
     };
+    const pr = pricesOf(rows[0]);
+    if (pr) res.prices = pr;
     if (dated.length > 1)
-      res.rates = dated.map((x) => ({ from: parseXerDate(x.start_date)!, pricePerUnit: num(x.cost_per_qty) ?? 0, ...(levels && num(x.max_qty_per_hr) ? { maxUnitsPerHour: num(x.max_qty_per_hr)! } : {}) }));
+      res.rates = dated.map((x) => ({
+        from: parseXerDate(x.start_date)!,
+        pricePerUnit: num(x.cost_per_qty) ?? 0,
+        ...(levels && num(x.max_qty_per_hr) ? { maxUnitsPerHour: num(x.max_qty_per_hr)! } : {}),
+        ...(pricesOf(x) ? { prices: pricesOf(x)! } : {}),
+      }));
     if (levels && num(dated[0]?.max_qty_per_hr)) res.maxUnitsPerHour = num(dated[0].max_qty_per_hr)!;
     if (r.shift_id) res.shiftId = r.shift_id;
     if (r.clndr_id && calendars.some((c) => c.id === r.clndr_id)) res.calendarId = r.clndr_id;
@@ -325,9 +398,19 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     if (roleIds.length) res.roleIds = roleIds;
     return res;
   });
-  const rolePrice = new Map<string, number>();
-  for (const x of tables.ROLERATE ?? []) if (!rolePrice.has(x.role_id)) rolePrice.set(x.role_id, num(x.cost_per_qty) ?? 0);
-  const roles: Role[] = (tables.ROLES ?? []).map((x) => ({ id: x.role_id, code: x.role_short_name || x.role_id, name: x.role_name || x.role_short_name || x.role_id, pricePerUnit: rolePrice.get(x.role_id) ?? 0 }));
+  const roleRates = new Map<string, Record<string, string>[]>();
+  for (const x of [...(tables.ROLERATE ?? [])].sort((a, b) => (parseXerDate(a.start_date) ?? 0) - (parseXerDate(b.start_date) ?? 0)))
+    (roleRates.get(x.role_id) ?? roleRates.set(x.role_id, []).get(x.role_id)!).push(x);
+  const roles: Role[] = (tables.ROLES ?? []).map((x) => {
+    const rr = roleRates.get(x.role_id) ?? [];
+    const role: Role = { id: x.role_id, code: x.role_short_name || x.role_id, name: x.role_name || x.role_short_name || x.role_id, pricePerUnit: num(rr[0]?.cost_per_qty) ?? 0 };
+    const pr = pricesOf(rr[0]);
+    if (pr) role.prices = pr;
+    if (num(rr[0]?.max_qty_per_hr)) role.maxUnitsPerHour = num(rr[0].max_qty_per_hr)!;
+    if (rr.length > 1) role.rates = rr.map((r) => ({ from: parseXerDate(r.start_date) ?? 0, pricePerUnit: num(r.cost_per_qty) ?? 0, ...(num(r.max_qty_per_hr) ? { maxUnitsPerHour: num(r.max_qty_per_hr)! } : {}), ...(pricesOf(r) ? { prices: pricesOf(r)! } : {}) }));
+    if (x.role_descr && x.role_descr !== x.role_name) role.responsibilities = memoText(x.role_descr);
+    return role;
+  });
   const shifts: Shift[] = (tables.SHIFT ?? []).map((x) => ({
     id: x.shift_id,
     name: x.shift_name || x.shift_id,
@@ -367,6 +450,13 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
       if (x.role_id && roleIdSet.has(x.role_id)) asg.roleId = x.role_id;
       if (x.curv_id && curveIds.has(x.curv_id)) asg.curveId = x.curv_id;
       if (x.acct_id && acctIds.has(x.acct_id)) asg.costAccountId = x.acct_id;
+      const rt = RATE_TYPE_IN[x.rate_type];
+      if (rt && rt > 1) asg.rateType = rt;
+      if (x.cost_per_qty_source_type === "ST_Role") asg.rateSource = "role";
+      else if (x.cost_per_qty_source_type === "ST_Custom") {
+        asg.rateSource = "override";
+        if (num(x.cost_per_qty) !== null) asg.priceOverride = num(x.cost_per_qty)!;
+      }
       return asg;
     })
     .filter((x) => x.resourceId || x.roleId);
@@ -441,6 +531,11 @@ export function xerToSchedule(tables: XerTables, options: XerImportOptions = {})
     ...(costTypes.size ? { expenseCategories: [...new Set(costTypes.values())] } : {}),
     ...(expenses.length ? { registers: { expenses } } : {}),
     ...(rcat.types.length ? { resourceCodeTypes: rcat.types } : {}),
+    ...(codeTypes.length ? { codeTypes } : {}),
+    ...(udfDefs.length ? { udfDefs } : {}),
+    ...(project.plan_start_date && parseXerDate(project.plan_start_date) ? { plannedStart: parseXerDate(project.plan_start_date) } : {}),
+    ...(project.anticip_start_date && parseXerDate(project.anticip_start_date) ? { anticipatedStart: parseXerDate(project.anticip_start_date) } : {}),
+    ...(project.anticip_end_date && parseXerDate(project.anticip_end_date) ? { anticipatedFinish: parseXerDate(project.anticip_end_date) } : {}),
     ...(pcat.types.length ? { projectCodeTypes: pcat.types } : {}),
     ...(Object.keys(projectCodes).length ? { projectCodes } : {}),
     ...(rootWbs?.obs_id ? { obsId: rootWbs.obs_id } : {}),

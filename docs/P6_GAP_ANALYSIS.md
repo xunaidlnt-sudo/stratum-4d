@@ -103,6 +103,13 @@ Last updated for release 0.6.
 | Publish project web site | Partial | Publish layout as HTML |
 | Unifier, P6 Visualizer, timescaled logic | Missing / out of scope | |
 
+## Moving data back to P6
+
+| Topic | Status | Notes |
+|---|---|---|
+| XER export of everything made in Stratum | Done (0.9) | Resources with Price/Unit 1-5 and dated rates, roles, shifts, curves, cost accounts, assignments (rate type, rate source, curve, account), OBS, activity codes with scope and colour, UDFs, steps, notebooks, project and resource codes, expenses, budget log, funding, spending plan. Rows that came from P6 keep their ids and every field Stratum doesn't edit; re-exporting an unchanged XER leaves these tables identical |
+| XER import of steps and notebooks | Done (0.9) | TASKPROC and TASKMEMO / MEMOTYPE |
+
 ## EPPM web topics
 
 | Topic | Status | Notes |
