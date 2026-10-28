@@ -1,4 +1,4 @@
-import { Capacitor } from "@capacitor/core";
+import { Capacitor, registerPlugin } from "@capacitor/core";
 
 /** True inside the Android app (Capacitor). */
 export const isNativeApp = () => Capacitor.isNativePlatform();
@@ -61,11 +61,43 @@ export function downloadDataUrl(name: string, dataUrl: string) {
   a.click();
 }
 
-/** Print, or in the Android app (no print support in its web view) say how to get the output out. */
-export function printPage(): boolean {
+const StratumPrint = registerPlugin<{ print(o: { name: string }): Promise<void> }>("StratumPrint");
+
+/**
+ * Print. The Android web view has no window.print(), so the app hands the page
+ * to Android's print service (printers and Save as PDF) through its own plugin.
+ */
+export async function printPage(name = document.title || "Stratum 4D"): Promise<boolean> {
   if (isNativeApp()) {
-    window.alert("Printing is not available in the Android app. Use File › Export to Excel, Publish Layout as HTML or Export (XER) and share the file, or print from the desktop app or the web version.");
-    return false;
+    try {
+      await StratumPrint.print({ name });
+    } catch {
+      window.alert("Printing needs Stratum 4D 0.9 or later for Android. Meanwhile use File › Export to Excel, Publish Layout as HTML or Export (XER) and share the file.");
+      return false;
+    }
+    // Android lays the page out while its print screen is open, so the caller's print
+    // styling must stay until the app is back in front (or two minutes have passed).
+    await new Promise<void>((done) => {
+      let left = false;
+      const t = setTimeout(finish, 120_000);
+      function finish() {
+        clearTimeout(t);
+        document.removeEventListener("visibilitychange", vis);
+        window.removeEventListener("focus", back);
+        done();
+      }
+      function vis() {
+        if (document.visibilityState === "hidden") left = true;
+        else if (left) finish();
+      }
+      function back() {
+        if (left) finish();
+      }
+      document.addEventListener("visibilitychange", vis);
+      window.addEventListener("focus", back);
+      window.addEventListener("blur", () => (left = true), { once: true });
+    });
+    return true;
   }
   window.print();
   return true;

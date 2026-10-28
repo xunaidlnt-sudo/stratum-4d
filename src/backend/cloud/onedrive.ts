@@ -22,6 +22,18 @@ export const msRedirectUri = () => new URL("auth.html", location.href).href;
 export function oneDrive(clientId: string): CloudDrive & { signIn(): Promise<void>; signedIn(): boolean } {
   let app: PublicClientApplication | null = null;
   let account: AccountInfo | null = null;
+  // Desktop app: system browser sign-in (electron/oauth.cjs) with a loopback redirect.
+  const desk = typeof window !== "undefined" ? window.stratumDesktop?.oauth : undefined;
+  let deskToken: { value: string; until: number } | null = null;
+  const deskGet = async (force: boolean): Promise<string> => {
+    if (!clientId) throw new Error("No Microsoft application (client) ID. Add it in Settings › Data (see docs/CLOUD_STORAGE.md).");
+    if (!force && deskToken && deskToken.until > Date.now() + 60_000) return deskToken.value;
+    const args = { provider: "onedrive" as const, clientId };
+    const r = (force ? null : await desk!("token", args)) ?? (await desk!("signIn", args));
+    if (!r?.access_token) throw new Error("Microsoft sign-in was cancelled.");
+    deskToken = { value: r.access_token, until: Date.now() + (r.expires_in ?? 3600) * 1000 };
+    return deskToken.value;
+  };
   const init = async () => {
     if (app) return app;
     if (!clientId) throw new Error("No Microsoft application (client) ID. Add it in Settings › Data (see docs/CLOUD_STORAGE.md).");
@@ -32,6 +44,7 @@ export function oneDrive(clientId: string): CloudDrive & { signIn(): Promise<voi
     return app;
   };
   const token = async (): Promise<string> => {
+    if (desk) return deskGet(false);
     const a = await init();
     if (!account) {
       const r = await a.loginPopup({ scopes: SCOPES, prompt: "select_account" });
@@ -59,8 +72,9 @@ export function oneDrive(clientId: string): CloudDrive & { signIn(): Promise<voi
   const od: CloudDrive & { signIn(): Promise<void>; signedIn(): boolean } = {
     provider: "onedrive",
     label: "OneDrive",
-    signedIn: () => !!account,
+    signedIn: () => !!account || !!deskToken,
     async signIn() {
+      if (desk) return void (await deskGet(true));
       const a = await init();
       const r = await a.loginPopup({ scopes: SCOPES, prompt: "select_account" });
       account = r.account;

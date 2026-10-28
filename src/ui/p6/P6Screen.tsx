@@ -4,6 +4,8 @@
 // Details, usage profiles / spreadsheets or Trace Logic), the Command bar
 // (right) and the status bar.
 
+import { TsldView } from "./Tsld";
+import { TrackingWindow } from "./Tracking";
 import { ActivityDocs } from "./Documents";
 import { download as saveFile } from "../files";
 import {
@@ -48,6 +50,7 @@ import {
   MonitorUp,
   MoveHorizontal,
   Network,
+  GitCommitHorizontal,
   NotebookPen,
   PanelBottom,
   PencilRuler,
@@ -126,6 +129,7 @@ const WINDOW_LABEL: Record<P6Window, string> = {
   thresholds: "Thresholds",
   issues: "Issues",
   risks: "Risks",
+  tracking: "Tracking",
 };
 
 const LOWER_TABS: [LowerTab, string, EditorSection[]][] = [
@@ -194,7 +198,7 @@ function DirectoryBar({ a }: { a: ClassicActions }) {
         item("projects", FolderKanban, "Projects window"),
         item("resources", Users, "Resources window: the resource dictionary"),
         { id: "reports", label: "Reports", title: "Reports and dashboards", Icon: FileChartColumn, onClick: a.dashboards },
-        { id: "tracking", label: "Tracking", title: "Tracking: project status dashboards", Icon: Gauge, onClick: a.dashboards },
+        { ...item("tracking", Gauge, "Tracking: project-level table, Gantt and bar charts across a portfolio"), disabled: false },
         "sep",
         item("wbs", Network, "WBS window: edit the work breakdown structure"),
         item("activities", ListTree, "Activities window"),
@@ -501,6 +505,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Page Setup…", onClick: () => P.open("pageSetup"), disabled: none },
         { label: "Print…", onClick: printLayout, disabled: none, shortcut: "Ctrl+P" },
         { label: "Publish Layout as HTML", onClick: exportHtml, disabled: none },
+        { label: "Publish Project Web Site…", onClick: () => P.open("publishSite"), disabled: none },
         "sep",
         { label: "Import…", onClick: a.importSchedule },
         { label: "Import from P6 Connection…", onClick: a.importP6 },
@@ -555,8 +560,9 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Layout: Save As…", onClick: () => P.open("layouts") },
         "sep",
         { label: "Show on Top: Activity Table", onClick: () => toggle("showTable"), checked: layout.showTable },
-        { label: "Show on Top: Gantt Chart", onClick: () => setLayout({ showGantt: !layout.showGantt || layout.network, network: false }), checked: layout.showGantt && !layout.network },
-        { label: "Show on Top: Activity Network", onClick: () => setLayout({ network: !layout.network }), checked: layout.network },
+        { label: "Show on Top: Gantt Chart", onClick: () => setLayout({ showGantt: !layout.showGantt || layout.network || !!layout.tsld, network: false, tsld: false }), checked: layout.showGantt && !layout.network && !layout.tsld },
+        { label: "Show on Top: Activity Network", onClick: () => setLayout({ network: !layout.network, tsld: false }), checked: layout.network && !layout.tsld },
+        { label: "Show on Top: Timescaled Logic Diagram", onClick: () => setLayout({ tsld: !layout.tsld }), checked: !!layout.tsld },
         ...LOWER_VIEWS.filter(([v]) => v !== "resourceProfile" && v !== "activityProfile").map(([v, l]) => ({ label: `Show on Bottom: ${l}`, onClick: () => setLayout({ lower: v as LowerView }), checked: layout.lower === v })),
         "sep",
         { label: "Columns…", onClick: () => P.open("columns") },
@@ -629,6 +635,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       [
         { label: "Global Change…", onClick: () => P.open("globalChange"), disabled: none },
         { label: "Update Progress…", onClick: () => P.open("updateProgress"), disabled: none },
+        { label: "Publish › Project Web Site…", onClick: () => P.open("publishSite"), disabled: none },
         { label: "Top-Down Estimation…", onClick: () => P.open("topDown"), disabled: none },
         {
           label: "Estimate Progress (selected)",
@@ -686,7 +693,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
   const quick = [...FILTERS, ...custom.map((f) => [`custom:${f.id}`, f.name] as [string, string])];
 
   const windowBody = (() => {
-    if (!schedule && win !== "projects") return <EmptySample a={a} />;
+    if (!schedule && win !== "projects" && win !== "tracking") return <EmptySample a={a} />;
     switch (win) {
       case "wbs":
         return <WbsWindow />;
@@ -696,6 +703,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         return <AssignmentsWindow />;
       case "projects":
         return a.openOne ? <EnterpriseProjectsWindow onOpenOne={a.openOne} onImport={a.projects} onImportToDb={a.importToDb} onSave={a.saveDb} /> : <ProjectsWindow onOpen={a.projects} />;
+      case "tracking":
+        return <TrackingWindow onDashboards={a.dashboards} />;
       case "documents":
       case "expenses":
       case "thresholds":
@@ -742,7 +751,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
               <span className="spacer" />
               <input ref={findRef} className="p6-find" placeholder="Find activity ID or name" value={filter.text} onChange={(e) => setFilter({ text: e.target.value })} />
             </div>
-            <div className="p6-upper">{layout.network ? <NetworkView /> : <ActivityTable onSchedule={a.schedule} />}</div>
+            <div className="p6-upper">{layout.tsld ? <TsldView /> : layout.network ? <NetworkView /> : <ActivityTable onSchedule={a.schedule} />}</div>
             <LowerPane />
           </>
         );
@@ -782,7 +791,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         <IconBtn Icon={Table2} title="Show/hide the activity table" onClick={() => toggle("showTable")} disabled={none} />
         <IconBtn Icon={ChartGantt} title="Show/hide the Gantt chart" onClick={() => toggle("showGantt")} disabled={none} />
         <IconBtn Icon={PanelBottom} title="Show/hide the bottom pane" onClick={() => setLayout({ lower: layout.lower === "none" ? "details" : "none" })} disabled={none} />
-        <IconBtn Icon={Network} title="Activity Network" onClick={() => toggle("network")} disabled={none} />
+        <IconBtn Icon={Network} title="Activity Network" onClick={() => setLayout({ network: !layout.network, tsld: false })} disabled={none} />
+        <IconBtn Icon={GitCommitHorizontal} title="Timescaled Logic Diagram" onClick={() => setLayout({ tsld: !layout.tsld })} disabled={none} />
         <span className="tsep" />
         <IconBtn Icon={Columns3} title="Columns" onClick={() => P.open("columns")} disabled={none} />
         <IconBtn Icon={Filter} title="Filters" onClick={() => P.open("filters")} disabled={none} />

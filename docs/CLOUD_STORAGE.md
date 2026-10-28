@@ -93,5 +93,19 @@ keeps working offline for viewing, and signs in to Google Drive or OneDrive
 normally. The APK from the Releases page remains for offline, single-device
 use.
 
-The desktop app (Windows/macOS/Linux) keeps its own local database; to work in
-the shared folder from a computer, use the website.
+## Desktop app (Windows, macOS, Linux)
+
+From version 0.9 the desktop app signs in through your web browser and then
+works on the folder like the website does. It needs two extra settings:
+
+- **Google**: in the same Google Cloud project, *Credentials › Create
+  credentials › OAuth client ID*, type **Desktop app**. Enter its client ID
+  and client secret in Settings › Data. (Google treats a Desktop client's
+  secret as public; it only identifies the app.)
+- **Microsoft**: in the app registration, *Authentication › Add a platform ›
+  Mobile and desktop applications*, redirect URI `http://localhost`. The same
+  application (client) ID is used.
+
+Click *Sign in*: the browser opens, you approve once, and the app keeps a
+refresh token encrypted with the operating system's key store, so you are not
+asked again until you sign out or revoke access.

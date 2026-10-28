@@ -65,9 +65,10 @@ export type P6Dialog =
   | "netBox"
   | "activityWizard"
   | "documentDetail"
+  | "publishSite"
   | "resourceWizard";
 
-export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
+export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks" | "tracking";
 
 interface P6Ui {
   dialog: P6Dialog | null;

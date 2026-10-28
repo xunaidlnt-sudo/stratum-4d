@@ -18,12 +18,17 @@ export function CloudSettings() {
   const [kind, setKind] = useState<Kind>(config.storage === "onedrive" ? "onedrive" : "gdrive");
   const [gid, setGid] = useState(config.googleClientId ?? "");
   const [mid, setMid] = useState(config.msClientId ?? "");
+  const desktop = isDesktop();
+  const [gsecret, setGsecret] = useState(config.googleDesktopClientSecret ?? "");
   const [path, setPath] = useState<CloudFolder[]>([]);
   const [folders, setFolders] = useState<CloudFolder[] | null>(null);
   const [who, setWho] = useState<{ email: string; name: string } | null>(null);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState("");
-  const cfg = { ...config, googleClientId: gid || config.googleClientId, msClientId: mid || config.msClientId };
+  // The desktop app signs in through the system browser with a "Desktop app" Google client.
+  const ids = desktop ? { googleDesktopClientId: gid || config.googleDesktopClientId, googleDesktopClientSecret: gsecret || config.googleDesktopClientSecret } : { googleClientId: gid || config.googleClientId };
+  const cfg = { ...config, ...ids, msClientId: mid || config.msClientId };
+  const saveIds = () => (desktop ? { googleDesktopClientId: gid || undefined, googleDesktopClientSecret: gsecret || undefined } : { googleClientId: gid || undefined });
   const clientId = kind === "gdrive" ? googleClientIdOf(cfg) : msClientIdOf(cfg);
   const drive = () => cloudDrive(kind, cfg);
   const run = async (fn: () => Promise<void>) => {
@@ -44,7 +49,7 @@ export function CloudSettings() {
     });
   const signIn = () =>
     run(async () => {
-      update({ googleClientId: gid || undefined, msClientId: mid || undefined });
+      update({ ...saveIds(), msClientId: mid || undefined });
       const d = drive();
       await d.signIn();
       setWho(await d.account());
@@ -55,7 +60,7 @@ export function CloudSettings() {
   const useFolder = (f: CloudFolder) =>
     run(async () => {
       const acc = who ?? (await drive().account());
-      update({ storage: kind, cloudFolder: { id: f.id, name: f.name }, user: { email: acc.email, name: acc.name, role: "planner" }, googleClientId: gid || undefined, msClientId: mid || undefined });
+      update({ storage: kind, cloudFolder: { id: f.id, name: f.name }, user: { email: acc.email, name: acc.name, role: "planner" }, ...saveIds(), msClientId: mid || undefined });
       useStore.getState().setCurrentProject(null, null);
       setMsg(`Connected to ${kind === "gdrive" ? "Google Drive" : "OneDrive"} folder "${f.name}". Projects you commit are saved there.`);
     });
@@ -74,12 +79,12 @@ export function CloudSettings() {
       setMsg(`Copied ${n} project${n === 1 ? "" : "s"} from this browser to the cloud folder.`);
     });
 
-  if (isDesktop() || isNativeApp())
+  if (isNativeApp())
     return (
       <section className="stack">
         <h4>Google Drive / OneDrive folder</h4>
         <p className="muted">
-          Shared cloud folders work in the web version: open {location.protocol.startsWith("http") ? location.origin : "the Stratum website"} in a browser{isNativeApp() ? " (on Android: Chrome › Install app)" : ""}. This {isNativeApp() ? "Android app" : "desktop app"} keeps its own database on this device.
+          Google and Microsoft do not allow sign-in inside this Android app. For the shared cloud folder on a phone or tablet, open the Stratum website in Chrome and choose Install app (Add to Home screen): it runs full screen like this app and signs in normally. This app keeps its own database on this device.
         </p>
       </section>
     );
@@ -117,17 +122,31 @@ export function CloudSettings() {
         </button>
       </div>
       {kind === "gdrive" ? (
-        <label>
-          Google OAuth client ID
-          <input value={gid || googleClientIdOf(config)} onChange={(e) => setGid(e.target.value.trim())} placeholder="1234567890-abc….apps.googleusercontent.com" />
-        </label>
+        desktop ? (
+          <>
+            <label>
+              Google OAuth client ID (type: Desktop app)
+              <input value={gid || googleClientIdOf(config)} onChange={(e) => setGid(e.target.value.trim())} placeholder="1234567890-abc….apps.googleusercontent.com" />
+            </label>
+            <label>
+              Client secret of that Desktop client
+              <input value={gsecret || config.googleDesktopClientSecret || ""} onChange={(e) => setGsecret(e.target.value.trim())} placeholder="GOCSPX-…" />
+            </label>
+            <p className="muted small">Sign-in opens in your web browser. Google treats a Desktop client's secret as public; it only identifies the app.</p>
+          </>
+        ) : (
+          <label>
+            Google OAuth client ID
+            <input value={gid || googleClientIdOf(config)} onChange={(e) => setGid(e.target.value.trim())} placeholder="1234567890-abc….apps.googleusercontent.com" />
+          </label>
+        )
       ) : (
         <>
           <label>
             Microsoft application (client) ID
             <input value={mid || msClientIdOf(config)} onChange={(e) => setMid(e.target.value.trim())} placeholder="00000000-0000-0000-0000-000000000000" />
           </label>
-          <p className="muted small">Redirect URI to register (Single-page application): {msRedirectUri()}</p>
+          <p className="muted small">{desktop ? "Redirect URI to register (Mobile and desktop applications): http://localhost — sign-in opens in your web browser." : `Redirect URI to register (Single-page application): ${msRedirectUri()}`}</p>
         </>
       )}
       <div className="row">

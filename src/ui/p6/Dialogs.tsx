@@ -4,6 +4,7 @@
 // Activity Codes, Page Setup and Print, Project details, Spelling and Store
 // Period Performance.
 
+import { PublishSiteDialog } from "./PublishSite";
 import { DocumentDialog } from "./Documents";
 import { NewActivityWizard, NewResourceWizard } from "./Wizards";
 import { allCodeTypes } from "../../core/codes";
@@ -1616,9 +1617,10 @@ export function printLayout() {
   // The table normally draws only the rows on screen; ask it to draw them all, then print.
   window.dispatchEvent(new CustomEvent("stratum:print", { detail: true }));
   setTimeout(() => {
-    printPage();
-    document.body.classList.remove("printing-p6");
-    window.dispatchEvent(new CustomEvent("stratum:print", { detail: false }));
+    void printPage(s ? `${s.projectCode} ${s.projectName}` : undefined).finally(() => {
+      document.body.classList.remove("printing-p6");
+      window.dispatchEvent(new CustomEvent("stratum:print", { detail: false }));
+    });
   }, 400);
 }
 
@@ -1778,6 +1780,7 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     netBox: () => <NetBoxDialog />,
     activityWizard: () => <NewActivityWizard />,
     documentDetail: () => <DocumentDialog />,
+    publishSite: () => <PublishSiteDialog />,
     resourceWizard: () => <NewResourceWizard />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,

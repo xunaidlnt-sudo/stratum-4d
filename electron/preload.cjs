@@ -11,6 +11,8 @@ contextBridge.exposeInMainWorld("stratumDesktop", {
   /** Call a service method in the main process (local database, P6, email). */
   invoke: (method, ...args) => ipcRenderer.invoke("stratum:api", method, args),
   info: () => ipcRenderer.invoke("stratum:info"),
+  /** Cloud-folder sign-in in the system browser: ("signIn" | "token" | "signOut", { provider, clientId, clientSecret }). */
+  oauth: (op, args) => ipcRenderer.invoke("stratum:oauth", op, args),
   onOpenFile: (callback) => {
     const listener = (_event, file) => callback(file);
     ipcRenderer.on("open-file", listener);

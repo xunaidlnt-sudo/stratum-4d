@@ -100,6 +100,8 @@ jobs:
       - name: Create the Android project and icons
         run: |
           npx cap add android
+          # Stratum's native plugins (printing) replace the generated MainActivity.
+          cp android-src/*.java android/app/src/main/java/com/miqyaslabs/stratum4d/
           mkdir -p assets && cp brand/stratum-icon.png assets/icon-only.png
           npx --yes @capacitor/assets@3.0.5 generate --android --iconBackgroundColor '#ffffff' --iconBackgroundColorDark '#0b2545' --splashBackgroundColor '#ffffff' --splashBackgroundColorDark '#0b2545'
           npx cap sync android

@@ -140,6 +140,8 @@ export interface P6Layout {
   tableWidth: number;
   /** Activity Network instead of the Gantt chart. */
   network: boolean;
+  /** Timescaled Logic Diagram on top instead of the table and Gantt chart. */
+  tsld?: boolean;
   rowHeight: number;
   /** WBS bands show the full WBS path code (P6 "Group by WBS path"). */
   wbsPathLabels?: boolean;

@@ -31,6 +31,9 @@ export interface AppConfig {
   /** OAuth client ids for the cloud drives (public values). */
   googleClientId?: string;
   msClientId?: string;
+  /** Desktop app: Google "Desktop app" OAuth client and its (non-confidential) secret. */
+  googleDesktopClientId?: string;
+  googleDesktopClientSecret?: string;
 }
 
 const KEY = "stratum.config.v1";
@@ -57,7 +60,8 @@ function save(c: AppConfig) {
 export const isDesktop = () => typeof window !== "undefined" && !!window.stratumDesktop?.invoke;
 
 const env = (import.meta as unknown as { env?: Record<string, string | undefined> }).env ?? {};
-export const googleClientIdOf = (c: AppConfig) => c.googleClientId || env.VITE_GOOGLE_CLIENT_ID || "";
+export const googleClientIdOf = (c: AppConfig) => (isDesktop() ? c.googleDesktopClientId || env.VITE_GOOGLE_DESKTOP_CLIENT_ID || "" : c.googleClientId || env.VITE_GOOGLE_CLIENT_ID || "");
+const googleSecretOf = (c: AppConfig) => (isDesktop() ? c.googleDesktopClientSecret || env.VITE_GOOGLE_DESKTOP_CLIENT_SECRET || undefined : undefined);
 export const msClientIdOf = (c: AppConfig) => c.msClientId || env.VITE_MS_CLIENT_ID || "";
 
 // One drive object per provider and client id, so the sign-in lasts while the app runs.
@@ -65,7 +69,7 @@ const drives = new Map<string, ReturnType<typeof googleDrive> | ReturnType<typeo
 export function cloudDrive(kind: "gdrive" | "onedrive", c: AppConfig) {
   const id = kind === "gdrive" ? googleClientIdOf(c) : msClientIdOf(c);
   const key = `${kind}|${id}`;
-  if (!drives.has(key)) drives.set(key, kind === "gdrive" ? googleDrive(id) : oneDrive(id));
+  if (!drives.has(key)) drives.set(key, kind === "gdrive" ? googleDrive(id, googleSecretOf(c)) : oneDrive(id));
   return drives.get(key)!;
 }
 

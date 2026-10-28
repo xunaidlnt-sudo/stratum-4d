@@ -39,6 +39,12 @@ function deliver(filePath) {
   }
 }
 
+// Cloud-folder sign-in through the system browser (see oauth.cjs). Only the app's own pages may ask.
+ipcMain.handle("stratum:oauth", (event, op, args) => {
+  if (!event.senderFrame || !event.senderFrame.url.startsWith(`${SCHEME}://`)) throw new Error("Not allowed");
+  return require("./oauth.cjs").handle(op, args);
+});
+
 ipcMain.on("renderer-ready", () => {
   rendererReady = true;
   while (pending.length) deliver(pending.shift());

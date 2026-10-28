@@ -32,7 +32,12 @@ const loadScript = () =>
 
 const TOKEN_KEY = "stratum.gdrive.token";
 
-export function googleDrive(clientId: string): CloudDrive & { signIn(): Promise<void>; signedIn(): boolean } {
+/**
+ * In the desktop app sign-in goes through the system browser (electron/oauth.cjs);
+ * that needs a "Desktop app" OAuth client, whose secret Google treats as public.
+ */
+export function googleDrive(clientId: string, desktopSecret?: string): CloudDrive & { signIn(): Promise<void>; signedIn(): boolean } {
+  const desk = typeof window !== "undefined" ? window.stratumDesktop?.oauth : undefined;
   let token: { value: string; until: number } | null = null;
   try {
     const t = JSON.parse(sessionStorage.getItem(TOKEN_KEY) ?? "null");
@@ -44,6 +49,13 @@ export function googleDrive(clientId: string): CloudDrive & { signIn(): Promise<
   const getToken = async (prompt?: string): Promise<string> => {
     if (token && token.until > Date.now() + 60_000 && prompt === undefined) return token.value;
     if (!clientId) throw new Error("No Google client ID. Add it in Settings › Data (see docs/CLOUD_STORAGE.md).");
+    if (desk) {
+      const args = { provider: "gdrive" as const, clientId, clientSecret: desktopSecret };
+      const r = (prompt === undefined ? await desk("token", args) : null) ?? (await desk("signIn", args));
+      if (!r?.access_token) throw new Error("Google sign-in was cancelled.");
+      token = { value: r.access_token, until: Date.now() + (r.expires_in ?? 3600) * 1000 };
+      return token.value;
+    }
     await loadScript();
     return new Promise<string>((resolve, reject) => {
       client ??= window.google!.accounts.oauth2.initTokenClient({ client_id: clientId, scope: SCOPE, callback: () => {} });

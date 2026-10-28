@@ -1607,3 +1607,14 @@ html[data-mode="p6"][data-p6look="classic"]:not([data-theme="dark"]) .p6-layoutb
 .p6-wizard-page h3 { margin: 0 0 10px; font-size: 14px; }
 .p6-scope { gap: 14px; padding: 2px 0 8px; align-items: center; }
 @media (max-width: 640px) { .p6-wizard { grid-template-columns: 1fr; } .p6-wizard-steps { display: none; } }
+
+/* P6 Tracking window */
+.p6-band-row td { background: var(--accent-soft); }
+.p6-sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+.p6-track-gantt svg { display: block; color: var(--text); }
+
+/* Timescaled logic diagram */
+.p6-tsld { display: flex; flex-direction: column; height: 100%; min-height: 0; }
+.p6-tsld-body { flex: 1; overflow: auto; background: var(--panel); }
+.p6-tsld-bar { cursor: pointer; }
+.p6-tsld-bar:hover text { text-decoration: underline; }

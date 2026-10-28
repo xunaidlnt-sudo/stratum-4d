@@ -97,12 +97,13 @@ Last updated for release 0.6.
 | Progress line | Done | |
 | Activity Network: display, layout, box templates | Done | Box template (fields per line, width), drag to link |
 | Usage profiles and spreadsheets | Done | |
-| Tracking layouts | Partial | Dashboards and Reports |
+| Tracking layouts | Done (0.9) | Tracking window: Project Table, Project Gantt and Project Bar Chart across a portfolio, grouped by EPS or a project code, with band totals; layouts saved per user |
 | Grouping by field, hierarchy, WBS path; band formatting; hide empty bands | Done | Several levels, To Level, grand totals, summaries only, hide if empty, font and colour per level |
 | Filters: default, custom, combine, lookahead | Done | Lookahead from 0.6 |
 | Summarizing | Out of scope | Summaries are computed live |
-| Publish project web site | Partial | Publish layout as HTML |
-| Unifier, P6 Visualizer, timescaled logic | Missing / out of scope | |
+| Publish project web site | Done (0.9) | Tools › Publish › Project Web Site: overview, activities by WBS, Gantt, resources, WPs & Docs, issues and risks as a static site (zip) |
+| Timescaled logic diagram | Done (0.9) | View › Show on Top: Timescaled Logic Diagram: bars packed into rows along driving chains, relationship lines, WBS bands, zoom |
+| Unifier, P6 Visualizer | Out of scope | |
 
 ## Moving data back to P6
 

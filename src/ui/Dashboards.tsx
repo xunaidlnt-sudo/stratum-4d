@@ -428,7 +428,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
                 />
                 {!edit && (
                   <>
-                    <button onClick={() => printPage()} title="Print or save as PDF">
+                    <button onClick={() => void printPage()} title="Print or save as PDF">
                       <Printer size={15} aria-hidden /> PDF
                     </button>
                     <button onClick={exportExcel} title="Excel workbook">
