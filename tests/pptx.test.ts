@@ -24,6 +24,5 @@ describe("dashboard to PowerPoint", () => {
       expect(embedded.length).toBeGreaterThanOrEqual(charts.length);
       for (const c of charts) expect(strFromU8(files[c])).toContain("c:externalData");
       expect(charts.length + (hasTable ? 1 : 0)).toBeGreaterThan(0);
-      if (t.id === "status") require("fs").writeFileSync("/tmp/claude-0/-home-user/4f532d61-7388-5726-a8f7-8e653fd293d0/scratchpad/sample.pptx", bytes);
     });
 });
