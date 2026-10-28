@@ -5,6 +5,7 @@
 //    task into a summary, as MS Project does;
 //  - Project Statistics and the Task Type mapping to P6 duration types.
 
+import { addWorkHours, nextWorkStart, prevWorkEnd, standardCalendar, workHoursBetween } from "./calendar";
 import { uid } from "./ops";
 import { buildGanttRows, type GanttRow } from "./wbs";
 import type { Activity, Relationship, RelationshipType, Schedule, WbsNode } from "./types";
@@ -329,3 +330,294 @@ export const missedDeadline = (a: Activity) => a.deadline != null && a.finish !=
 
 /** Hours per day of the project calendar. */
 export const projectHpd = (s: Schedule) => ((s.calendars ?? []).find((c) => c.id === s.defaultCalendarId) ?? s.calendars?.[0])?.hoursPerDay || 8;
+
+// ---------------------------------------------------------------- cell editing
+
+const MONTHS3 = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"];
+
+/** Dates as typed in MS Project: "Mon 02/03/26", "02/03/2026" (day first), "2026-03-02", "2 Mar 26". UTC midnight; null when unreadable. */
+export function parseMspDateText(text: string): number | null {
+  const t = text.trim().replace(/^[a-z]{3,9}\.?\s+/i, "");
+  let m = /^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(t);
+  if (m) return Date.UTC(+m[1], +m[2] - 1, +m[3]);
+  m = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{2}|\d{4})$/.exec(t);
+  if (m) {
+    const y = m[3].length === 2 ? 2000 + +m[3] : +m[3];
+    const d = Date.UTC(y, +m[2] - 1, +m[1]);
+    return new Date(d).getUTCDate() === +m[1] ? d : null;
+  }
+  m = /^(\d{1,2})\s+([a-z]{3})[a-z]*\s+(\d{2}|\d{4})$/i.exec(t);
+  if (m) {
+    const mo = MONTHS3.indexOf(m[2].toLowerCase());
+    if (mo < 0) return null;
+    return Date.UTC(m[3].length === 2 ? 2000 + +m[3] : +m[3], mo, +m[1]);
+  }
+  return null;
+}
+
+/** "Electrician[50%], Crane" → names with units (1 = 100%). */
+export function parseResourceNames(text: string): { name: string; units: number }[] {
+  return text
+    .split(/[,;]/)
+    .map((p) => p.trim())
+    .filter(Boolean)
+    .map((p) => {
+      const m = /^(.*?)\s*\[\s*(\d+(?:\.\d+)?)\s*%?\s*\]$/.exec(p);
+      return m ? { name: m[1].trim(), units: Number(m[2]) / 100 } : { name: p, units: 1 };
+    });
+}
+
+export type MspCell = "name" | "duration" | "start" | "finish" | "pred" | "res" | "pct" | "mode" | "actualStart" | "actualFinish" | "deadline" | "priority" | "notes" | "remDuration";
+
+export interface CellCtx {
+  hpd: number;
+  /** Row number shown in the ID column → row id. */
+  rowIds: Map<number, string>;
+  /** Working-time helpers on the task's calendar. */
+  snap: (a: Activity, t: number) => number;
+  finishFor: (a: Activity, start: number, hours: number) => number;
+  hoursBetween: (a: Activity, from: number, to: number) => number;
+  /** End of the working day that contains (or precedes) the given date. */
+  endOfDay: (a: Activity, day: number) => number;
+}
+
+/** Cell-edit context on the schedule's calendars. */
+export function cellCtx(s: Schedule, rowIds: Map<number, string>): CellCtx {
+  const cals = new Map((s.calendars ?? []).map((c) => [c.id, c]));
+  const def = (s.defaultCalendarId && cals.get(s.defaultCalendarId)) || s.calendars?.[0] || standardCalendar();
+  const cal = (a: Activity) => (a.calendarId && cals.get(a.calendarId)) || def;
+  return {
+    hpd: def.hoursPerDay || 8,
+    rowIds,
+    snap: (a, t) => nextWorkStart(cal(a), t),
+    finishFor: (a, t, h) => addWorkHours(cal(a), t, h),
+    hoursBetween: (a, x, y) => workHoursBetween(cal(a), x, y),
+    endOfDay: (a, day) => prevWorkEnd(cal(a), Date.UTC(new Date(day).getUTCFullYear(), new Date(day).getUTCMonth(), new Date(day).getUTCDate() + 1)),
+  };
+}
+
+const ms = (a: Activity) => a.type === "milestone" || a.type === "finish-milestone";
+
+/**
+ * Apply what was typed into a sheet cell, the way MS Project reacts:
+ * typing a Start on an auto task sets a Start No Earlier Than constraint,
+ * a Finish changes the duration, a 0 duration makes a milestone. Throws
+ * with a message for text it cannot read.
+ */
+export function editTaskCell(s: Schedule, id: string, cell: MspCell, text: string, c: CellCtx): Schedule {
+  const a0 = s.activities.find((x) => x.id === id);
+  if (!a0) return s;
+  const put = (patch: Partial<Activity>): Schedule => ({ ...s, activities: s.activities.map((x) => (x.id === id ? { ...x, ...patch } : x)) });
+  const date = (v: string, clear = false) => {
+    if (clear && !v.trim()) return null;
+    const d = parseMspDateText(v);
+    if (d === null) throw new Error(`"${v}" is not a date. Type it as dd/mm/yy.`);
+    return d;
+  };
+  const manual = a0.taskMode === "manual";
+  switch (cell) {
+    case "name":
+      return put({ name: text.trim() || a0.name });
+    case "duration":
+    case "remDuration": {
+      const d = parseMspDuration(text, c.hpd);
+      if (!d) throw new Error(`"${text}" is not a duration. Use e.g. 5d, 2w or 16h.`);
+      if (cell === "remDuration") return put({ remainingDurationHours: d.hours });
+      const toMs = d.hours === 0 && !ms(a0);
+      const fromMs = d.hours > 0 && ms(a0);
+      const type = toMs ? "milestone" : fromMs ? "task" : a0.type;
+      const done = a0.status === "not-started" ? 0 : Math.max(0, (a0.originalDurationHours ?? 0) - (a0.remainingDurationHours ?? 0));
+      const start = a0.actualStart ?? a0.start;
+      return put({
+        type,
+        originalDurationHours: d.hours,
+        remainingDurationHours: Math.max(0, d.hours - done),
+        estimated: d.estimated,
+        ...(start !== null ? { finish: c.finishFor(a0, start, d.hours) } : {}),
+      });
+    }
+    case "start": {
+      const t = c.snap(a0, date(text)!);
+      const dur = ms(a0) ? 0 : (a0.originalDurationHours ?? 0);
+      const finish = c.finishFor(a0, t, dur);
+      if (manual || a0.status !== "not-started") return put(a0.status !== "not-started" ? { actualStart: t, start: t } : { start: t, finish });
+      return put({ start: t, finish, constraint: { type: "start-on-or-after", date: t } });
+    }
+    case "finish": {
+      const day = date(text)!;
+      const start = a0.actualStart ?? a0.start;
+      if (start === null) throw new Error("Give the task a start first.");
+      if (ms(a0)) return put({ start: c.endOfDay(a0, day), finish: c.endOfDay(a0, day) });
+      // A finish typed as a date means the end of that working day.
+      const end = c.endOfDay(a0, day);
+      if (end <= start) throw new Error("The finish must be after the start.");
+      const hours = Math.round(c.hoursBetween(a0, start, end) * 100) / 100;
+      const done = a0.status === "not-started" ? 0 : Math.max(0, (a0.originalDurationHours ?? 0) - (a0.remainingDurationHours ?? 0));
+      return put({ finish: end, originalDurationHours: hours, remainingDurationHours: Math.max(0, hours - done), estimated: false });
+    }
+    case "pred":
+      return setPredecessorsFromText(s, id, text, c.rowIds, c.hpd);
+    case "res":
+      return setResourceNames(s, id, text, c.hpd);
+    case "pct": {
+      const p = Number(text.replace("%", "").trim());
+      if (!Number.isFinite(p) || p < 0 || p > 100) throw new Error("% Complete is a number from 0 to 100.");
+      const start = a0.actualStart ?? (p > 0 ? a0.start : null);
+      return put({
+        percentComplete: p,
+        status: p >= 100 ? "complete" : p > 0 ? "in-progress" : "not-started",
+        actualStart: p > 0 ? start : null,
+        actualFinish: p >= 100 ? (a0.actualFinish ?? a0.finish) : null,
+        remainingDurationHours: Math.round((a0.originalDurationHours ?? 0) * (1 - p / 100) * 100) / 100,
+      });
+    }
+    case "mode":
+      return put({ taskMode: /man/i.test(text) ? "manual" : "auto" });
+    case "actualStart": {
+      const t = date(text, true);
+      if (t === null) return put({ actualStart: null, status: "not-started", percentComplete: 0, actualFinish: null });
+      return put({ actualStart: t, start: t, status: a0.status === "not-started" ? "in-progress" : a0.status });
+    }
+    case "actualFinish": {
+      const t = date(text, true);
+      if (t === null) return put({ actualFinish: null, status: a0.actualStart !== null ? "in-progress" : "not-started", percentComplete: Math.min(a0.percentComplete, 99) });
+      return put({ actualFinish: t, finish: t, actualStart: a0.actualStart ?? a0.start, status: "complete", percentComplete: 100, remainingDurationHours: 0 });
+    }
+    case "deadline":
+      return put({ deadline: date(text, true) });
+    case "priority": {
+      const p = Math.round(Number(text));
+      if (!Number.isFinite(p) || p < 0 || p > 1000) throw new Error("Priority is a whole number from 0 to 1000.");
+      return put({ priority: p });
+    }
+    case "notes":
+      return put({ notes: text });
+  }
+}
+
+/** Resource Names cell: assign by name (creating resources MS Project would add), keep existing assignments, drop the rest. */
+export function setResourceNames(s: Schedule, activityId: string, text: string, hpd: number): Schedule {
+  const a = s.activities.find((x) => x.id === activityId);
+  if (!a) return s;
+  const wanted = parseResourceNames(text);
+  const resources = [...(s.resources ?? [])];
+  const keep = (s.assignments ?? []).filter((x) => x.activityId !== activityId);
+  const mine = (s.assignments ?? []).filter((x) => x.activityId === activityId);
+  const hours = ms(a) ? 0 : (a.originalDurationHours ?? hpd);
+  const out = [...keep];
+  for (const w of wanted) {
+    let r = resources.find((x) => x.name.toLowerCase() === w.name.toLowerCase() || x.code.toLowerCase() === w.name.toLowerCase());
+    if (!r) {
+      r = { id: uid("res"), code: w.name.slice(0, 20), name: w.name, type: "labor", unit: "h", pricePerUnit: 0 };
+      resources.push(r);
+    }
+    const prev = mine.find((x) => x.resourceId === r!.id);
+    const qty = r.type === "material" ? (prev?.budgetQty ?? w.units) : Math.round(w.units * hours * 100) / 100;
+    const price = r.pricePerUnit;
+    if (prev) {
+      const sameUnits = prev.units === undefined ? w.units === 1 : Math.abs(prev.units - w.units) < 1e-9;
+      out.push(sameUnits ? prev : { ...prev, units: w.units, budgetQty: qty, remainingQty: Math.max(0, qty - prev.actualQty), budgetCost: qty * price, remainingCost: Math.max(0, qty - prev.actualQty) * price });
+    } else out.push({ id: uid("asg"), activityId, resourceId: r.id, units: w.units, budgetQty: qty, actualQty: 0, remainingQty: qty, budgetCost: qty * price, actualCost: 0, remainingCost: qty * price });
+  }
+  return { ...s, resources, assignments: out };
+}
+
+/** A new task as MS Project adds it in the blank row: 1 day?, estimated, at the project start, in the given summary. */
+export function newMspTask(s: Schedule, name: string, wbsId: string | null, hpd: number, snapStart: (t: number) => number): Activity {
+  const used = new Set(s.activities.map((a) => a.code));
+  let n = s.activities.length + 1;
+  while (used.has(`T${n}`)) n++;
+  const start = snapStart(s.plannedStart ?? s.dataDate ?? Date.now());
+  const manual = s.newTaskMode === "manual";
+  return {
+    id: uid("t"),
+    code: `T${n}`,
+    name,
+    wbsId,
+    type: "task",
+    status: "not-started",
+    percentComplete: 0,
+    start,
+    finish: start,
+    baselineStart: null,
+    baselineFinish: null,
+    actualStart: null,
+    actualFinish: null,
+    totalFloatHours: null,
+    originalDurationHours: hpd,
+    remainingDurationHours: hpd,
+    critical: false,
+    calendarId: null,
+    codes: {},
+    estimated: true,
+    ...(manual ? { taskMode: "manual" as const } : {}),
+  };
+}
+
+// ---------------------------------------------------------------- timephased work
+
+const DAY_MS = 86_400_000;
+const dayStartOf = (t: number) => Date.UTC(new Date(t).getUTCFullYear(), new Date(t).getUTCMonth(), new Date(t).getUTCDate());
+
+/** Working hours of each day an activity spans, on its calendar (between its start and finish). */
+function activityDays(a: Activity, calOf: (a: Activity) => import("./types").Calendar): [number, number][] {
+  if (a.start === null || a.finish === null) return [];
+  const out: [number, number][] = [];
+  const cal = calOf(a);
+  for (let d = dayStartOf(a.start); d <= a.finish && out.length < 3700; d += DAY_MS) {
+    const from = Math.max(a.start, d);
+    const to = Math.min(a.finish, d + DAY_MS);
+    if (to <= from) continue;
+    const h = workHoursBetween(cal, from, to);
+    if (h > 0) out.push([d, h]);
+  }
+  // A milestone or a zero-length task still books its work on its day.
+  if (!out.length) out.push([dayStartOf(a.start), 0]);
+  return out;
+}
+
+/**
+ * Work per assignment per day, spread flat over the working hours of the
+ * activity (MS Project's Flat work contour). Labour in hours, material in its units.
+ */
+export function dailyWork(s: Schedule): Map<string, Map<number, number>> {
+  const cals = new Map((s.calendars ?? []).map((c) => [c.id, c]));
+  const def = (s.defaultCalendarId && cals.get(s.defaultCalendarId)) || s.calendars?.[0] || standardCalendar();
+  const calOf = (a: Activity) => (a.calendarId && cals.get(a.calendarId)) || def;
+  const acts = new Map(s.activities.map((a) => [a.id, a]));
+  const daysOf = new Map<string, [number, number][]>();
+  const out = new Map<string, Map<number, number>>();
+  for (const x of s.assignments ?? []) {
+    const a = acts.get(x.activityId);
+    if (!a || a.inactive) continue;
+    let days = daysOf.get(a.id);
+    if (!days) daysOf.set(a.id, (days = activityDays(a, calOf)));
+    const total = days.reduce((t, [, h]) => t + h, 0);
+    const qty = x.actualQty + x.remainingQty || x.budgetQty;
+    const m = new Map<number, number>();
+    for (const [d, h] of days) m.set(d, total > 0 ? (qty * h) / total : qty / days.length);
+    out.set(x.id, m);
+  }
+  return out;
+}
+
+/** Days on which a labour resource is booked beyond its maximum units (in hours per day on the project calendar). */
+export function overallocations(s: Schedule, daily = dailyWork(s)): Map<string, number[]> {
+  const cal = (s.calendars ?? []).find((c) => c.id === s.defaultCalendarId) ?? s.calendars?.[0];
+  const hpd = cal?.hoursPerDay || 8;
+  const res = new Map((s.resources ?? []).filter((r) => r.type !== "material").map((r) => [r.id, r]));
+  const load = new Map<string, Map<number, number>>();
+  for (const x of s.assignments ?? []) {
+    if (!res.has(x.resourceId)) continue;
+    const m = load.get(x.resourceId) ?? new Map<number, number>();
+    for (const [d, h] of daily.get(x.id) ?? []) m.set(d, (m.get(d) ?? 0) + h);
+    load.set(x.resourceId, m);
+  }
+  const out = new Map<string, number[]>();
+  for (const [rid, m] of load) {
+    const max = (res.get(rid)!.maxUnitsPerHour ?? 1) * hpd;
+    const days = [...m].filter(([, h]) => h > max + 0.01).map(([d]) => d).sort((p, q) => p - q);
+    if (days.length) out.set(rid, days);
+  }
+  return out;
+}

@@ -117,6 +117,8 @@ export interface Calendar {
   holidays: number[];
   /** Working dates that override the weekly pattern, with their spans. */
   workdays?: { date: number; spans: [number, number][] }[];
+  /** Names of exceptions, keyed by the first day of each (MS Project Change Working Time). */
+  exceptionNames?: Record<string, string>;
   hoursPerDay: number;
 }
 

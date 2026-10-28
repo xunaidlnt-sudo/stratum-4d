@@ -28,6 +28,7 @@ export const LEVEL_PRIORITY_FIELDS: [string, string][] = [
   ["remaining-duration", "Remaining Duration"],
   ["project-priority", "Project Leveling Priority"],
   ["activity-id", "Activity ID"],
+  ["msp-priority", "Priority (MS Project, higher first)"],
 ];
 
 /** P6's default: Total Float ascending. */
@@ -56,6 +57,9 @@ export function levelingComparator(o: Partial<LevelingOptions>, s: Schedule): (x
         return a.finish ?? 0;
       case "leveling-priority":
         return a.levelingPriority ?? 3;
+      case "msp-priority":
+        // MS Project priority 0-1000: higher goes first, so sort on its complement.
+        return 1000 - (a.priority ?? 500);
       case "original-duration":
         return a.originalDurationHours ?? 0;
       case "remaining-duration":

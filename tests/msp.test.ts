@@ -144,3 +144,42 @@ describe("MSPDI writer", () => {
     expect(st.durationDays.current).toBeGreaterThan(0);
   });
 });
+
+describe("sheet cell editing", () => {
+  it("edits duration, start, finish, % complete and resource names the MS Project way", async () => {
+    const { cellCtx, editTaskCell, parseMspDateText, parseResourceNames } = await import("../src/core/msp");
+    expect(parseMspDateText("Mon 02/03/26")).toBe(Date.UTC(2026, 2, 2));
+    expect(parseMspDateText("2026-03-02")).toBe(Date.UTC(2026, 2, 2));
+    expect(parseMspDateText("2 Mar 2026")).toBe(Date.UTC(2026, 2, 2));
+    expect(parseMspDateText("31/02/26")).toBeNull();
+    expect(parseResourceNames("Electrician[50%], Crane")).toEqual([{ name: "Electrician", units: 0.5 }, { name: "Crane", units: 1 }]);
+
+    const s = demo();
+    const a = s.activities.find((x) => x.status === "not-started" && x.type === "task")!;
+    const c = cellCtx(s, new Map());
+    let t = editTaskCell(s, a.id, "duration", "3d", c);
+    let b = t.activities.find((x) => x.id === a.id)!;
+    expect(b.originalDurationHours).toBe(3 * c.hpd);
+    t = editTaskCell(s, a.id, "duration", "0d", c);
+    expect(t.activities.find((x) => x.id === a.id)!.type).toBe("milestone");
+
+    const day = Date.UTC(2031, 0, 6); // a Monday
+    t = editTaskCell(s, a.id, "start", "06/01/31", c);
+    b = t.activities.find((x) => x.id === a.id)!;
+    expect(b.constraint).toMatchObject({ type: "start-on-or-after" });
+    expect(b.start! >= day).toBe(true);
+    t = editTaskCell(t, a.id, "finish", "08/01/31", c);
+    b = t.activities.find((x) => x.id === a.id)!;
+    expect(b.originalDurationHours).toBeCloseTo(3 * c.hpd, 1);
+
+    t = editTaskCell(s, a.id, "pct", "100", c);
+    expect(t.activities.find((x) => x.id === a.id)!.status).toBe("complete");
+
+    t = editTaskCell(s, a.id, "res", "Brand new crew[50%]", c);
+    const r = t.resources!.find((x) => x.name === "Brand new crew")!;
+    const asg = t.assignments!.filter((x) => x.activityId === a.id);
+    expect(asg).toHaveLength(1);
+    expect(asg[0]).toMatchObject({ resourceId: r.id, units: 0.5 });
+    expect(() => editTaskCell(s, a.id, "duration", "lots", c)).toThrow();
+  });
+});
