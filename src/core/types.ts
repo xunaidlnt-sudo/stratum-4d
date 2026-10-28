@@ -143,6 +143,8 @@ export interface Assignment {
   curveId?: string | null;
   /** Cost account the cost is booked to. */
   costAccountId?: string | null;
+  /** Future period bucket planning: remaining units entered per period (overrides the curve). */
+  buckets?: { start: number; finish: number; qty: number }[];
 }
 
 /** A saved set of model elements, e.g. "Tower crane 1" or "Level 2 formwork". */

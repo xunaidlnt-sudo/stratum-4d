@@ -41,7 +41,12 @@ export function usageSheet(s: Schedule, opts: { by: "resource" | "activity"; ste
     const rem = opts.measure === "cost" ? x.remainingCost : x.remainingQty;
     const F = curveCumulative(x.curveId ? curves.get(x.curveId) : null);
     if (a.actualStart !== null && act > 0) pieces.push({ key, qty: act, a: a.actualStart, b: Math.max(a.actualStart + DAY, a.actualFinish ?? dd), F });
-    if (a.status !== "complete" && rem > 0 && a.finish !== null) {
+    if (a.status !== "complete" && x.buckets?.length) {
+      // Planned per period (P6 future period bucket planning): each bucket spread evenly within itself.
+      const units = x.buckets.reduce((t, b) => t + b.qty, 0);
+      const scale = opts.measure === "cost" ? (units ? rem / units : 0) : 1;
+      for (const b of x.buckets) if (b.qty > 0) pieces.push({ key, qty: b.qty * scale, a: b.start, b: Math.max(b.start + DAY, b.finish), F: (u: number) => u });
+    } else if (a.status !== "complete" && rem > 0 && a.finish !== null) {
       const st = a.actualStart !== null ? Math.max(dd, a.start ?? dd) : a.start ?? dd;
       pieces.push({ key, qty: rem, a: st, b: Math.max(st + DAY, a.finish), F });
     }

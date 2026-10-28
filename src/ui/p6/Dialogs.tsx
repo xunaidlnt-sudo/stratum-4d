@@ -17,7 +17,6 @@ import {
   renameBaseline,
   renumber,
   storeBaseline,
-  storePeriodPerformance,
   uid,
   updateProgress,
   useStoredBaseline,
@@ -30,7 +29,7 @@ import { fmtDate, useStore } from "../store";
 import { selectedInOrder, tableOrder, useP6, type P6Dialog } from "./commands";
 import { P6Dlg, SideBtn, SideGap, SideHelp } from "./P6Dlg";
 import { EpsDialog, PortfoliosDialog } from "./EnterpriseProjects";
-import { ExpenseCategoriesDialog, FinancialPeriodsDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
+import { BucketsDialog, ExpenseCategoriesDialog, FinancialPeriodsDialog, PeriodPerformanceDialog, TopDownDialog, ProjectCodesDialog, ProjectDetailsDialog, ResourceCodesDialog } from "./Dialogs6";
 import { ExcelImportDialog, PreferencesDialog, ScheduleLogDialog } from "./Dialogs3";
 import { BudgetsDialog, CurtainsAndTexts, ObsDialog, RiskMatrixDialog } from "./Dialogs5";
 import { AssignRoleDialog, CostAccountsDialog, CurvesDialog, ResourceRatesDialog, RolesDialog, ShiftsDialog } from "./Dialogs4";
@@ -1729,60 +1728,6 @@ function SpellingDialog() {
   );
 }
 
-function PeriodsDialog() {
-  const schedule = useStore((s) => s.schedule);
-  const commit = useStore((s) => s.commit);
-  if (!schedule) return null;
-  const list = schedule.periods ?? [];
-  return (
-    <Shell
-      title="Store Period Performance"
-      onClose={close}
-      foot={
-        <>
-          <span className="spacer" />
-          <button
-            className="primary"
-            onClick={() => {
-              commit(storePeriodPerformance(schedule), "Store Period Performance");
-              useStore.getState().setStatus(`Stored period performance at ${fmtDate(schedule.dataDate)}.`);
-            }}
-          >
-            Store period at {fmtDate(schedule.dataDate)}
-          </button>
-          <button onClick={close}>Close</button>
-        </>
-      }
-    >
-      <p>Keeps this period's actuals (percent complete, actual cost and labour units for every activity) so past periods can be reported after the next update.</p>
-      <table className="p6-grid">
-        <thead>
-          <tr>
-            <td>Period</td>
-            <td>Data date</td>
-            <td>Activities</td>
-          </tr>
-        </thead>
-        <tbody>
-          {list.map((p) => (
-            <tr key={p.id}>
-              <td>{p.name}</td>
-              <td>{fmtDate(p.date)}</td>
-              <td>{Object.keys(p.actuals).length}</td>
-            </tr>
-          ))}
-          {!list.length && (
-            <tr>
-              <td colSpan={3} className="muted">
-                No periods stored yet.
-              </td>
-            </tr>
-          )}
-        </tbody>
-      </table>
-    </Shell>
-  );
-}
 
 
 // ---------------------------------------------------------------- host
@@ -1818,6 +1763,8 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     resourceCodes: () => <ResourceCodesDialog />,
     expenseCategories: () => <ExpenseCategoriesDialog />,
     financialPeriods: () => <FinancialPeriodsDialog />,
+    buckets: () => <BucketsDialog />,
+    topDown: () => <TopDownDialog />,
     spelling: () => <SpellingDialog />,
     level: () => <LevelDialog onSchedule={onSchedule} />,
     scheduleOptions: () => <ScheduleOptionsDialog onSchedule={onSchedule} />,
@@ -1840,7 +1787,7 @@ export function P6Dialogs({ onSchedule, onAssignFile, displays }: { onSchedule: 
     riskMatrix: () => <RiskMatrixDialog />,
     eps: () => <EpsDialog />,
     portfolios: () => <PortfoliosDialog />,
-    periods: () => <PeriodsDialog />,
+    periods: () => <PeriodPerformanceDialog />,
     displays: () => displays ?? null,
   };
   return d ? <>{map[d]()}</> : null;

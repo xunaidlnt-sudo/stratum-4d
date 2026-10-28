@@ -707,3 +707,87 @@ export function newActivityDefaults(s: Schedule, selected: Activity | null): { c
   }
   return { code, type: d.activityType, calendarId: selected?.calendarId ?? d.calendarId ?? s.defaultCalendarId ?? null, durationType: d.durationType, pctType: d.pctType, durationDays: d.durationDays };
 }
+
+// ---------------------------------------------------------------- future period buckets and top-down estimation
+
+/** Set an assignment's planned units per period; remaining units become their sum (P6 future period bucket planning). */
+export function setBuckets(s: Schedule, assignmentId: string, buckets: { start: number; finish: number; qty: number }[]): Schedule {
+  const keep = buckets.filter((b) => b.qty > 0);
+  return {
+    ...s,
+    assignments: (s.assignments ?? []).map((x) => {
+      if (x.id !== assignmentId) return x;
+      if (!keep.length) {
+        const { buckets: _b, ...rest } = x;
+        void _b;
+        return rest;
+      }
+      const rem = keep.reduce((t, b) => t + b.qty, 0);
+      const price = x.remainingQty ? x.remainingCost / x.remainingQty : x.budgetQty ? x.budgetCost / x.budgetQty : 0;
+      const budgetQty = x.actualQty + rem;
+      return { ...x, buckets: keep, remainingQty: rem, remainingCost: rem * price, budgetQty, budgetCost: budgetQty * price };
+    }),
+  };
+}
+
+/**
+ * P6 Top-Down Estimation: spread a total number of units over WBS elements by
+ * weight, then over each element's unfinished activities by remaining
+ * duration, as assignments of one resource (or an unstaffed role).
+ */
+export function topDownEstimate(
+  s: Schedule,
+  o: { resourceId?: string | null; roleId?: string | null; totalUnits: number; weights: Record<string, number> },
+): { schedule: Schedule; activities: number; byWbs: Record<string, number> } {
+  const res = o.resourceId ? s.resources?.find((r) => r.id === o.resourceId) : undefined;
+  const role = o.roleId ? s.roles?.find((r) => r.id === o.roleId) : undefined;
+  if (!res && !role) return { schedule: s, activities: 0, byWbs: {} };
+  const price = res?.pricePerUnit ?? role?.pricePerUnit ?? 0;
+  const totalW = Object.values(o.weights).reduce((t, w) => t + Math.max(0, w), 0);
+  const kids = new Map<string | null, string[]>();
+  for (const w of s.wbs) (kids.get(w.parentId) ?? kids.set(w.parentId, []).get(w.parentId)!).push(w.id);
+  const under = (id: string) => {
+    const out = new Set([id]);
+    const st = [id];
+    while (st.length) for (const k of kids.get(st.pop()!) ?? []) if (!out.has(k)) (out.add(k), st.push(k));
+    return out;
+  };
+  const units = new Map<string, number>();
+  const byWbs: Record<string, number> = {};
+  for (const [wbsId, w] of Object.entries(o.weights)) {
+    if (!(w > 0) || !totalW) continue;
+    const share = (o.totalUnits * w) / totalW;
+    byWbs[wbsId] = share;
+    const ids = under(wbsId);
+    const acts = s.activities.filter((a) => a.wbsId && ids.has(a.wbsId) && a.status !== "complete" && a.type !== "milestone" && a.type !== "finish-milestone" && a.type !== "wbs-summary");
+    const dur = acts.reduce((t, a) => t + Math.max(0, a.remainingDurationHours ?? a.originalDurationHours ?? 0), 0);
+    for (const a of acts) {
+      const d = Math.max(0, a.remainingDurationHours ?? a.originalDurationHours ?? 0);
+      const q = dur ? (share * d) / dur : share / acts.length;
+      units.set(a.id, (units.get(a.id) ?? 0) + q);
+    }
+  }
+  const round = (v: number) => Math.round(v * 100) / 100;
+  const match = (x: Assignment) => (res ? x.resourceId === res.id : x.roleId === role!.id && !x.resourceId);
+  const assignments = (s.assignments ?? []).map((x) => {
+    const q = units.get(x.activityId);
+    if (q === undefined || !match(x)) return x;
+    units.delete(x.activityId);
+    const rem = round(q);
+    return { ...x, budgetQty: round(x.actualQty + rem), remainingQty: rem, budgetCost: round((x.actualQty + rem) * price), remainingCost: round(rem * price), buckets: undefined };
+  });
+  for (const [activityId, q] of units) {
+    const rem = round(q);
+    assignments.push({ id: uid("asg"), activityId, resourceId: res?.id ?? "", ...(role && !res ? { roleId: role.id } : {}), budgetQty: rem, actualQty: 0, remainingQty: rem, budgetCost: round(rem * price), actualCost: 0, remainingCost: round(rem * price) });
+  }
+  const touched = new Set([...Object.keys(byWbs)].flatMap((w) => [...under(w)]));
+  return { schedule: { ...s, assignments }, activities: s.activities.filter((a) => a.wbsId && touched.has(a.wbsId) && a.status !== "complete" && a.type !== "milestone" && a.type !== "finish-milestone" && a.type !== "wbs-summary").length, byWbs };
+}
+
+/** Edit one activity's stored actuals in a past period (P6: past period actuals). */
+export function editPeriodActual(s: Schedule, periodId: string, activityId: string, patch: Partial<{ pct: number; actualCost: number; actualUnits: number }>): Schedule {
+  return {
+    ...s,
+    periods: (s.periods ?? []).map((p) => (p.id === periodId ? { ...p, actuals: { ...p.actuals, [activityId]: { ...(p.actuals[activityId] ?? { pct: 0, actualCost: 0, actualUnits: 0 }), ...patch } } } : p)),
+  };
+}

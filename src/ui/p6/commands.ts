@@ -56,7 +56,9 @@ export type P6Dialog =
   | "projectCodes"
   | "resourceCodes"
   | "expenseCategories"
-  | "financialPeriods";
+  | "financialPeriods"
+  | "buckets"
+  | "topDown";
 
 export type P6Window = "activities" | "wbs" | "assignments" | "resources" | "projects" | "documents" | "expenses" | "thresholds" | "issues" | "risks";
 

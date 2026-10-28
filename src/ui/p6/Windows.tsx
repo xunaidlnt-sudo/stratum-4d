@@ -12,6 +12,7 @@ import { fmtNum } from "../charts";
 import { fmtDate, useStore } from "../store";
 import { useP6 } from "./commands";
 import { openRates } from "./Dialogs4";
+import { openBuckets } from "./Dialogs6";
 import { DetailTabs } from "./P6Dlg";
 import { wbsPerformance } from "../../core/evm";
 import { openBudgets } from "./Dialogs5";
@@ -453,6 +454,7 @@ export function AssignmentsWindow() {
               <td>Actual Cost</td>
               <td>Start</td>
               <td>Finish</td>
+              <td title="Future period bucket planning">Periods</td>
             </tr>
           </thead>
           <tbody>
@@ -519,6 +521,11 @@ export function AssignmentsWindow() {
                   <td className="num">{fmtNum(x.actualCost)}</td>
                   <td>{fmtDate(a?.start)}</td>
                   <td>{fmtDate(a?.finish)}</td>
+                  <td>
+                    <button className="link" disabled={a?.status === "complete"} onClick={() => openBuckets(x.id)}>
+                      {x.buckets?.length ? `${x.buckets.length} periods` : "Plan…"}
+                    </button>
+                  </td>
                 </tr>
               );
             })}

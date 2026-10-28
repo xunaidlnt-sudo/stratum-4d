@@ -4,7 +4,8 @@
 
 import { useState } from "react";
 import { batchFinancialPeriods } from "../../core/budget";
-import { DEFAULT_PROJECT_DEFAULTS } from "../../core/ops";
+import { DEFAULT_PROJECT_DEFAULTS, editPeriodActual, setBuckets, storePeriodPerformance, topDownEstimate } from "../../core/ops";
+import { useP6 } from "./commands";
 import type { Activity, CodeType, ProjectDefaults, Schedule } from "../../core/types";
 import { fmtDate, useStore } from "../store";
 import { close } from "./Dialogs";
@@ -672,6 +673,279 @@ export function FinancialPeriodsDialog() {
         </div>
       </div>
       <p className="muted small">Store Period Performance names each stored period after the financial period that holds the data date; usage spreadsheets can step by financial period.</p>
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Future period bucket planning
+
+let bucketTarget: string | null = null;
+export const openBuckets = (assignmentId: string) => {
+  bucketTarget = assignmentId;
+  useP6.getState().open("buckets");
+};
+
+export function BucketsDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [id] = useState(bucketTarget);
+  const x = schedule?.assignments?.find((a) => a.id === id) ?? null;
+  const act = x ? schedule!.activities.find((a) => a.id === x.activityId) ?? null : null;
+  const periods = (() => {
+    if (!schedule || !act) return [] as { start: number; finish: number; label: string }[];
+    const dd = schedule.dataDate ?? Date.now();
+    const from = Math.max(dd, act.start ?? dd);
+    const to = Math.max(from + 86_400_000, act.finish ?? from) + 62 * 86_400_000;
+    const fin = (schedule.financialPeriods ?? []).filter((p) => p.finish > from && p.start < to).sort((a, b) => a.start - b.start);
+    if (fin.length) return fin.map((p) => ({ start: p.start, finish: p.finish, label: p.name }));
+    return batchFinancialPeriods(Date.UTC(new Date(from).getUTCFullYear(), new Date(from).getUTCMonth(), 1), to, "month").map((p) => ({ start: p.start, finish: p.finish, label: p.name }));
+  })();
+  const [qty, setQty] = useState<number[]>(() => periods.map((p) => x?.buckets?.find((b) => b.start === p.start)?.qty ?? 0));
+  if (!schedule || !x || !act) return null;
+  const res = schedule.resources?.find((r) => r.id === x.resourceId);
+  const total = qty.reduce((t, q) => t + q, 0);
+  const save = () => {
+    commit(setBuckets(useStore.getState().schedule!, x.id, periods.map((p, i) => ({ start: p.start, finish: p.finish, qty: qty[i] }))), `Bucket planning ${act.code}`);
+    close();
+  };
+  const spread = () => {
+    const inAct = periods.map((p) => Math.max(0, Math.min(p.finish, act.finish ?? p.finish) - Math.max(p.start, Math.max(schedule.dataDate ?? 0, act.start ?? 0))));
+    const sum = inAct.reduce((t, v) => t + v, 0) || 1;
+    setQty(inAct.map((v) => Math.round(((x.remainingQty * v) / sum) * 100) / 100));
+  };
+  return (
+    <P6Dlg
+      title={`Future Period Bucket Planning – ${act.code} / ${res?.code ?? "role"}`}
+      width={620}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="ok" label="OK" primary onClick={save} />
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideGap />
+          <SideBtn kind="default" label="Spread evenly" onClick={spread} />
+          <SideBtn kind="delete" label="Clear" onClick={() => setQty(periods.map(() => 0))} />
+          <SideGap />
+          <SideHelp topic="bucket-planning" />
+        </>
+      }
+    >
+      <p className="small">
+        {act.name}. Remaining units now {x.remainingQty.toLocaleString()} {res?.unit ?? ""}; entered {total.toLocaleString()}. On OK the remaining units become the total entered and usage follows these periods instead of the curve.
+      </p>
+      <div className="p6-list2">
+        <table>
+          <thead>
+            <tr>
+              <td>Period</td>
+              <td>From</td>
+              <td style={{ width: 140 }}>Remaining Units</td>
+            </tr>
+          </thead>
+          <tbody>
+            {periods.map((p, i) => (
+              <tr key={p.start}>
+                <td>{p.label}</td>
+                <td>{fmtDate(p.start)}</td>
+                <td>
+                  <input className="cell num" type="number" min={0} value={qty[i] || ""} placeholder="0" onChange={(e) => setQty(qty.map((q, k) => (k === i ? Math.max(0, Number(e.target.value) || 0) : q)))} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Top-Down Estimation (Tools)
+
+export function TopDownDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [who, setWho] = useState(() => (schedule?.resources?.[0] ? `r:${schedule.resources[0].id}` : schedule?.roles?.[0] ? `o:${schedule.roles[0].id}` : ""));
+  const [total, setTotal] = useState(1000);
+  const [weights, setWeights] = useState<Record<string, number>>(() => Object.fromEntries((schedule?.wbs ?? []).filter((w) => w.parentId === null).map((w) => [w.id, 1])));
+  if (!schedule) return null;
+  const s = schedule;
+  const top = s.wbs.filter((w) => w.parentId === null).sort((a, b) => a.seq - b.seq);
+  const sumW = Object.values(weights).reduce((t, w) => t + Math.max(0, w), 0);
+  const apply = () => {
+    const r = topDownEstimate(s, { resourceId: who.startsWith("r:") ? who.slice(2) : null, roleId: who.startsWith("o:") ? who.slice(2) : null, totalUnits: total, weights });
+    commit(r.schedule, "Top-down estimation");
+    useStore.getState().setStatus(`Top-down estimate: ${total.toLocaleString()} units over ${Object.keys(r.byWbs).length} WBS elements and ${r.activities} activities.`);
+    close();
+  };
+  return (
+    <P6Dlg
+      title="Top-Down Estimation"
+      width={640}
+      onClose={close}
+      side={
+        <>
+          <SideBtn kind="ok" label="Apply" primary disabled={!who || !(total > 0) || !sumW} onClick={apply} />
+          <SideBtn kind="cancel" label="Cancel" onClick={close} />
+          <SideGap />
+          <SideHelp topic="top-down" />
+        </>
+      }
+    >
+      <div className="row" style={{ gap: 10 }}>
+        <label style={{ flex: 1 }}>
+          Estimate for
+          <select value={who} onChange={(e) => setWho(e.target.value)}>
+            {(s.resources ?? []).map((r) => (
+              <option key={r.id} value={`r:${r.id}`}>
+                Resource {r.code} – {r.name}
+              </option>
+            ))}
+            {(s.roles ?? []).map((r) => (
+              <option key={r.id} value={`o:${r.id}`}>
+                Role {r.code} – {r.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Total units to spread
+          <input type="number" min={0} value={total} onChange={(e) => setTotal(Math.max(0, Number(e.target.value) || 0))} />
+        </label>
+      </div>
+      <div className="p6-list2">
+        <table>
+          <thead>
+            <tr>
+              <td>WBS</td>
+              <td style={{ width: 100 }}>Weight</td>
+              <td style={{ width: 120 }}>Units</td>
+            </tr>
+          </thead>
+          <tbody>
+            {top.map((w) => (
+              <tr key={w.id}>
+                <td>
+                  {w.code} {w.name}
+                </td>
+                <td>
+                  <input className="cell num" type="number" min={0} value={weights[w.id] ?? 0} onChange={(e) => setWeights({ ...weights, [w.id]: Math.max(0, Number(e.target.value) || 0) })} />
+                </td>
+                <td className="num">{sumW ? Math.round((total * Math.max(0, weights[w.id] ?? 0)) / sumW).toLocaleString() : 0}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="muted small">Each WBS element's share is spread over its unfinished activities by remaining duration. Existing assignments of the same resource are updated; others are added. Weight 0 leaves a WBS element out.</p>
+    </P6Dlg>
+  );
+}
+
+// ---------------------------------------------------------------- Store Period Performance with past periods
+
+export function PeriodPerformanceDialog() {
+  const schedule = useStore((s) => s.schedule);
+  const [sel, setSel] = useState<string | null>(schedule?.periods?.at(-1)?.id ?? null);
+  const [q, setQ] = useState("");
+  if (!schedule) return null;
+  const s = schedule;
+  const list = s.periods ?? [];
+  const cur = list.find((p) => p.id === sel) ?? null;
+  const fin = (s.financialPeriods ?? []).find((p) => p.start <= (s.dataDate ?? 0) && (s.dataDate ?? 0) < p.finish);
+  const t = q.trim().toLowerCase();
+  const acts = cur ? s.activities.filter((a) => cur.actuals[a.id] && (!t || `${a.code} ${a.name}`.toLowerCase().includes(t))).slice(0, 500) : [];
+  return (
+    <P6Dlg
+      title="Store Period Performance"
+      width={780}
+      onClose={close}
+      side={
+        <>
+          <SideBtn
+            kind="run"
+            label="Store Period"
+            primary
+            onClick={() => {
+              const next = storePeriodPerformance(useStore.getState().schedule!);
+              commit(next, "Store Period Performance");
+              setSel(next.periods!.at(-1)!.id);
+            }}
+          />
+          <SideBtn kind="delete" label="Delete Period" disabled={!cur} onClick={() => cur && window.confirm(`Delete stored period ${cur.name}?`) && (commit({ ...s, periods: list.filter((p) => p.id !== cur.id) }, "Delete period"), setSel(null))} />
+          <SideBtn kind="close" label="Close" onClick={close} />
+          <SideGap />
+          <SideHelp topic="period-performance" />
+        </>
+      }
+    >
+      <p className="small">
+        Store keeps this period&apos;s actuals at the data date {fmtDate(s.dataDate)}
+        {fin ? ` as ${fin.name}` : ""}. Select a stored period to correct its actuals (P6 past period actuals).
+      </p>
+      <div className="p6-list2" style={{ minHeight: 90, maxHeight: 160 }}>
+        <table>
+          <thead>
+            <tr>
+              <td>Period</td>
+              <td>Data date</td>
+              <td>Activities</td>
+            </tr>
+          </thead>
+          <tbody>
+            {list.map((p) => (
+              <tr key={p.id} className={sel === p.id ? "on" : ""} onClick={() => setSel(p.id)}>
+                <td>{p.name}</td>
+                <td>{fmtDate(p.date)}</td>
+                <td className="num">{Object.keys(p.actuals).length}</td>
+              </tr>
+            ))}
+            {!list.length && (
+              <tr>
+                <td colSpan={3} className="muted small">
+                  No periods stored yet.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+      {cur && (
+        <>
+          <input placeholder="Find activity" value={q} onChange={(e) => setQ(e.target.value)} />
+          <div className="p6-list2">
+            <table>
+              <thead>
+                <tr>
+                  <td>Activity ID</td>
+                  <td>Activity Name</td>
+                  <td style={{ width: 90 }}>% Complete</td>
+                  <td style={{ width: 120 }}>Actual Cost</td>
+                  <td style={{ width: 110 }}>Actual Units</td>
+                </tr>
+              </thead>
+              <tbody>
+                {acts.map((a) => {
+                  const v = cur.actuals[a.id];
+                  const set = (patch: Partial<typeof v>) => commit(editPeriodActual(useStore.getState().schedule!, cur.id, a.id, patch), `Past period ${cur.id} ${a.id}`);
+                  return (
+                    <tr key={a.id}>
+                      <td>{a.code}</td>
+                      <td style={{ whiteSpace: "normal" }}>{a.name}</td>
+                      <td>
+                        <input className="cell num" type="number" min={0} max={100} value={v.pct} onChange={(e) => set({ pct: Math.min(100, Math.max(0, Number(e.target.value) || 0)) })} />
+                      </td>
+                      <td>
+                        <input className="cell num" type="number" min={0} value={Math.round(v.actualCost * 100) / 100} onChange={(e) => set({ actualCost: Math.max(0, Number(e.target.value) || 0) })} />
+                      </td>
+                      <td>
+                        <input className="cell num" type="number" min={0} value={Math.round(v.actualUnits * 100) / 100} onChange={(e) => set({ actualUnits: Math.max(0, Number(e.target.value) || 0) })} />
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </P6Dlg>
   );
 }

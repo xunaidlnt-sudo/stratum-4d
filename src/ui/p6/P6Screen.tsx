@@ -618,6 +618,7 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
       [
         { label: "Global Change…", onClick: () => P.open("globalChange"), disabled: none },
         { label: "Update Progress…", onClick: () => P.open("updateProgress"), disabled: none },
+        { label: "Top-Down Estimation…", onClick: () => P.open("topDown"), disabled: none },
         {
           label: "Estimate Progress (selected)",
           onClick: () => {
