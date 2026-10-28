@@ -23,6 +23,7 @@ import {
   Pencil,
   PieChart,
   Plus,
+  Wand2,
   Printer,
   Redo2,
   Table2,
@@ -34,6 +35,8 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { DashboardWizard, type WizardResult } from "./DashboardWizard";
+import { applyBaseline, baselineOptions, baselineReady, dashboardReadiness, widgetNeedsBaseline, type ReadinessCheck } from "../core/dashboardBaseline";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useConfig } from "../backend/config";
 import type { ProjectSummary } from "../backend/types";
@@ -126,11 +129,18 @@ export function useDashboardData(d: Dashboard | null, override: string | null = 
     };
   }, [needsPortfolio, backend, currentId, open]);
 
+  // The dashboard's chosen baseline replaces the activities' baseline dates (stored baselines belong to one project).
+  const blId = d?.baselineId ?? null;
+  const based = useMemo(() => {
+    const m = new Map<Schedule, Schedule>();
+    for (const s of [open, ...Object.values(cache)]) if (s && !m.has(s)) m.set(s, applyBaseline(s, blId));
+    return m;
+  }, [cache, open, blId]);
   /** Schedule for a widget before slicers. */
   const rawFor = (w: Widget): Schedule | null => {
     const id = w.projectId ?? baseId;
-    if (!id) return open; // "open project"
-    return cache[id] ?? null;
+    const s = !id ? open : cache[id] ?? null; // no id: "open project"
+    return s ? based.get(s) ?? s : null;
   };
   /** Schedule for a widget with the dashboard's slicer selections applied. */
   const scheduleFor = (w: Widget): Schedule | null => widgetSchedule(rawFor(w), w, d?.slices);
@@ -144,6 +154,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
   const [list, setList] = useState<Dashboard[] | null>(null);
   const [sel, setSel] = useState<string | null>(null);
   const [edit, setEdit] = useState(false);
+  const [wizard, setWizard] = useState<null | "new" | "edit">(null);
   const [projects, setProjects] = useState<ProjectSummary[]>([]);
   const [panel, setPanel] = useState<"none" | "email">("none");
   const [selWidget, setSelWidget] = useState<string | null>(null);
@@ -245,6 +256,23 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
     const user = list?.find((d) => d.id === id);
     if (user) return createFrom({ ...cloneDashboard(user, user.name.replace(/ \(template\)$/, "")), projectId: currentId ?? user.projectId });
   };
+  /** Finish of the dashboard wizard: make the dashboard from the template, or update project and baseline. */
+  const fromWizard = async (r: WizardResult) => {
+    setWizard(null);
+    if (!r.template) {
+      if (dash) persist({ ...dash, projectId: r.projectId, baselineId: r.baselineId });
+      return;
+    }
+    const builtin = BUILTIN_TEMPLATES.find((x) => x.id === r.template);
+    const user = list?.find((d) => d.id === r.template);
+    let d: Dashboard;
+    if (builtin) {
+      d = builtin.make(r.projectId);
+      if (builtin.id.startsWith("eppm")) d = adaptToFields(d, dimensions(r.schedule ?? open).map((x) => x.value));
+    } else if (user) d = cloneDashboard(user, r.name);
+    else d = { id: uid("dash"), name: r.name, projectId: r.projectId, widgets: [], slices: [], page: { header: "{project}", subtitle: "Data date {datadate}" }, updatedAt: new Date().toISOString() };
+    await createFrom({ ...d, name: r.name, projectId: r.projectId, baselineId: r.baselineId });
+  };
   const blank = () =>
     createFrom({
       id: uid("dash"),
@@ -287,6 +315,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="dash-root">
+      {wizard && <DashboardWizard dash={wizard === "edit" && dash ? dash : undefined} projects={projects} templates={templates} onDone={(r) => void fromWizard(r)} onClose={() => setWizard(null)} />}
       <header className="reports-topbar">
         <img className="logo logo-light" src="./stratum-logo.png" alt="Stratum 4D by Miqyas Labs" />
         <img className="logo logo-dark" src="./stratum-logo-dark.png" alt="" />
@@ -324,6 +353,12 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
             </div>
           ))}
           <div className="dash-list-head">New</div>
+          <button className="dash-new" onClick={() => setWizard("new")} title="Choose the project, baseline and template, and check the prerequisites">
+            <Wand2 size={14} aria-hidden />
+            <span>
+              Dashboard wizard…<small className="muted">Project, baseline, template, prerequisite check</small>
+            </span>
+          </button>
           {BUILTIN_TEMPLATES.map((t) => (
             <button key={t.id} className="dash-new" onClick={() => create(t.id)} title={t.hint}>
               <Plus size={14} aria-hidden />
@@ -403,6 +438,7 @@ export function DashboardsView({ onClose }: { onClose: () => void }) {
                 <Menu
                   label="More"
                   items={[
+                    { label: "Setup: project and baseline…", onClick: () => setWizard("edit") },
                     { label: "Duplicate dashboard", onClick: () => createFrom(cloneDashboard(dash, `${dash.name} (copy)`)) },
                     {
                       label: "Save as template",
@@ -583,6 +619,8 @@ function DashCanvas({
 
   const ps = pageStyle(dash);
   const main = data.rawFor({ id: "", kind: "kpi", title: "", w: 3, h: 1 });
+  const checks = main ? dashboardReadiness(main, dash.baselineId) : [];
+  const blOk = baselineReady(checks);
   return (
     <div className={`dash-canvas print-root ${ps.className} ${edit ? "editing" : ""}`} style={ps.style} onClick={background}>
       {dash.page?.orientation === "portrait" && <style>{"@page { size: A4 portrait; }"}</style>}
@@ -590,6 +628,7 @@ function DashCanvas({
       <div className="print-only">
         <PageHead dash={dash} schedule={main} print />
       </div>
+      {main && <ReadinessBar checks={checks} dash={dash} schedule={main} onChange={onChange} />}
       <div className="dash-grid" ref={gridRef} onClick={background}>
         {dash.widgets.map((w0) => {
           const w = resize?.id === w0.id ? { ...w0, w: resize.w, h: resize.h } : w0;
@@ -639,7 +678,14 @@ function DashCanvas({
                 ) : undefined
               }
             >
-              <WidgetView w={w} schedule={sched} portfolio={data.portfolio} slice={{ slices: dash.slices ?? [], onSlices: (slices) => onChange({ ...dash, slices }), raw: data.rawFor(w) }} />
+              {!blOk && widgetNeedsBaseline(w) && !w.projectId ? (
+                <div className="widget-needs">
+                  <b>Needs a baseline</b>
+                  <span className="muted small">{checks.filter((c) => c.level === "required" && !c.ok).map((c) => c.label).join(", ")} missing. Open Setup to choose a baseline.</span>
+                </div>
+              ) : (
+                <WidgetView w={w} schedule={sched} portfolio={data.portfolio} slice={{ slices: dash.slices ?? [], onSlices: (slices) => onChange({ ...dash, slices }), raw: data.rawFor(w) }} />
+              )}
               {edit && <span className="resize-handle" title="Drag to resize" onPointerDown={(e) => startResize(e, w0)} />}
             </WidgetFrame>
           );
@@ -1766,6 +1812,41 @@ function InfoRowsEditor({ rows, onChange }: { rows: InfoRow[]; onChange: (r: Inf
         </div>
       ))}
       <button onClick={() => onChange([...rows, { label: "New row", metric: null, value: "" }])}>+ Row</button>
+    </div>
+  );
+}
+
+/** Baseline picker and prerequisite checks above the widgets (hidden in print). */
+function ReadinessBar({ checks, dash, schedule, onChange }: { checks: ReadinessCheck[]; dash: Dashboard; schedule: Schedule; onChange: (d: Dashboard) => void }) {
+  const [open, setOpen] = useState(false);
+  const bad = checks.filter((c) => !c.ok);
+  const req = bad.filter((c) => c.level === "required");
+  const opts = baselineOptions(schedule);
+  return (
+    <div className={`dash-ready no-print ${req.length ? "bad" : bad.length ? "warn" : "ok"}`} onClick={(e) => e.stopPropagation()}>
+      <label className="row" style={{ gap: 6 }}>
+        Baseline
+        <select value={dash.baselineId ?? ""} onChange={(e) => onChange({ ...dash, baselineId: e.target.value || null })}>
+          {opts.map((o) => (
+            <option key={o.id ?? ""} value={o.id ?? ""}>
+              {o.name} ({Math.round(o.coverage * 100)}% of activities)
+            </option>
+          ))}
+        </select>
+      </label>
+      <button className="link" onClick={() => setOpen(!open)}>
+        {req.length ? `${req.length} prerequisite${req.length === 1 ? "" : "s"} missing` : bad.length ? `Ready, ${bad.length} warning${bad.length === 1 ? "" : "s"}` : "Ready: all prerequisites met"}
+      </button>
+      {open && (
+        <ul className="dash-checks">
+          {checks.map((c) => (
+            <li key={c.id} className={c.ok ? "ok" : c.level === "required" ? "bad" : "warn"}>
+              <b>{c.ok ? "✓" : c.level === "required" ? "✕" : "!"} {c.label}</b> <span className="muted">{c.detail}</span>
+              {!c.ok && c.fix && <div className="small">{c.fix}</div>}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

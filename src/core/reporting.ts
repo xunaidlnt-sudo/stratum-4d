@@ -190,6 +190,8 @@ export interface Dashboard {
   page?: DashboardPage;
   /** Listed under Templates; "New from template" copies it. */
   isTemplate?: boolean;
+  /** Baseline the widgets compare against: null = the project baseline on the activities, else a stored baseline id. */
+  baselineId?: string | null;
   updatedAt: string;
 }
 
