@@ -37,6 +37,9 @@ export interface RowFigures {
   baselineFinish: number | null;
   actualStart: number | null;
   actualFinish: number | null;
+  /** Earned value: budgeted cost of work scheduled (to the status date) and performed. */
+  bcws: number;
+  bcwp: number;
 }
 
 export type SheetRow =
@@ -69,7 +72,13 @@ export interface Field {
   edit?: MspCell;
   /** Editable on summary rows (name only). */
   editSummary?: boolean;
+  /** Custom field (UDF) name, for custom field columns. */
+  udf?: string;
 }
+
+/** A column for a custom field (Project › Custom Fields). */
+export const udfField = (name: string): Field => ({ key: `udf:${name}`, label: name, width: 110, udf: name, text: (r) => (r.kind === "task" ? (r.a.userFields?.[name] ?? "") : "") });
+export const fieldFor = (key: string): Field | undefined => (key.startsWith("udf:") ? udfField(key.slice(4)) : FIELD.get(key));
 
 const dur = (h: number | null | undefined, c: SheetCtx, est = false) => formatMspDuration(h ?? 0, c.hpd, est);
 const daysVar = (a: number | null | undefined, b: number | null | undefined, c: SheetCtx) => (a == null || b == null ? "0 days" : formatMspDuration(((a - b) / DAY) * (5 / 7) * c.hpd, c.hpd).replace(/^-?0 days$/, "0 days"));
@@ -141,6 +150,14 @@ export const FIELDS: Field[] = [
   { key: "notes", label: "Notes", width: 180, text: (r) => (task(r)?.notes ?? "").replace(/\s+/g, " "), edit: "notes" },
   { key: "uid", label: "Unique ID", width: 64, align: "right", text: (r) => (task(r) ? String(task(r)!.mspUid ?? "") : "") },
   { key: "active", label: "Active", width: 50, text: (r) => (task(r) ? (task(r)!.inactive ? "No" : "Yes") : "") },
+  { key: "bcws", label: "BCWS", width: 90, align: "right", text: (r, c) => money(r.fig.bcws, c.cur) },
+  { key: "bcwp", label: "BCWP", width: 90, align: "right", text: (r, c) => money(r.fig.bcwp, c.cur) },
+  { key: "acwp", label: "ACWP", width: 90, align: "right", text: (r, c) => money(r.fig.actualCost, c.cur) },
+  { key: "sv", label: "SV", width: 86, align: "right", text: (r, c) => money(r.fig.bcwp - r.fig.bcws, c.cur) },
+  { key: "cv", label: "CV", width: 86, align: "right", text: (r, c) => money(r.fig.bcwp - r.fig.actualCost, c.cur) },
+  { key: "eac", label: "EAC", width: 96, align: "right", text: (r, c) => money(r.fig.bcwp > 0 ? (r.fig.baselineCost * r.fig.actualCost) / r.fig.bcwp : r.fig.cost, c.cur) },
+  { key: "bac", label: "BAC", width: 96, align: "right", text: (r, c) => money(r.fig.baselineCost, c.cur) },
+  { key: "vac", label: "VAC", width: 90, align: "right", text: (r, c) => money(r.fig.baselineCost - (r.fig.bcwp > 0 ? (r.fig.baselineCost * r.fig.actualCost) / r.fig.bcwp : r.fig.cost), c.cur) },
 ];
 export const FIELD = new Map(FIELDS.map((f) => [f.key, f]));
 
@@ -152,6 +169,7 @@ export const TABLES: Record<MspTable, { label: string; cols: string[] }> = {
   variance: { label: "Variance", cols: ["id", "name", "start", "finish", "baselineStart", "baselineFinish", "startVar", "finishVar"] },
   work: { label: "Work", cols: ["id", "name", "work", "baselineWork", "workVar", "actualWork", "remainingWork", "pctWork"] },
   summary: { label: "Summary", cols: ["id", "name", "duration", "start", "finish", "pct", "cost", "work"] },
+  earned: { label: "Earned Value", cols: ["id", "name", "bcws", "bcwp", "acwp", "sv", "cv", "eac", "bac", "vac"] },
 };
 
 export function sheetCtx(s: Schedule, fullRows: GanttRow[], cur: string): SheetCtx {
@@ -175,9 +193,15 @@ export function sheetCtx(s: Schedule, fullRows: GanttRow[], cur: string): SheetC
   return { s, hpd: cal?.hoursPerDay || 8, rowNo, outline: outlineNumbers(fullRows), preds, succs, resNames, cur: s.projectSettings?.currency ?? cur, calName: new Map((s.calendars ?? []).map((c) => [c.id, c.name])) };
 }
 
-function taskFigures(a: Activity, asg: Map<string, { cost: number; bc: number; ac: number; rc: number; work: number; bw: number; aw: number; rw: number }>): RowFigures {
+function taskFigures(a: Activity, asg: Map<string, { cost: number; bc: number; ac: number; rc: number; work: number; bw: number; aw: number; rw: number }>, dd: number | null): RowFigures {
   const x = asg.get(a.id) ?? { cost: 0, bc: 0, ac: 0, rc: 0, work: 0, bw: 0, aw: 0, rw: 0 };
+  // Planned share of the budget by the status date, on the baseline dates (current dates when there is no baseline).
+  const bs = a.baselineStart ?? a.start;
+  const bf = a.baselineFinish ?? a.finish;
+  const planned = dd === null || bs === null || bf === null ? 0 : dd <= bs ? 0 : dd >= bf ? 1 : (dd - bs) / Math.max(1, bf - bs);
   return {
+    bcws: x.bc * planned,
+    bcwp: (x.bc * a.percentComplete) / 100,
     start: a.start,
     finish: a.finish,
     durationH: a.originalDurationHours ?? 0,
@@ -230,6 +254,8 @@ function rollup(list: RowFigures[], hpd: number): RowFigures {
     baselineFinish: max("baselineFinish"),
     actualStart: min("actualStart"),
     actualFinish: allDone ? max("actualFinish") : null,
+    bcws: sum("bcws"),
+    bcwp: sum("bcwp"),
   };
 }
 
@@ -327,7 +353,7 @@ export function sheetRows(s: Schedule, fullRows: GanttRow[], c: SheetCtx, o: Row
   const dd = s.dataDate;
   const shown = (a: Activity) => passesMspFilter(a, o.filter, dd, o.dateRange);
   const figOf = new Map<string, RowFigures>();
-  for (const r of fullRows) if (r.kind === "activity") figOf.set(r.id, taskFigures(r.activity, asg));
+  for (const r of fullRows) if (r.kind === "activity") figOf.set(r.id, taskFigures(r.activity, asg, dd));
   const sortKey = (a: Activity): number | string => {
     const f = figOf.get(a.id)!;
     switch (o.sort.by) {

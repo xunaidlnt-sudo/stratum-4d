@@ -183,3 +183,23 @@ describe("sheet cell editing", () => {
     expect(() => editTaskCell(s, a.id, "duration", "lots", c)).toThrow();
   });
 });
+
+describe("recurring tasks and task path", () => {
+  it("inserts weekly occurrences under a summary and walks a task's path", async () => {
+    const { insertRecurring, taskPath } = await import("../src/core/msp");
+    const s = demo();
+    const mon = Date.UTC(2027, 0, 4);
+    const r = insertRecurring(s, { name: "Progress meeting", hours: 2, pattern: "weekly", every: 1, weekdays: [1, 3], start: mon, count: 6, parentWbsId: null });
+    expect(r.added).toBe(6);
+    const occ = r.schedule.activities.filter((a) => a.wbsId === r.wbsId);
+    // Mon 4, Wed 6, Mon 11, Wed 13 … January 2027 (all working days on the demo calendar).
+    expect(occ.map((a) => new Date(a.start!).getUTCDate())).toEqual([4, 6, 11, 13, 18, 20]);
+    expect(occ[0].constraint?.type).toBe("start-on-or-after");
+    const monthly = insertRecurring(s, { name: "Report", hours: 0, pattern: "monthly", every: 1, dayOfMonth: 31, start: mon, end: Date.UTC(2027, 5, 30), parentWbsId: null });
+    expect(monthly.added).toBe(6);
+    const rel = s.relationships[0];
+    const p = taskPath(s, rel.successorId);
+    expect(p.predecessors.has(rel.predecessorId)).toBe(true);
+    expect(taskPath(s, rel.predecessorId).successors.has(rel.successorId)).toBe(true);
+  });
+});

@@ -621,3 +621,119 @@ export function overallocations(s: Schedule, daily = dailyWork(s)): Map<string, 
   }
   return out;
 }
+
+// ---------------------------------------------------------------- recurring tasks
+
+export interface RecurrenceDef {
+  name: string;
+  hours: number;
+  pattern: "daily" | "weekly" | "monthly";
+  /** Every n days / weeks / months. */
+  every: number;
+  /** Weekly: days of the week (0 = Sunday). */
+  weekdays?: number[];
+  /** Monthly: day of the month. */
+  dayOfMonth?: number;
+  start: number;
+  /** End after this many occurrences, or on this date. */
+  count?: number;
+  end?: number;
+  /** Summary the recurring task goes under. */
+  parentWbsId: string | null;
+}
+
+/**
+ * Insert Recurring Task: a summary task holding one task per occurrence,
+ * each held to its date by a Start No Earlier Than constraint, as MS Project
+ * does. Occurrences on nonworking days move to the next working time.
+ */
+export function insertRecurring(s: Schedule, d: RecurrenceDef): { schedule: Schedule; wbsId: string; added: number } {
+  const c = cellCtx(s, new Map());
+  const probe = { calendarId: null } as Activity;
+  const dates: number[] = [];
+  const limit = Math.min(d.count ?? 500, 500);
+  const endBy = d.end ?? Infinity;
+  const day0 = Date.UTC(new Date(d.start).getUTCFullYear(), new Date(d.start).getUTCMonth(), new Date(d.start).getUTCDate());
+  const every = Math.max(1, Math.round(d.every));
+  if (d.pattern === "daily") for (let t = day0; dates.length < limit && t <= endBy; t += every * DAY_MS) dates.push(t);
+  else if (d.pattern === "weekly") {
+    const days = d.weekdays?.length ? [...d.weekdays].sort() : [new Date(day0).getUTCDay()];
+    const week0 = day0 - new Date(day0).getUTCDay() * DAY_MS;
+    for (let w = week0; dates.length < limit && w <= endBy; w += every * 7 * DAY_MS) for (const k of days) if (w + k * DAY_MS >= day0 && w + k * DAY_MS <= endBy && dates.length < limit) dates.push(w + k * DAY_MS);
+  } else {
+    const dom = d.dayOfMonth ?? new Date(day0).getUTCDate();
+    for (let m = 0; dates.length < limit; m += every) {
+      const y = new Date(day0).getUTCFullYear();
+      const mo = new Date(day0).getUTCMonth() + m;
+      const last = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+      const t = Date.UTC(y, mo, Math.min(dom, last));
+      if (t > endBy) break;
+      if (t >= day0) dates.push(t);
+    }
+  }
+  const wbsId = uid("wbs");
+  const seq = Math.max(0, ...s.wbs.filter((w) => w.parentId === d.parentWbsId).map((w) => w.seq + 1));
+  const used = new Set(s.activities.map((a) => a.code));
+  let n = s.activities.length + 1;
+  const acts: Activity[] = dates.map((t, i) => {
+    while (used.has(`T${n}`)) n++;
+    used.add(`T${n}`);
+    const start = c.snap(probe, t + 8 * 3_600_000);
+    const ms = d.hours === 0;
+    return {
+      id: uid("t"),
+      code: `T${n}`,
+      name: `${d.name} ${i + 1}`,
+      wbsId,
+      type: ms ? "milestone" : "task",
+      status: "not-started",
+      percentComplete: 0,
+      start,
+      finish: ms ? start : c.finishFor(probe, start, d.hours),
+      baselineStart: null,
+      baselineFinish: null,
+      actualStart: null,
+      actualFinish: null,
+      totalFloatHours: null,
+      originalDurationHours: d.hours,
+      remainingDurationHours: d.hours,
+      critical: false,
+      calendarId: null,
+      codes: {},
+      constraint: { type: "start-on-or-after", date: start },
+    };
+  });
+  return {
+    schedule: { ...s, wbs: [...s.wbs, { id: wbsId, parentId: d.parentWbsId, code: `R${s.wbs.length + 1}`, name: d.name, seq }], activities: [...s.activities, ...acts] },
+    wbsId,
+    added: acts.length,
+  };
+}
+
+// ---------------------------------------------------------------- task path
+
+/** Format › Task Path: predecessors, driving predecessors and successors of a task, all the way back or forward. */
+export function taskPath(s: Schedule, id: string): { predecessors: Set<string>; driving: Set<string>; successors: Set<string> } {
+  const preds = new Map<string, typeof s.relationships>();
+  const succs = new Map<string, typeof s.relationships>();
+  for (const r of s.relationships) {
+    (preds.get(r.successorId) ?? preds.set(r.successorId, []).get(r.successorId)!).push(r);
+    (succs.get(r.predecessorId) ?? succs.set(r.predecessorId, []).get(r.predecessorId)!).push(r);
+  }
+  const walk = (start: string, next: (x: string) => string[]) => {
+    const seen = new Set<string>();
+    const stack = [...next(start)];
+    while (stack.length) {
+      const x = stack.pop()!;
+      if (seen.has(x) || x === start) continue;
+      seen.add(x);
+      stack.push(...next(x));
+    }
+    return seen;
+  };
+  return {
+    predecessors: walk(id, (x) => (preds.get(x) ?? []).map((r) => r.predecessorId)),
+    driving: walk(id, (x) => (preds.get(x) ?? []).filter((r) => r.driving).map((r) => r.predecessorId)),
+    successors: walk(id, (x) => (succs.get(x) ?? []).map((r) => r.successorId)),
+  };
+}

@@ -2008,3 +2008,9 @@ html[data-theme="dark"] .net-box.crit { background: #3d2426; }
 .tp-task.complete { background: #d9d9d9; border-color: #7f7f7f; }
 .tp-task.sel { outline: 2px solid var(--msp-green); }
 .tp-row.unassigned .tp-task { background: #fff2cc; border-color: #bf9000; }
+.mspg-bar.path-pred { background: #f6b26b; border-color: #e06c00; }
+.mspg-bar.path-driving { background: #e06c00; border-color: #a34f00; }
+.mspg-bar.path-succ { background: #b4a7d6; border-color: #674ea7; }
+.msp-graph { height: 100%; overflow: auto; padding: 8px 12px; background: var(--panel); }
+.msp-recur { display: grid; grid-template-columns: 110px 1fr; gap: 10px; border-right: none; }
+.msp-cf { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }

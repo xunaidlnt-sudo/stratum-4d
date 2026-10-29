@@ -4,8 +4,8 @@
 
 import { create } from "zustand";
 
-export type MspView = "gantt" | "tracking" | "task-sheet" | "task-usage" | "network" | "calendar" | "team-planner" | "resource-sheet" | "resource-usage";
-export type MspTable = "entry" | "schedule" | "tracking" | "cost" | "variance" | "work" | "summary";
+export type MspView = "gantt" | "tracking" | "task-sheet" | "task-usage" | "network" | "calendar" | "team-planner" | "resource-sheet" | "resource-usage" | "resource-graph";
+export type MspTable = "entry" | "schedule" | "tracking" | "cost" | "variance" | "work" | "summary" | "earned";
 export type MspDialog =
   | "taskInfo"
   | "projectInfo"
@@ -25,6 +25,8 @@ export type MspDialog =
   | "sort"
   | "groupBy"
   | "filter"
+  | "recurring"
+  | "customFields"
   | null;
 export type MspFilter = "all" | "active" | "completed" | "incomplete" | "critical" | "late" | "milestones" | "summary" | "manual" | "deadline" | "slipping" | "date-range";
 export type MspGroup = "none" | "critical" | "milestones" | "status" | "priority" | "duration" | "resource" | "task-mode";
@@ -43,9 +45,11 @@ export interface MspFormat {
   gridlines: boolean;
   /** Bar text: resource names to the right of task bars. */
   barText: "resources" | "name" | "none";
+  /** Format › Task Path for the selected task. */
+  taskPath: "none" | "predecessors" | "driving" | "successors";
 }
 
-export const DEFAULT_FORMAT: MspFormat = { criticalTasks: false, slack: false, lateTasks: false, baseline: false, outlineNumber: false, projectSummary: false, summaryTasks: true, linkLines: true, gridlines: false, barText: "resources" };
+export const DEFAULT_FORMAT: MspFormat = { criticalTasks: false, slack: false, lateTasks: false, baseline: false, outlineNumber: false, projectSummary: false, summaryTasks: true, linkLines: true, gridlines: false, barText: "resources", taskPath: "none" };
 
 interface MspState {
   view: MspView;

@@ -56,6 +56,9 @@ import {
   UsersRound,
   Ban,
   CheckCheck,
+  ChartColumn,
+  Repeat,
+  Route,
   type LucideIcon,
 } from "lucide-react";
 import { useEffect, useRef, useState, type ReactNode } from "react";
@@ -97,6 +100,8 @@ import { TaskInfoDialog } from "./TaskInfo";
 import { MspTimeline } from "./Timeline";
 import { CalendarView, NetworkDiagram, ResourceInfoDialog, ResourceSheet, ResourceUsageView, TaskUsage, TeamPlanner, levelAll, clearLeveling, nextOverallocation } from "./Views";
 import { WorkingTimeDialog } from "./WorkingTime";
+import { CustomFieldsDialog, RecurringDialog } from "./Extras";
+import { ResourcePanel } from "../Analysis";
 
 type RibbonTab = "task" | "resource" | "report" | "project" | "view" | "format";
 
@@ -161,6 +166,7 @@ const VIEW_LABEL: Record<MspView, string> = {
   "team-planner": "TEAM PLANNER",
   "resource-sheet": "RESOURCE SHEET",
   "resource-usage": "RESOURCE USAGE",
+  "resource-graph": "RESOURCE GRAPH",
 };
 const TASK_VIEWS: MspView[] = ["gantt", "tracking", "task-sheet", "task-usage", "network", "calendar"];
 const viewName = (v: MspView) => VIEW_LABEL[v].toLowerCase().replace(/\b\w/g, (c) => c.toUpperCase());
@@ -322,6 +328,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
           <Big Icon={ListPlus} label="Task" onClick={() => insertTask()} disabled={none} />
           <Small label="Summary" Icon={ListTree} onClick={insertSummaryTask} disabled={none} />
           <Small label="Milestone" Icon={Diamond} onClick={() => insertTask("<New Milestone>", true)} disabled={none} />
+          <Small label="Recurring Task" Icon={Repeat} onClick={() => m.open("recurring")} disabled={none} />
         </Group_>
         <Group_ label="Properties">
           <Big Icon={Info} label="Information" onClick={() => m.open("taskInfo")} disabled={!act} />
@@ -381,6 +388,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         <Group_ label="Properties">
           <Big Icon={Info} label="Project Information" onClick={() => m.open("projectInfo")} disabled={none} />
           <Big Icon={CalendarDays} label="Change Working Time" onClick={() => m.open("workingTime")} disabled={none} />
+          <Small label="Custom Fields" Icon={Table} onClick={() => m.open("customFields")} disabled={none} />
           <Small label="Options" Icon={TableProperties} onClick={() => m.open("options")} />
         </Group_>
         <Group_ label="Schedule">
@@ -415,6 +423,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
           <Big Icon={UsersRound} label="Team Planner" onClick={() => setView("team-planner")} active={view === "team-planner"} disabled={none} />
           <Small label="Resource Usage" Icon={Users} onClick={() => setView("resource-usage")} active={view === "resource-usage"} disabled={none} />
           <Small label="Resource Sheet" Icon={Sheet} onClick={() => setView("resource-sheet")} active={view === "resource-sheet"} disabled={none} />
+          <Small label="Resource Graph" Icon={ChartColumn} onClick={() => setView("resource-graph")} active={view === "resource-graph"} disabled={none} />
         </Group_>
         <Group_ label="Data">
           <Small label="Sort" Icon={ArrowDownAZ} menu={sortMenu} disabled={!ganttLike} />
@@ -483,6 +492,23 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
           <Check label="Link Lines" checked={format.linkLines} onChange={(v) => m.setFormat({ linkLines: v })} />
           <Check label="Gridlines" checked={format.gridlines} onChange={(v) => m.setFormat({ gridlines: v })} />
         </Group_>
+        <Group_ label="Task Path">
+          <Big
+            Icon={Route}
+            label="Task Path"
+            active={format.taskPath !== "none"}
+            menu={() =>
+              (
+                [
+                  ["predecessors", "Predecessors"],
+                  ["driving", "Driving Predecessors"],
+                  ["successors", "Successors"],
+                  ["none", "Remove Highlighting"],
+                ] as const
+              ).map(([k, l]) => ({ label: l, checked: format.taskPath === k, onClick: () => m.setFormat({ taskPath: k }) }))
+            }
+          />
+        </Group_>
         <Group_ label="Bar Text">
           <div className="rb-dd">
             <span>Right of bars:</span>
@@ -526,6 +552,8 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
     timescale: <ZoomDialog onClose={close} />,
     sort: <SortDialog onClose={close} />,
     filter: <DateRangeDialog onClose={close} />,
+    recurring: <RecurringDialog onClose={close} />,
+    customFields: <CustomFieldsDialog onClose={close} />,
     columns: null,
     barStyles: null,
     groupBy: null,
@@ -553,6 +581,12 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         return <ResourceSheet />;
       case "resource-usage":
         return <ResourceUsageView />;
+      case "resource-graph":
+        return (
+          <div className="msp-graph">
+            <ResourcePanel />
+          </div>
+        );
     }
   };
   const zoomIdx = ZOOM_STEPS.findIndex((z) => Math.abs(z - m.pxPerDay) < 0.01);

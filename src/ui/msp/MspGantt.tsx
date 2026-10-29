@@ -6,12 +6,12 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MONTHS, monthShort } from "../../core/dates";
-import { missedDeadline } from "../../core/msp";
+import { missedDeadline, taskPath } from "../../core/msp";
 import { buildGanttRows } from "../../core/wbs";
 import { useCtx, type CtxItem } from "../p6/ContextMenu";
 import { useStore } from "../store";
-import { appendTask, deleteSelected, editCell, indent, insertTask, linkSelected, outdent, renameSummary, setMode, toggleInactive, unlinkSelected } from "./actions";
-import { FIELD, FIELDS, TABLES, indicators, mspDateText, sheetCtx, sheetRows, type Field, type SheetRow } from "./sheet";
+import { appendTask, commitEdit, deleteSelected, editCell, indent, insertTask, linkSelected, outdent, renameSummary, setMode, toggleInactive, unlinkSelected } from "./actions";
+import { FIELDS, TABLES, fieldFor, indicators, mspDateText, sheetCtx, sheetRows, udfField, type Field, type SheetRow } from "./sheet";
 import { useMsp } from "./state";
 
 const ROW = 21;
@@ -127,7 +127,7 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
   const cols: Field[] = useMemo(() => {
     const keys = [...TABLES[table].cols, ...(m.extraCols[table] ?? [])].filter((k) => !(m.hiddenCols[table] ?? []).includes(k) || k === "name");
     if (tracking && table === "entry") keys.splice(keys.indexOf("ind"), keys.includes("ind") ? 1 : 0);
-    return keys.map((k) => FIELD.get(k)).filter((f): f is Field => !!f).map((f) => ({ ...f, width: widths[f.key] ?? f.width }));
+    return keys.map((k) => fieldFor(k)).filter((f): f is Field => !!f).map((f) => ({ ...f, width: widths[f.key] ?? f.width }));
   }, [table, m.extraCols, m.hiddenCols, widths, tracking]);
   const sheetW = cols.reduce((t, c) => t + c.width, 0) + 120;
 
@@ -160,6 +160,8 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
     return out;
   }, [px, cal, span]);
 
+  const path = useMemo(() => (chart && format.taskPath !== "none" && selected ? taskPath(schedule, selected) : null), [chart, format.taskPath, selected, schedule]);
+  const pathCls = (id: string) => (!path ? "" : format.taskPath === "predecessors" && path.predecessors.has(id) ? "path-pred" : format.taskPath === "driving" && path.driving.has(id) ? "path-driving" : format.taskPath === "successors" && path.successors.has(id) ? "path-succ" : "");
   const total = rows.length + BLANK_ROWS;
   const first = Math.max(0, Math.floor(vp.top / ROW) - 8);
   const last = Math.min(total, Math.ceil((vp.top + vp.height) / ROW) + 8);
@@ -242,9 +244,9 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
   const isSel = (r: SheetRow) => (r.kind === "task" ? selection.has(r.id) || selected === r.id : r.kind === "wbs" ? m.selWbs.has(r.id) : false);
 
   // ---- editing ----
-  const editable = (r: SheetRow | undefined, f: Field) => (!r ? f.key === "name" : r.kind === "task" ? !!f.edit : r.kind === "wbs" ? !!f.editSummary : false);
+  const editable = (r: SheetRow | undefined, f: Field) => (!r ? f.key === "name" : r.kind === "task" ? !!f.edit || !!f.udf : r.kind === "wbs" ? !!f.editSummary : false);
   const startEdit = (row: number, col: string, value?: string) => {
-    const f = FIELD.get(col);
+    const f = fieldFor(col);
     const r = rows[row];
     if (!f || !editable(r, f)) return;
     setEdit({ row, col, value: value ?? (r ? f.text(r, ctx).replace(/^NA$/, "") : "") });
@@ -255,14 +257,18 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
     if (!edit || done.current === edit) return;
     done.current = edit;
     const r = rows[edit.row];
-    const f = FIELD.get(edit.col)!;
+    const f = fieldFor(edit.col)!;
     const before = r ? f.text(r, ctx) : "";
     let err: string | null = null;
     if (edit.value !== before) {
       if (!r) {
         if (f.key === "name" && edit.value.trim()) appendTask(edit.value, rows[rows.length - 1]?.id ?? null);
       } else if (r.kind === "wbs") renameSummary(r.id, edit.value);
-      else if (r.kind === "task" && f.edit) err = editCell(r.id, f.edit, edit.value);
+      else if (r.kind === "task" && f.udf) {
+        const fields = { ...(r.a.userFields ?? {}), [f.udf]: edit.value };
+        if (!edit.value) delete fields[f.udf];
+        commitEdit({ ...schedule, activities: schedule.activities.map((x) => (x.id === r.id ? { ...x, userFields: fields } : x)) }, `Edit ${f.udf}`);
+      } else if (r.kind === "task" && f.edit) err = editCell(r.id, f.edit, edit.value);
     }
     if (err) {
       done.current = null; // keep the cell open so it can be corrected
@@ -537,7 +543,7 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
         </span>,
       );
     } else {
-      const cls = ["mspg-bar", a.taskMode === "manual" ? "manual" : "", crit ? "crit" : "", late ? "late" : "", a.inactive ? "inactive" : "", tracking ? "tracking" : "", showBl && !tracking ? "with-bl" : ""].join(" ");
+      const cls = ["mspg-bar", pathCls(a.id), a.taskMode === "manual" ? "manual" : "", crit ? "crit" : "", late ? "late" : "", a.inactive ? "inactive" : "", tracking ? "tracking" : "", showBl && !tracking ? "with-bl" : ""].join(" ");
       parts.push(
         <div key="bar" className={cls} style={{ top: top + (tracking ? 4 : 5), left: sx, width: w }} onMouseDown={onDown("move")} title={`${a.name}\nStart: ${mspDateText(a.start)}\nFinish: ${mspDateText(a.finish)}\nDuration: ${ctx.hpd ? Math.round(((a.originalDurationHours ?? 0) / ctx.hpd) * 10) / 10 : 0} days`}>
           <div className="mspg-prog" style={{ width: `${a.percentComplete}%` }} />
@@ -571,7 +577,8 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
             </span>
             {addOpen && (
               <div className="mspg-addcol" onMouseLeave={() => setAddOpen(false)}>
-                {FIELDS.filter((f) => !cols.some((c) => c.key === f.key) && f.key !== "ind")
+                {[...FIELDS, ...(schedule.udfDefs ?? []).map((d) => ({ ...udfField(d.name), label: `${d.name} (custom)` }))]
+                  .filter((f) => !cols.some((c) => c.key === f.key) && f.key !== "ind")
                   .sort((p, q) => p.label.localeCompare(q.label))
                   .map((f) => (
                     <button key={f.key} onClick={() => addColumn(f.key)}>
