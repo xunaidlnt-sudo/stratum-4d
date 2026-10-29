@@ -1,4 +1,4 @@
-# MS Project layout: gap analysis (0.10)
+# MS Project layout: gap analysis (0.10.1)
 
 How the MS Project layout compares with Microsoft Project desktop. "Done" means it works the way MS Project does; "Partial" means a simpler version; "Missing" is not there yet.
 
@@ -23,9 +23,9 @@ How the MS Project layout compares with Microsoft Project desktop. "Done" means 
 | Link / Unlink selected tasks, Respect Links, Move, Mark on Track | Done | |
 | Recurring tasks | Done | Daily, weekly, monthly |
 | Task Information (all six tabs), Task Form | Done | |
-| Split tasks | Missing | Needs task splits in the scheduling engine |
-| Effort-driven scheduling, Fixed Work recalculation of units | Partial | Task type is stored and exported; work is not recalculated when units change |
-| Links to and from summary tasks | Missing | Stratum links tasks only |
+| Split tasks | Done | Split Task on the Task tab or right-click; splits move with the task and push its finish. Not written to MSPDI (kept in Stratum files) |
+| Effort-driven scheduling, Work = Duration × Units by task type | Done | In the sheet and Resource Names. P6 assignments without units keep their work. Task Information's Resources tab sets work from units |
+| Links to and from summary tasks | Partial | On import they become links to the summary's first and last tasks; new ones cannot be drawn to a summary |
 
 ## Views
 
@@ -46,8 +46,8 @@ How the MS Project layout compares with Microsoft Project desktop. "Done" means 
 |---|---|---|
 | Critical tasks, slack, late tasks, baseline bars, task path | Done | |
 | Outline number, project summary task, show/hide summaries | Done | |
-| Filter, highlight, group by, sort, add/hide/resize columns | Done | Built-in sets; no custom filter editor |
-| Bar Styles and Text Styles dialogs, Gantt Chart Style gallery | Missing | Bar colours follow MS Project's defaults |
+| Filter, highlight, group by, sort, add/hide/resize columns | Done | Built-in filters plus New Filter (And/Or rows, field, test, value) |
+| Bar Styles and Text Styles | Partial | Colour per bar type and text size; no per-bar shapes, patterns or text positions, no style gallery |
 | Timescale dialog | Partial | Zoom presets and slider |
 
 ## Project

@@ -77,6 +77,7 @@ function TaskInfoBody({ s, a0, onClose }: { s: Schedule; a0: Activity; onClose: 
   const [cal, setCal] = useState(a0.calendarId ?? "");
   const [evm, setEvm] = useState(a0.pctType === "physical" ? "physical" : "pct");
   const [milestone, setMilestone] = useState(isMs);
+  const [effort, setEffort] = useState(!!a0.effortDriven);
   const [notes, setNotes] = useState(a0.notes ?? "");
   const [udf, setUdf] = useState<Record<string, string>>({ ...(a0.userFields ?? {}) });
   const [preds, setPreds] = useState<PredRow[]>(() =>
@@ -117,6 +118,7 @@ function TaskInfoBody({ s, a0, onClose }: { s: Schedule; a0: Activity; onClose: 
                 // A typed Start may have set its own constraint; the Advanced tab wins when it was changed.
                 constraint: ctype !== (a0.constraint?.type ?? "asap") || cdate !== dateVal(a0.constraint?.date) ? constraint : x.constraint,
                 durationType: durationTypeOf(ttype),
+                effortDriven: effort,
                 calendarId: cal || null,
                 pctType: evm === "physical" ? "physical" : x.pctType === "physical" ? "duration" : x.pctType,
                 notes: notes || undefined,
@@ -378,6 +380,9 @@ function TaskInfoBody({ s, a0, onClose }: { s: Schedule; a0: Activity; onClose: 
               <option value="fixed-work">Fixed Work</option>
             </select>
           </Row>
+          <label className="rb-check">
+            <input type="checkbox" checked={effort} onChange={(e) => setEffort(e.target.checked)} /> Effort driven
+          </label>
           <Row label="Calendar:">
             <select value={cal} onChange={(e) => setCal(e.target.value)}>
               <option value="">None</option>

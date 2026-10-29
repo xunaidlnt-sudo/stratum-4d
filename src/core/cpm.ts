@@ -73,10 +73,17 @@ const isDerived = (a: Activity) => a.type === "loe" || a.type === "wbs-summary";
 /** Manually scheduled (MS Project) and not yet started: dates stay as entered. */
 const isManual = (a: Activity) => a.taskMode === "manual" && a.start !== null && a.status === "not-started";
 
+/** Working hours of split gaps still ahead of the remaining work (MS Project split tasks). */
+function splitHours(a: Activity): number {
+  if (!a.splits?.length) return 0;
+  const done = a.status === "not-started" ? 0 : Math.max(0, (a.originalDurationHours ?? 0) - (a.remainingDurationHours ?? 0));
+  return a.splits.filter((x) => x.at > done && x.at < (a.originalDurationHours ?? 0)).reduce((t, x) => t + Math.max(0, x.gap), 0);
+}
+
 function durationOf(a: Activity, cal: Calendar): number {
   if (a.type === "milestone" || a.type === "finish-milestone") return 0;
   const d = a.remainingDurationHours ?? a.originalDurationHours;
-  if (d !== null && d !== undefined) return Math.max(0, d);
+  if (d !== null && d !== undefined) return Math.max(0, d) + splitHours(a);
   if (a.start !== null && a.finish !== null) return Math.max(0, workHoursBetween(cal, a.start, a.finish));
   return 0;
 }

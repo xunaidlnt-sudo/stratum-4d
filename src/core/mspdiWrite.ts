@@ -259,6 +259,7 @@ export function writeMspdi(s: Schedule): string {
       x.el("ManualDuration", mspDuration(od));
     }
     x.el("DurationFormat", a.estimated ? 39 : 7);
+    x.el("EffortDriven", b(a.effortDriven));
     x.el("Estimated", b(a.estimated));
     x.el("Milestone", b(ms));
     x.el("Summary", 0);

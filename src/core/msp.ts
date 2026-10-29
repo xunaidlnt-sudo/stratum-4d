@@ -428,13 +428,18 @@ export function editTaskCell(s: Schedule, id: string, cell: MspCell, text: strin
       const type = toMs ? "milestone" : fromMs ? "task" : a0.type;
       const done = a0.status === "not-started" ? 0 : Math.max(0, (a0.originalDurationHours ?? 0) - (a0.remainingDurationHours ?? 0));
       const start = a0.actualStart ?? a0.start;
-      return put({
-        type,
-        originalDurationHours: d.hours,
-        remainingDurationHours: Math.max(0, d.hours - done),
-        estimated: d.estimated,
-        ...(start !== null ? { finish: c.finishFor(a0, start, d.hours) } : {}),
-      });
+      return recalcWork(
+        put({
+          type,
+          originalDurationHours: d.hours,
+          remainingDurationHours: Math.max(0, d.hours - done),
+          estimated: d.estimated,
+          ...(start !== null ? { finish: c.finishFor(a0, start, d.hours) } : {}),
+        }),
+        id,
+        "duration",
+        ms(a0) ? 0 : a0.originalDurationHours,
+      );
     }
     case "start": {
       const t = c.snap(a0, date(text)!);
@@ -453,7 +458,7 @@ export function editTaskCell(s: Schedule, id: string, cell: MspCell, text: strin
       if (end <= start) throw new Error("The finish must be after the start.");
       const hours = Math.round(c.hoursBetween(a0, start, end) * 100) / 100;
       const done = a0.status === "not-started" ? 0 : Math.max(0, (a0.originalDurationHours ?? 0) - (a0.remainingDurationHours ?? 0));
-      return put({ finish: end, originalDurationHours: hours, remainingDurationHours: Math.max(0, hours - done), estimated: false });
+      return recalcWork(put({ finish: end, originalDurationHours: hours, remainingDurationHours: Math.max(0, hours - done), estimated: false }), id, "duration", ms(a0) ? 0 : a0.originalDurationHours);
     }
     case "pred":
       return setPredecessorsFromText(s, id, text, c.rowIds, c.hpd);
@@ -512,14 +517,86 @@ export function setResourceNames(s: Schedule, activityId: string, text: string, 
       resources.push(r);
     }
     const prev = mine.find((x) => x.resourceId === r!.id);
-    const qty = r.type === "material" ? (prev?.budgetQty ?? w.units) : Math.round(w.units * hours * 100) / 100;
+    // Changing units: Fixed Duration tasks change their work; Fixed Units and Fixed Work keep the work and change the duration.
+    const keepWork = prev && r.type !== "material" && mspTaskType(a) !== "fixed-duration";
+    const qty = r.type === "material" ? (prev?.budgetQty ?? w.units) : keepWork ? prev!.budgetQty : Math.round(w.units * hours * 100) / 100;
     const price = r.pricePerUnit;
     if (prev) {
       const sameUnits = prev.units === undefined ? w.units === 1 : Math.abs(prev.units - w.units) < 1e-9;
       out.push(sameUnits ? prev : { ...prev, units: w.units, budgetQty: qty, remainingQty: Math.max(0, qty - prev.actualQty), budgetCost: qty * price, remainingCost: Math.max(0, qty - prev.actualQty) * price });
     } else out.push({ id: uid("asg"), activityId, resourceId: r.id, units: w.units, budgetQty: qty, actualQty: 0, remainingQty: qty, budgetCost: qty * price, actualCost: 0, remainingCost: qty * price });
   }
-  return { ...s, resources, assignments: out };
+  let next: Schedule = { ...s, resources, assignments: out };
+  const labour = new Set(resources.filter((r) => r.type !== "material").map((r) => r.id));
+  const before = mine.filter((x) => labour.has(x.resourceId));
+  const after = out.filter((x) => x.activityId === activityId && labour.has(x.resourceId));
+  const added = after.some((x) => !before.some((y) => y.id === x.id)) || before.some((x) => !after.some((y) => y.id === x.id));
+  if (a.effortDriven && before.length && after.length && added && !ms(a)) {
+    // Effort driven: the task's total work stays the same, shared by units.
+    const total = before.reduce((t, x) => t + x.budgetQty, 0);
+    const sumUnits = after.reduce((t, x) => t + (x.units ?? 1), 0) || 1;
+    const price = new Map(resources.map((r) => [r.id, r.pricePerUnit]));
+    next = {
+      ...next,
+      assignments: next.assignments!.map((x) => {
+        if (x.activityId !== activityId || !labour.has(x.resourceId)) return x;
+        const q = Math.round(((total * (x.units ?? 1)) / sumUnits) * 100) / 100;
+        const p = price.get(x.resourceId) ?? 0;
+        return { ...x, budgetQty: q, remainingQty: Math.max(0, q - x.actualQty), budgetCost: q * p, remainingCost: Math.max(0, q - x.actualQty) * p };
+      }),
+    };
+    return mspTaskType(a) === "fixed-duration" ? recalcWork(next, activityId, "units-from-work") : durationFromWork(next, activityId);
+  }
+  return mspTaskType(a) === "fixed-duration" ? next : durationFromWork(next, activityId);
+}
+
+/** Duration follows work ÷ units (the longest assignment), for Fixed Units and Fixed Work tasks. */
+function durationFromWork(s: Schedule, id: string): Schedule {
+  const a = s.activities.find((x) => x.id === id);
+  if (!a || ms(a) || a.status === "complete") return s;
+  const labour = new Set((s.resources ?? []).filter((r) => r.type !== "material").map((r) => r.id));
+  // Assignments from P6 carry no units: their implied units (work ÷ current duration) leave the duration as it is.
+  const cur = a.originalDurationHours ?? 0;
+  const unitsOf = (x: { units?: number; budgetQty: number }) => x.units ?? (cur > 0 ? x.budgetQty / cur : 1);
+  const asg = (s.assignments ?? []).filter((x) => x.activityId === id && labour.has(x.resourceId) && unitsOf(x) > 0);
+  if (!asg.length) return s;
+  const hours = Math.round(Math.max(...asg.map((x) => x.budgetQty / unitsOf(x))) * 100) / 100;
+  if (!(hours > 0) || Math.abs(hours - (a.originalDurationHours ?? 0)) < 0.01) return s;
+  const c = cellCtx(s, new Map());
+  const start = a.actualStart ?? a.start;
+  const done = a.status === "not-started" ? 0 : Math.max(0, (a.originalDurationHours ?? 0) - (a.remainingDurationHours ?? 0));
+  return { ...s, activities: s.activities.map((x) => (x.id === id ? { ...x, originalDurationHours: hours, remainingDurationHours: Math.max(0, hours - done), ...(start !== null ? { finish: c.finishFor(x, start, hours) } : {}) } : x)) };
+}
+
+/**
+ * After a duration change: Fixed Work tasks keep their work and change units;
+ * the others keep units and change work. "units-from-work" sets units from work ÷ duration.
+ */
+export function recalcWork(s: Schedule, id: string, mode: "duration" | "units-from-work" = "duration", prevHours?: number | null): Schedule {
+  const a = s.activities.find((x) => x.id === id);
+  if (!a) return s;
+  const hours = ms(a) ? 0 : (a.originalDurationHours ?? 0);
+  const labour = new Map((s.resources ?? []).filter((r) => r.type !== "material").map((r) => [r.id, r.pricePerUnit]));
+  const fixedWork = mspTaskType(a) === "fixed-work" || mode === "units-from-work";
+  let changed = false;
+  const assignments = (s.assignments ?? []).map((x) => {
+    if (x.activityId !== id || !labour.has(x.resourceId) || a.status === "complete") return x;
+    if (fixedWork) {
+      if (hours <= 0) return x;
+      const units = Math.round((x.budgetQty / hours) * 1000) / 1000;
+      if (Math.abs(units - (x.units ?? 1)) < 1e-6) return x;
+      changed = true;
+      return { ...x, units };
+    }
+    // No units (from P6): implied by the work over the duration before the change.
+    const u = x.units ?? (prevHours && prevHours > 0 ? x.budgetQty / prevHours : 1);
+    const q = Math.round(u * hours * 100) / 100;
+    if (Math.abs(q - x.budgetQty) < 0.01) return x;
+    changed = true;
+    const p = labour.get(x.resourceId) ?? 0;
+    return { ...x, budgetQty: q, remainingQty: Math.max(0, q - x.actualQty), budgetCost: q * p, remainingCost: Math.max(0, q - x.actualQty) * p };
+  });
+  return changed ? { ...s, assignments } : s;
 }
 
 /** A new task as MS Project adds it in the blank row: 1 day?, estimated, at the project start, in the given summary. */
@@ -736,4 +813,53 @@ export function taskPath(s: Schedule, id: string): { predecessors: Set<string>; 
     driving: walk(id, (x) => (preds.get(x) ?? []).filter((r) => r.driving).map((r) => r.predecessorId)),
     successors: walk(id, (x) => (succs.get(x) ?? []).map((r) => r.successorId)),
   };
+}
+
+// ---------------------------------------------------------------- split tasks
+
+/** Split a task at a working-hour offset from its start, pausing for gapHours. Splits closer than an hour merge. */
+export function splitTask(s: Schedule, id: string, atHours: number, gapHours: number): Schedule {
+  const a = s.activities.find((x) => x.id === id);
+  if (!a || ms(a)) return s;
+  const dur = a.originalDurationHours ?? 0;
+  // Offsets count work only, so a click inside an existing gap lands on its end.
+  const at = Math.round(atHours * 100) / 100;
+  // Only the remaining work can be split.
+  const done = a.status === "not-started" ? 0 : Math.max(0, dur - (a.remainingDurationHours ?? dur));
+  if (at <= Math.max(0.5, done) || at >= dur - 0.5) return s;
+  const list = [...(a.splits ?? [])];
+  const near = list.find((x) => Math.abs(x.at - at) < 1);
+  if (near) near.gap += gapHours;
+  else list.push({ at, gap: gapHours });
+  list.sort((p, q) => p.at - q.at);
+  const c = cellCtx(s, new Map());
+  const start = a.actualStart ?? a.start;
+  const total = list.reduce((t, x) => t + x.gap, 0);
+  return { ...s, activities: s.activities.map((x) => (x.id === id ? { ...x, splits: list, ...(start !== null ? { finish: c.finishFor(x, start, dur + total) } : {}) } : x)) };
+}
+
+/** Working parts of a split task as [start, finish] times, for drawing. */
+export function taskSegments(a: Activity, finishFor: (a: Activity, t: number, h: number) => number): [number, number][] {
+  if (a.start === null || a.finish === null || !a.splits?.length) return a.start !== null && a.finish !== null ? [[a.start, a.finish]] : [];
+  const out: [number, number][] = [];
+  let t = a.start;
+  let worked = 0;
+  for (const sp of a.splits) {
+    if (sp.at <= worked) continue;
+    const end = finishFor(a, t, sp.at - worked);
+    out.push([t, end]);
+    worked = sp.at;
+    t = finishFor(a, end, sp.gap);
+  }
+  out.push([t, Math.max(t, a.finish)]);
+  return out;
+}
+
+/** Remove a task's splits; the finish moves back by the gaps. */
+export function removeSplits(s: Schedule, id: string): Schedule {
+  const a = s.activities.find((x) => x.id === id);
+  if (!a?.splits?.length) return s;
+  const c = cellCtx(s, new Map());
+  const start = a.actualStart ?? a.start;
+  return { ...s, activities: s.activities.map((x) => (x.id === id ? { ...x, splits: undefined, ...(start !== null ? { finish: c.finishFor(x, start, x.originalDurationHours ?? 0) } : {}) } : x)) };
 }

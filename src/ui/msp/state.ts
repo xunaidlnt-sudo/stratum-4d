@@ -27,10 +27,17 @@ export type MspDialog =
   | "filter"
   | "recurring"
   | "customFields"
+  | "filterEdit"
   | null;
 export type MspFilter = "all" | "active" | "completed" | "incomplete" | "critical" | "late" | "milestones" | "summary" | "manual" | "deadline" | "slipping" | "date-range";
 export type MspGroup = "none" | "critical" | "milestones" | "status" | "priority" | "duration" | "resource" | "task-mode";
 export type MspSort = "id" | "start" | "finish" | "priority" | "duration" | "name" | "cost";
+
+/** A filter made with More Filters › New (MS Project's Filter Definition). */
+export interface CustomFilter {
+  name: string;
+  rows: { join: "and" | "or"; field: string; test: "eq" | "ne" | "gt" | "ge" | "lt" | "le" | "contains" | "not-contains" | "within"; value: string; value2?: string }[];
+}
 
 export interface MspFormat {
   criticalTasks: boolean;
@@ -47,7 +54,13 @@ export interface MspFormat {
   barText: "resources" | "name" | "none";
   /** Format › Task Path for the selected task. */
   taskPath: "none" | "predecessors" | "driving" | "successors";
+  /** Bar Styles: colours by bar type (unset = MS Project's defaults) and Text Styles: sheet font size. */
+  colors?: Partial<Record<BarKind, string>>;
+  fontSize?: number;
 }
+
+export type BarKind = "task" | "critical" | "manual" | "progress" | "summary" | "milestone" | "baseline" | "slack" | "link";
+export const BAR_DEFAULTS: Record<BarKind, string> = { task: "#6d9fd8", critical: "#f08080", manual: "#6fa6dc", progress: "#1d3f73", summary: "#1e1e1e", milestone: "#1e1e1e", baseline: "#a6a6a6", slack: "#2e7d32", link: "#4f81bd" };
 
 export const DEFAULT_FORMAT: MspFormat = { criticalTasks: false, slack: false, lateTasks: false, baseline: false, outlineNumber: false, projectSummary: false, summaryTasks: true, linkLines: true, gridlines: false, barText: "resources", taskPath: "none" };
 
@@ -60,6 +73,9 @@ interface MspState {
   hiddenCols: Partial<Record<MspTable, string[]>>;
   format: MspFormat;
   filter: MspFilter;
+  /** Custom filters, and the one applied (by name) instead of a built-in filter. */
+  customFilters: CustomFilter[];
+  customFilter: string | null;
   dateRange: [number, number] | null;
   /** Highlight instead of hiding (MS Project's Highlight drop-down). */
   highlight: MspFilter;
@@ -80,6 +96,8 @@ interface MspState {
   selWbs: Set<string>;
   /** Selected resource in the Resource Sheet. */
   selRes: string | null;
+  /** Split Task: the next click on a bar splits it there. */
+  splitMode: boolean;
   set: (patch: Partial<Omit<MspState, "set" | "open" | "setFormat">>) => void;
   setFormat: (patch: Partial<MspFormat>) => void;
   open: (d: MspDialog, tab?: string) => void;
@@ -101,6 +119,8 @@ export const useMsp = create<MspState>((set) => ({
   hiddenCols: saved.hiddenCols ?? {},
   format: { ...DEFAULT_FORMAT, ...(saved.format ?? {}) },
   filter: "all",
+  customFilters: saved.customFilters ?? [],
+  customFilter: null,
   dateRange: null,
   highlight: "all",
   group: "none",
@@ -113,6 +133,7 @@ export const useMsp = create<MspState>((set) => ({
   sheetWidth: saved.sheetWidth ?? 640,
   selWbs: new Set(),
   selRes: null,
+  splitMode: false,
   set: (patch) => set(patch),
   setFormat: (patch) => set((s) => ({ format: { ...s.format, ...patch } })),
   open: (dialog, dialogTab) => set({ dialog, dialogTab }),
@@ -121,7 +142,7 @@ export const useMsp = create<MspState>((set) => ({
 // Keep layout choices between sessions.
 useMsp.subscribe((s) => {
   try {
-    localStorage.setItem(KEY, JSON.stringify({ extraCols: s.extraCols, hiddenCols: s.hiddenCols, format: s.format, autoCalc: s.autoCalc, pxPerDay: s.pxPerDay, showTimeline: s.showTimeline, sheetWidth: s.sheetWidth }));
+    localStorage.setItem(KEY, JSON.stringify({ customFilters: s.customFilters, extraCols: s.extraCols, hiddenCols: s.hiddenCols, format: s.format, autoCalc: s.autoCalc, pxPerDay: s.pxPerDay, showTimeline: s.showTimeline, sheetWidth: s.sheetWidth }));
   } catch {
     /* storage blocked */
   }

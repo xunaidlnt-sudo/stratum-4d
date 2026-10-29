@@ -135,6 +135,7 @@ export function parseMspdi(xml: string): Schedule {
   const relationships: Relationship[] = [];
   // MS Project Baseline1-10 become stored baselines named "Baseline 1" … "Baseline 10".
   const numbered = new Map<number, StoredBaseline["dates"]>();
+  const summaryUids = new Set<string>();
   let seq = 0;
   for (const t of tasks) {
     const uid = str(t.UID);
@@ -142,6 +143,9 @@ export function parseMspdi(xml: string): Schedule {
     const parentId = parent ? `w${str(parent.UID)}` : null;
     if (str(t.Summary) === "1") {
       wbs.push({ id: `w${uid}`, parentId, code: str(t.WBS) || str(t.OutlineNumber), name: str(t.Name), seq: seq++ });
+      summaryUids.add(uid);
+      for (const l of arr(t.PredecessorLink))
+        relationships.push({ id: `${str(l.PredecessorUID)}-${uid}-${relationships.length}`, predecessorId: str(l.PredecessorUID), successorId: uid, type: LINK[str(l.Type)] ?? "FS", lagHours: (n(l.LinkLag) ?? 0) / 600 });
       continue;
     }
     const pct = n(t.PercentComplete) ?? 0;
@@ -190,6 +194,7 @@ export function parseMspdi(xml: string): Schedule {
       ...(parseMspDate(t.Deadline) !== null ? { deadline: parseMspDate(t.Deadline) } : {}),
       ...(n(t.Priority) !== null && n(t.Priority) !== 500 ? { priority: n(t.Priority)! } : {}),
       ...(str(t.Estimated) === "1" ? { estimated: true } : {}),
+      ...(str(t.EffortDriven) === "1" ? { effortDriven: true } : {}),
       ...(str(t.HideBar) === "1" ? { hideBar: true } : {}),
       ...(str(t.Notes) ? { notes: str(t.Notes) } : {}),
       ...(ttype === "1" ? { durationType: "fixed-duration-units" as const } : ttype === "2" ? { durationType: "fixed-units" as const } : ttype === "0" ? { durationType: "fixed-units-time" as const } : {}),
@@ -205,9 +210,32 @@ export function parseMspdi(xml: string): Schedule {
       });
     }
   }
-  // Links to summary tasks are dropped (Stratum links activities only).
+  // Links to and from summary tasks: Stratum links tasks only, so a summary
+  // predecessor becomes its last tasks and a summary successor its first tasks.
   const actIds = new Set(activities.map((a) => a.id));
-  const rels = relationships.filter((r) => actIds.has(r.predecessorId) && actIds.has(r.successorId));
+  const wbsParent = new Map(wbs.map((w) => [w.id, w.parentId]));
+  const under = new Map<string, string[]>();
+  for (const a of activities) for (let w = a.wbsId, g = 0; w && g < 64; w = wbsParent.get(w) ?? null, g++) (under.get(w) ?? under.set(w, []).get(w)!).push(a.id);
+  const ends = (sumUid: string, first: boolean): string[] => {
+    const kids = new Set(under.get(`w${sumUid}`) ?? []);
+    const inside = relationships.filter((r) => kids.has(r.predecessorId) && kids.has(r.successorId));
+    const linked = new Set(inside.map((r) => (first ? r.successorId : r.predecessorId)));
+    return [...kids].filter((id) => !linked.has(id));
+  };
+  const seen = new Set<string>();
+  const rels: Relationship[] = [];
+  for (const r of relationships) {
+    const fromStart = r.type === "SS" || r.type === "SF";
+    const toStart = r.type === "FS" || r.type === "SS";
+    const preds = summaryUids.has(r.predecessorId) ? ends(r.predecessorId, fromStart) : [r.predecessorId];
+    const succs = summaryUids.has(r.successorId) ? ends(r.successorId, toStart) : [r.successorId];
+    for (const p of preds)
+      for (const q of succs) {
+        if (!actIds.has(p) || !actIds.has(q) || p === q || seen.has(`${p}>${q}`)) continue;
+        seen.add(`${p}>${q}`);
+        rels.push(p === r.predecessorId && q === r.successorId ? r : { ...r, id: `${r.id}-${p}-${q}`, predecessorId: p, successorId: q });
+      }
+  }
 
   const resources: Resource[] = arr(((project.Resources as X) ?? {}).Resource)
     .filter((r) => str(r.UID) !== "0" && str(r.Name))

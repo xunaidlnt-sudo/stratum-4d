@@ -81,6 +81,10 @@ export interface Activity {
   hideBar?: boolean;
   /** Unique ID in MS Project (kept for MSPDI round trips). */
   mspUid?: number;
+  /** MS Project Effort Driven: adding or removing resources keeps the total work and changes the duration. */
+  effortDriven?: boolean;
+  /** MS Project split task: after `at` working hours of the task, work stops for `gap` working hours. Splits move with the task. */
+  splits?: { at: number; gap: number }[];
 }
 
 export interface ActivityStep {

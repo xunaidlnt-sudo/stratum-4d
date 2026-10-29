@@ -7,7 +7,8 @@ import type { UdfDef } from "../../core/types";
 import { useStore } from "../store";
 import { commitEdit, selectedRows } from "./actions";
 import { Fieldset, MspDlg, Row, dateVal, fromDateVal } from "./MspDlg";
-import { useMsp } from "./state";
+import { BAR_DEFAULTS, useMsp, type BarKind, type CustomFilter } from "./state";
+import { FIELDS, udfField } from "./sheet";
 
 export function RecurringDialog({ onClose }: { onClose: () => void }) {
   const s = useStore((x) => x.schedule)!;
@@ -212,6 +213,193 @@ export function CustomFieldsDialog({ onClose }: { onClose: () => void }) {
           </Fieldset>
         </div>
       </div>
+    </MspDlg>
+  );
+}
+
+const TESTS: [CustomFilter["rows"][number]["test"], string][] = [
+  ["eq", "equals"],
+  ["ne", "does not equal"],
+  ["gt", "is greater than"],
+  ["ge", "is greater than or equal to"],
+  ["lt", "is less than"],
+  ["le", "is less than or equal to"],
+  ["within", "is within"],
+  ["contains", "contains"],
+  ["not-contains", "does not contain"],
+];
+
+/** Filter Definition (More Filters › New / Edit): rows of And/Or, field, test and value. */
+export function FilterEditDialog({ onClose }: { onClose: () => void }) {
+  const m = useMsp();
+  const s = useStore((x) => x.schedule);
+  const editing = m.customFilters.find((f) => f.name === m.dialogTab);
+  const [name, setName] = useState(editing?.name ?? `Filter ${m.customFilters.length + 1}`);
+  const [rows, setRows] = useState<CustomFilter["rows"]>(editing?.rows.map((r) => ({ ...r })) ?? [{ join: "and", field: "name", test: "contains", value: "" }]);
+  const fields = [...FIELDS.filter((f) => f.key !== "ind" && f.key !== "mode"), ...(s?.udfDefs ?? []).map((d) => udfField(d.name))];
+  const save = (apply: boolean) => {
+    const f: CustomFilter = { name: name.trim() || "Filter", rows: rows.filter((r) => r.field) };
+    const list = [...m.customFilters.filter((x) => x.name !== editing?.name && x.name !== f.name), f];
+    m.set({ customFilters: list, ...(apply ? { customFilter: f.name, filter: "all" } : {}) });
+    onClose();
+  };
+  const put = (i: number, patch: Partial<CustomFilter["rows"][number]>) => setRows(rows.map((r, k) => (k === i ? { ...r, ...patch } : r)));
+  return (
+    <MspDlg
+      title={`Filter Definition in '${s?.projectCode ?? "Project"}'`}
+      width={760}
+      onClose={onClose}
+      onOk={() => save(false)}
+      okLabel="Save"
+      extra={
+        <>
+          {editing && (
+            <button className="msp-btn" onClick={() => (m.set({ customFilters: m.customFilters.filter((x) => x.name !== editing.name), customFilter: m.customFilter === editing.name ? null : m.customFilter }), onClose())}>
+              Delete
+            </button>
+          )}
+          <button className="msp-btn" onClick={() => save(true)}>
+            Apply
+          </button>
+        </>
+      }
+    >
+      <Row label="Name:">
+        <input value={name} onChange={(e) => setName(e.target.value)} />
+      </Row>
+      <div className="msp-ti-grid tall">
+        <table className="msp-tbl">
+          <thead>
+            <tr>
+              <th style={{ width: 70 }}>And/Or</th>
+              <th>Field Name</th>
+              <th style={{ width: 170 }}>Test</th>
+              <th>Value(s)</th>
+              <th style={{ width: 24 }} />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i}>
+                <td>
+                  {i > 0 && (
+                    <select value={r.join} onChange={(e) => put(i, { join: e.target.value as "and" | "or" })} aria-label="And/Or">
+                      <option value="and">And</option>
+                      <option value="or">Or</option>
+                    </select>
+                  )}
+                </td>
+                <td>
+                  <select value={r.field} onChange={(e) => put(i, { field: e.target.value })} aria-label="Field Name">
+                    {fields.map((f) => (
+                      <option key={f.key} value={f.key}>
+                        {f.key === "name" ? "Name" : f.label}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <select value={r.test} onChange={(e) => put(i, { test: e.target.value as CustomFilter["rows"][number]["test"] })} aria-label="Test">
+                    {TESTS.map(([k, l]) => (
+                      <option key={k} value={k}>
+                        {l}
+                      </option>
+                    ))}
+                  </select>
+                </td>
+                <td>
+                  <span className="msp-inline" style={{ flexWrap: "nowrap" }}>
+                    <input value={r.value} onChange={(e) => put(i, { value: e.target.value })} placeholder={r.test === "within" ? "from" : "e.g. 10 days, 01/03/27, Crew"} aria-label="Value" />
+                    {r.test === "within" && <input value={r.value2 ?? ""} onChange={(e) => put(i, { value2: e.target.value })} placeholder="to" aria-label="Value 2" />}
+                  </span>
+                </td>
+                <td>
+                  <button className="msp-x" onClick={() => setRows(rows.filter((_, k) => k !== i))} aria-label="Delete row">
+                    ×
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <button className="msp-btn" onClick={() => setRows([...rows, { join: "and", field: "start", test: "gt", value: "" }])}>
+          Add row
+        </button>
+      </div>
+      <p className="msp-note">Dates as dd/mm/yy; durations as e.g. 10 days. And is evaluated before Or.</p>
+    </MspDlg>
+  );
+}
+
+const BAR_NAMES: [BarKind, string][] = [
+  ["task", "Task"],
+  ["critical", "Critical task"],
+  ["manual", "Manual task"],
+  ["progress", "Progress"],
+  ["summary", "Summary"],
+  ["milestone", "Milestone"],
+  ["baseline", "Baseline"],
+  ["slack", "Total slack"],
+  ["link", "Link lines"],
+];
+
+/** Format › Bar Styles and Text Styles: colours by bar type and the sheet text size. */
+export function BarStylesDialog({ onClose }: { onClose: () => void }) {
+  const m = useMsp();
+  const [tab, setTab] = useState(m.dialogTab ?? "bars");
+  const [colors, setColors] = useState<Partial<Record<BarKind, string>>>({ ...(m.format.colors ?? {}) });
+  const [size, setSize] = useState(m.format.fontSize ?? 12);
+  return (
+    <MspDlg
+      title={tab === "bars" ? "Bar Styles" : "Text Styles"}
+      width={480}
+      onClose={onClose}
+      onOk={() => {
+        m.setFormat({ colors, fontSize: size === 12 ? undefined : size });
+        onClose();
+      }}
+      tabs={[
+        ["bars", "Bar Styles"],
+        ["text", "Text Styles"],
+      ]}
+      tab={tab}
+      onTab={setTab}
+      extra={
+        <button className="msp-btn" onClick={() => (tab === "bars" ? setColors({}) : setSize(12))}>
+          Reset
+        </button>
+      }
+    >
+      {tab === "bars" ? (
+        <table className="msp-tbl">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th style={{ width: 80 }}>Colour</th>
+            </tr>
+          </thead>
+          <tbody>
+            {BAR_NAMES.map(([k, l]) => (
+              <tr key={k}>
+                <td>{l}</td>
+                <td>
+                  <input type="color" className="msp-swatch" value={colors[k] ?? BAR_DEFAULTS[k]} onChange={(e) => setColors({ ...colors, [k]: e.target.value })} aria-label={`${l} colour`} />
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      ) : (
+        <Row label="Size (all text):">
+          <select value={size} onChange={(e) => setSize(Number(e.target.value))}>
+            {[10, 11, 12, 13, 14, 16].map((n) => (
+              <option key={n} value={n}>
+                {n}
+              </option>
+            ))}
+          </select>
+        </Row>
+      )}
     </MspDlg>
   );
 }

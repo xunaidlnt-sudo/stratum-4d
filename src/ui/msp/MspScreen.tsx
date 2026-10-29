@@ -57,6 +57,8 @@ import {
   Ban,
   CheckCheck,
   ChartColumn,
+  Palette,
+  Type,
   Repeat,
   Route,
   type LucideIcon,
@@ -100,7 +102,7 @@ import { TaskInfoDialog } from "./TaskInfo";
 import { MspTimeline } from "./Timeline";
 import { CalendarView, NetworkDiagram, ResourceInfoDialog, ResourceSheet, ResourceUsageView, TaskUsage, TeamPlanner, levelAll, clearLeveling, nextOverallocation } from "./Views";
 import { WorkingTimeDialog } from "./WorkingTime";
-import { CustomFieldsDialog, RecurringDialog } from "./Extras";
+import { BarStylesDialog, CustomFieldsDialog, FilterEditDialog, RecurringDialog } from "./Extras";
 import { ResourcePanel } from "../Analysis";
 
 type RibbonTab = "task" | "resource" | "report" | "project" | "view" | "format";
@@ -316,6 +318,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
           <Small label="Mark on Track" Icon={CheckCheck} onClick={markOnTrack} disabled={!act} />
           <Small label="Respect Links" Icon={Link2} onClick={respectLinks} disabled={!act} />
           <Small label={act?.inactive ? "Activate" : "Inactivate"} Icon={Ban} onClick={toggleInactive} disabled={!act} />
+          <Small label="Split Task" Icon={Scissors} onClick={() => (m.set({ splitMode: !m.splitMode }), m.splitMode || useStore.getState().setStatus("Split Task: click a bar where the work should stop. A one-day split is added; repeat to make it longer."))} active={m.splitMode} disabled={none} />
         </Group_>
         <Group_ label="Tasks">
           <Big Icon={Pin} label="Manually Schedule" onClick={() => setMode("manual")} disabled={!act} active={act?.taskMode === "manual"} />
@@ -339,7 +342,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         <Group_ label="Editing">
           <Small label="Scroll to Task" Icon={ScrollText} onClick={() => ganttCommand("scroll-to-selected")} disabled={!act} />
           <Small label="Find" Icon={Search} onClick={() => findRef.current?.focus()} disabled={none} />
-          <Small label="Clear" Icon={Eraser} menu={() => [{ label: "Clear Filter", onClick: () => (m.set({ filter: "all", highlight: "all" }), setFilterText({ text: "" })) }, { label: "Clear Sort and Group", onClick: () => m.set({ sort: { by: "id", desc: false }, group: "none" }) }]} disabled={none} />
+          <Small label="Clear" Icon={Eraser} menu={() => [{ label: "Clear Filter", onClick: () => (m.set({ filter: "all", highlight: "all", customFilter: null }), setFilterText({ text: "" })) }, { label: "Clear Sort and Group", onClick: () => m.set({ sort: { by: "id", desc: false }, group: "none" }) }]} disabled={none} />
         </Group_>
       </>
     ),
@@ -445,12 +448,35 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
             <span>
               <ListFilter size={13} aria-hidden /> Filter:
             </span>
-            <select value={m.filter} onChange={(e) => (e.target.value === "date-range" ? m.open("filter") : m.set({ filter: e.target.value as MspFilter }))} disabled={!ganttLike} aria-label="Filter">
+            <select
+              value={m.customFilter ? `custom:${m.customFilter}` : m.filter}
+              onChange={(e) => {
+                const v = e.target.value;
+                if (v === "__new") return m.open("filterEdit");
+                if (v === "__edit") return m.open("filterEdit", m.customFilter ?? undefined);
+                if (v.startsWith("custom:")) return m.set({ customFilter: v.slice(7), filter: "all" });
+                if (v === "date-range") return m.open("filter");
+                m.set({ filter: v as MspFilter, customFilter: null });
+              }}
+              disabled={!ganttLike}
+              aria-label="Filter"
+            >
               {FILTER_NAMES.map(([k, l]) => (
                 <option key={k} value={k}>
                   {l}
                 </option>
               ))}
+              {m.customFilters.length > 0 && (
+                <optgroup label="Custom">
+                  {m.customFilters.map((f) => (
+                    <option key={f.name} value={`custom:${f.name}`}>
+                      {f.name}
+                    </option>
+                  ))}
+                </optgroup>
+              )}
+              <option value="__new">New Filter…</option>
+              {m.customFilter && <option value="__edit">Edit '{m.customFilter}'…</option>}
             </select>
           </div>
           <div className="rb-dd">
@@ -483,6 +509,10 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         <Group_ label="Columns">
           <Big Icon={Plus} label="Insert Column" onClick={() => (document.querySelector(".mspg-hcell.add") as HTMLElement | null)?.click()} disabled={!ganttLike || none} />
           <Small label="Tables" Icon={Table} menu={tablesMenu} disabled={!ganttLike} />
+        </Group_>
+        <Group_ label="Format">
+          <Big Icon={Palette} label="Bar Styles" onClick={() => m.open("barStyles", "bars")} disabled={none} />
+          <Small label="Text Styles" Icon={Type} onClick={() => m.open("barStyles", "text")} disabled={none} />
         </Group_>
         <Group_ label="Bar Styles">
           <Check label="Critical Tasks" checked={format.criticalTasks} onChange={(v) => m.setFormat({ criticalTasks: v })} />
@@ -554,8 +584,9 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
     filter: <DateRangeDialog onClose={close} />,
     recurring: <RecurringDialog onClose={close} />,
     customFields: <CustomFieldsDialog onClose={close} />,
+    filterEdit: <FilterEditDialog onClose={close} />,
     columns: null,
-    barStyles: null,
+    barStyles: <BarStylesDialog onClose={close} />,
     groupBy: null,
   };
   const needsSchedule = m.dialog && m.dialog !== "options";
@@ -673,7 +704,7 @@ export function MspScreen({ a, banners, status }: { a: ClassicActions; banners: 
         >
           New Tasks : {schedule?.newTaskMode === "manual" ? "Manually Scheduled" : "Auto Scheduled"}
         </button>
-        {(m.filter !== "all" || filterText) && <span className="msp-flag">Filter Applied</span>}
+        {(m.filter !== "all" || m.customFilter || filterText) && <span className="msp-flag">Filter Applied</span>}
         {!m.autoCalc && dirty && <span className="msp-flag">Calculate</span>}
         <span className="cl-msg">{status}</span>
         <span className="spacer" />

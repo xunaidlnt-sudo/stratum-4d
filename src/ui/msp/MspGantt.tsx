@@ -6,7 +6,7 @@
 
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { MONTHS, monthShort } from "../../core/dates";
-import { missedDeadline, taskPath } from "../../core/msp";
+import { cellCtx, missedDeadline, removeSplits, splitTask, taskPath, taskSegments } from "../../core/msp";
 import { buildGanttRows } from "../../core/wbs";
 import { useCtx, type CtxItem } from "../p6/ContextMenu";
 import { useStore } from "../store";
@@ -113,6 +113,7 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
     let r = sheetRows(schedule, fullRows, ctx, {
       collapsed: collapsedWbs,
       filter: m.filter,
+      custom: m.customFilter ? (m.customFilters.find((f) => f.name === m.customFilter) ?? null) : null,
       dateRange: m.dateRange,
       group: m.group,
       sort: m.sort,
@@ -122,7 +123,7 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
     const q = textFilter.trim().toLowerCase();
     if (q) r = r.filter((x) => x.kind !== "task" || x.a.name.toLowerCase().includes(q) || x.a.code.toLowerCase().includes(q));
     return r;
-  }, [schedule, fullRows, ctx, collapsedWbs, m.filter, m.dateRange, m.group, m.sort, format.projectSummary, format.summaryTasks, textFilter]);
+  }, [schedule, fullRows, ctx, collapsedWbs, m.filter, m.customFilter, m.customFilters, m.dateRange, m.group, m.sort, format.projectSummary, format.summaryTasks, textFilter]);
 
   const cols: Field[] = useMemo(() => {
     const keys = [...TABLES[table].cols, ...(m.extraCols[table] ?? [])].filter((k) => !(m.hiddenCols[table] ?? []).includes(k) || k === "name");
@@ -362,6 +363,9 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
       { label: "Unlink Tasks", onClick: unlinkSelected, shortcut: "Ctrl+Shift+F2" },
       "sep",
       { label: "Assign Resources…", onClick: () => useMsp.getState().open("assignResources"), disabled: !a, shortcut: "Alt+F10" },
+      { label: "Split Task", onClick: () => useMsp.getState().set({ splitMode: true }), disabled: !a || a.type === "milestone" || a.type === "finish-milestone" },
+      { label: "Remove Splits", onClick: () => a && commitEdit(removeSplits(schedule, a.id), "Remove splits"), disabled: !a?.splits?.length },
+      "sep",
       { label: "Notes…", onClick: () => useMsp.getState().open("taskInfo", "notes"), disabled: !a },
       { label: "Information…", onClick: () => useMsp.getState().open("taskInfo"), disabled: !a, shortcut: "Shift+F2" },
     ];
@@ -533,6 +537,18 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
       if (e.button !== 0 || a.status === "complete") return;
       e.stopPropagation();
       selectRow(i, e);
+      if (m.splitMode && kind === "move" && chartRef.current) {
+        // Split Task: work done up to the clicked point, then a one-day gap.
+        const r = chartRef.current.getBoundingClientRect();
+        const t = span.origin + ((e.clientX - r.left + chartRef.current.scrollLeft) / px) * DAY;
+        const c = cellCtx(schedule, new Map());
+        const worked = taskSegments(a, c.finishFor).reduce((h, [p, q]) => h + (t > p ? c.hoursBetween(a, p, Math.min(q, t)) : 0), 0);
+        const next = splitTask(schedule, a.id, worked, ctx.hpd);
+        useMsp.getState().set({ splitMode: false });
+        if (next !== schedule) commitEdit(next, "Split task");
+        else useStore.getState().setStatus("Click inside the bar, away from its ends and after its progress, to split it.");
+        return;
+      }
       setDrag({ id: a.id, kind, x0: e.clientX, dx: 0 });
     };
     if (isMs) {
@@ -544,14 +560,33 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
       );
     } else {
       const cls = ["mspg-bar", pathCls(a.id), a.taskMode === "manual" ? "manual" : "", crit ? "crit" : "", late ? "late" : "", a.inactive ? "inactive" : "", tracking ? "tracking" : "", showBl && !tracking ? "with-bl" : ""].join(" ");
-      parts.push(
+      if (a.splits?.length && !dragging) {
+        // Split task: one bar per working part, joined by a dotted line.
+        const c = cellCtx(schedule, new Map());
+        const segs = taskSegments(a, c.finishFor);
+        const done = ((a.originalDurationHours ?? 0) * a.percentComplete) / 100;
+        let acc = 0;
+        segs.forEach(([p, q], k) => {
+          const h = c.hoursBetween(a, p, q);
+          const pr = h > 0 ? Math.max(0, Math.min(1, (done - acc) / h)) : 0;
+          acc += h;
+          if (k > 0) parts.push(<div key={`gap${k}`} className="mspg-splitgap" style={{ top: top + 10, left: x(segs[k - 1][1]), width: x(p) - x(segs[k - 1][1]) }} />);
+          parts.push(
+            <div key={`seg${k}`} className={cls} style={{ top: top + (tracking ? 4 : 5), left: x(p), width: Math.max(2, x(q) - x(p)) }} onMouseDown={onDown("move")} title={`${a.name} (split)\nPart ${k + 1}: ${mspDateText(p)} – ${mspDateText(q)}`}>
+              <div className="mspg-prog" style={{ width: `${pr * 100}%` }} />
+              {k === segs.length - 1 && <div className="mspg-grip" onMouseDown={onDown("finish")} />}
+            </div>,
+          );
+        });
+        if (label) parts.push(<span key="lbl" className="mspg-label" style={{ top, left: sx + w + 6 }}>{label}</span>);
+      } else parts.push(
         <div key="bar" className={cls} style={{ top: top + (tracking ? 4 : 5), left: sx, width: w }} onMouseDown={onDown("move")} title={`${a.name}\nStart: ${mspDateText(a.start)}\nFinish: ${mspDateText(a.finish)}\nDuration: ${ctx.hpd ? Math.round(((a.originalDurationHours ?? 0) / ctx.hpd) * 10) / 10 : 0} days`}>
           <div className="mspg-prog" style={{ width: `${a.percentComplete}%` }} />
           {tracking && a.percentComplete > 0 && <span className="mspg-pct">{Math.round(a.percentComplete)}%</span>}
           <div className="mspg-grip" onMouseDown={onDown("finish")} />
         </div>,
       );
-      if (label) parts.push(<span key="lbl" className="mspg-label" style={{ top, left: sx + w + 6 }}>{label}</span>);
+      if (label && !(a.splits?.length && !dragging)) parts.push(<span key="lbl" className="mspg-label" style={{ top, left: sx + w + 6 }}>{label}</span>);
     }
     if (a.deadline != null) parts.push(<div key="dl" className={`mspg-deadline ${missedDeadline(a) ? "missed" : ""}`} style={{ top: top + 2, left: x(a.deadline) - 5 }} title={`Deadline ${mspDateText(a.deadline)}`} />);
     return parts;
@@ -562,7 +597,10 @@ export function MspGantt({ chart = true, tracking = false }: { chart?: boolean; 
     ["mspg-row", r?.kind ?? "blank", r && isSel(r) ? "sel" : "", r && highlighted(r) ? "hl" : "", r?.kind === "task" && r.a.inactive ? "inactive" : "", active?.row === i ? "cur" : "", r?.kind === "wbs" || r?.kind === "project" ? "bold" : ""].join(" ");
 
   return (
-    <div className={`mspg ${chart ? "" : "sheet-only"}`}>
+    <div
+      className={`mspg ${chart ? "" : "sheet-only"} ${m.splitMode ? "splitting" : ""}`}
+      style={{ ...Object.fromEntries(Object.entries(format.colors ?? {}).map(([k, v]) => [`--b-${k}`, v])), ...(format.fontSize ? { fontSize: format.fontSize } : {}) } as React.CSSProperties}
+    >
       <div className="mspg-sheet" ref={sheetRef} tabIndex={0} onScroll={onScroll("sheet")} onKeyDown={onKey} style={chart ? { width: m.sheetWidth } : undefined}>
         <div style={{ width: sheetW, height: HEAD + total * ROW, position: "relative" }}>
           <div className="mspg-head" style={{ width: sheetW }}>

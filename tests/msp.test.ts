@@ -203,3 +203,93 @@ describe("recurring tasks and task path", () => {
     expect(taskPath(s, rel.predecessorId).successors.has(rel.successorId)).toBe(true);
   });
 });
+
+describe("task types and effort-driven work", () => {
+  it("follows Work = Duration × Units by task type", async () => {
+    const { editTaskCell, cellCtx, setResourceNames } = await import("../src/core/msp");
+    const s0 = demo();
+    const a = s0.activities.find((x) => x.status === "not-started" && x.type === "task")!;
+    const base: Schedule = {
+      ...s0,
+      resources: [...(s0.resources ?? []), { id: "rA", code: "A", name: "Alpha", type: "labor", unit: "h", pricePerUnit: 10 }, { id: "rB", code: "B", name: "Beta", type: "labor", unit: "h", pricePerUnit: 10 }],
+      assignments: [...(s0.assignments ?? []).filter((x) => x.activityId !== a.id), { id: "x1", activityId: a.id, resourceId: "rA", units: 1, budgetQty: a.originalDurationHours!, actualQty: 0, remainingQty: a.originalDurationHours!, budgetCost: 0, actualCost: 0, remainingCost: 0 }],
+    };
+    const c = cellCtx(base, new Map());
+    const hpd = c.hpd;
+    const work = (s: Schedule) => s.assignments!.filter((x) => x.activityId === a.id).reduce((t, x) => t + x.budgetQty, 0);
+    const dur = (s: Schedule) => s.activities.find((x) => x.id === a.id)!.originalDurationHours!;
+    // Fixed Units: duration change → work changes.
+    const fu = editTaskCell({ ...base, activities: base.activities.map((x) => (x.id === a.id ? { ...x, durationType: "fixed-units-time" as const } : x)) }, a.id, "duration", "10d", c);
+    expect(work(fu)).toBeCloseTo(10 * hpd, 1);
+    // Fixed Work: duration change → units change, work kept.
+    const fwBase = { ...base, activities: base.activities.map((x) => (x.id === a.id ? { ...x, durationType: "fixed-units" as const } : x)) };
+    const fw = editTaskCell(fwBase, a.id, "duration", "20d", c);
+    expect(work(fw)).toBeCloseTo(a.originalDurationHours!, 1);
+    expect(fw.assignments!.find((x) => x.id === "x1")!.units).toBeCloseTo(a.originalDurationHours! / (20 * hpd), 2);
+    // Effort driven Fixed Units: adding a second resource halves the duration, work kept.
+    const ed = { ...base, activities: base.activities.map((x) => (x.id === a.id ? { ...x, durationType: "fixed-units-time" as const, effortDriven: true } : x)) };
+    const two = setResourceNames(ed, a.id, "Alpha, Beta", hpd);
+    expect(work(two)).toBeCloseTo(a.originalDurationHours!, 1);
+    expect(dur(two)).toBeCloseTo(a.originalDurationHours! / 2, 1);
+    // P6 assignments without units keep their work on unrelated edits.
+    const p6 = { ...base, assignments: base.assignments!.map((x) => (x.id === "x1" ? { ...x, units: undefined, budgetQty: 5 * a.originalDurationHours! } : x)) };
+    expect(dur(setResourceNames(p6, a.id, "Alpha", hpd))).toBe(a.originalDurationHours);
+  });
+});
+
+describe("split tasks", () => {
+  it("adds the gap to the finish, keeps it through CPM and draws two parts", async () => {
+    const { splitTask, taskSegments, removeSplits, cellCtx } = await import("../src/core/msp");
+    const s = demo();
+    const a = s.activities.find((x) => x.status === "not-started" && x.type === "task" && (x.originalDurationHours ?? 0) >= 40)!;
+    const c = cellCtx(s, new Map());
+    const sp = splitTask(s, a.id, 16, 2 * c.hpd);
+    const b = sp.activities.find((x) => x.id === a.id)!;
+    expect(b.splits).toEqual([{ at: 16, gap: 2 * c.hpd }]);
+    const segs = taskSegments(b, c.finishFor);
+    expect(segs).toHaveLength(2);
+    expect(c.hoursBetween(b, segs[0][0], segs[0][1])).toBeCloseTo(16, 1);
+    const after = scheduleCpm(sp).schedule.activities.find((x) => x.id === a.id)!;
+    const plain = scheduleCpm(s).schedule.activities.find((x) => x.id === a.id)!;
+    expect(c.hoursBetween(after, plain.finish!, after.finish!)).toBeCloseTo(2 * c.hpd, 1);
+    expect(removeSplits(sp, a.id).activities.find((x) => x.id === a.id)!.splits).toBeUndefined();
+  });
+});
+
+describe("custom filters", () => {
+  it("evaluates and/or rows on cell values", async () => {
+    const { passesCustom, sheetCtx, sheetRows } = await import("../src/ui/msp/sheet");
+    const { mspRows } = await import("../src/core/msp");
+    const s = demo();
+    const full = mspRows(s);
+    const c = sheetCtx(s, full, "");
+    const opts = { collapsed: new Set<string>(), filter: "all" as const, dateRange: null, group: "none" as const, sort: { by: "id" as const, desc: false }, projectSummary: false, summaryTasks: true };
+    const rows = sheetRows(s, full, c, opts).filter((r) => r.kind === "task");
+    const long = { name: "Long", rows: [{ join: "and" as const, field: "duration", test: "gt" as const, value: "12" }] };
+    const kept = rows.filter((r) => passesCustom(r, long, c));
+    expect(kept.length).toBeGreaterThan(0);
+    expect(kept.every((r) => r.kind === "task" && r.a.originalDurationHours! / c.hpd > 12)).toBe(true);
+    const either = { name: "E", rows: [...long.rows, { join: "or" as const, field: "name", test: "contains" as const, value: "Notice" }] };
+    expect(rows.filter((r) => passesCustom(r, either, c)).length).toBe(kept.length + rows.filter((r) => r.kind === "task" && r.a.name.includes("Notice") && !kept.includes(r)).length);
+    const filtered = sheetRows(s, full, c, { ...opts, custom: long });
+    expect(filtered.filter((r) => r.kind === "task")).toHaveLength(kept.length);
+  });
+});
+
+describe("MSPDI links to summary tasks", () => {
+  it("turns a summary link into links on the summary's first and last tasks", () => {
+    const task = (uid: number, name: string, outline: string, summary = false, preds: [number, number][] = []) =>
+      `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${name}</Name><OutlineNumber>${outline}</OutlineNumber><Summary>${summary ? 1 : 0}</Summary><Start>2027-01-04T08:00:00</Start><Finish>2027-01-05T17:00:00</Finish><Duration>PT16H0M0S</Duration>${preds.map(([p, t]) => `<PredecessorLink><PredecessorUID>${p}</PredecessorUID><Type>${t}</Type></PredecessorLink>`).join("")}</Task>`;
+    const xml = `<Project><Name>t</Name><Tasks>${[
+      task(1, "Phase A", "1", true),
+      task(2, "A1", "1.1"),
+      task(3, "A2", "1.2", false, [[2, 1]]),
+      task(4, "Phase B", "2", true, [[1, 1]]),
+      task(5, "B1", "2.1"),
+      task(6, "B2", "2.2", false, [[5, 1]]),
+    ].join("")}</Tasks></Project>`;
+    const s = parseMspdi(xml);
+    const pairs = s.relationships.map((r) => `${r.predecessorId}>${r.successorId}`).sort();
+    expect(pairs).toEqual(["2>3", "3>5", "5>6"]);
+  });
+});

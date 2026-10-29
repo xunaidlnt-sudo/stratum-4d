@@ -7,7 +7,7 @@ import { WEEKDAYS } from "../../core/dates";
 import { formatMspDuration, formatMspPredecessor, missedDeadline, mspTaskType, outlineNumbers, type MspCell } from "../../core/msp";
 import { buildGanttRows, type GanttRow } from "../../core/wbs";
 import type { Activity, Relationship, Schedule } from "../../core/types";
-import type { MspFilter, MspGroup, MspSort, MspTable } from "./state";
+import type { CustomFilter, MspFilter, MspGroup, MspSort, MspTable } from "./state";
 
 const DAY = 86_400_000;
 
@@ -330,6 +330,63 @@ export interface RowOptions {
   sort: { by: MspSort; desc: boolean };
   projectSummary: boolean;
   summaryTasks: boolean;
+  custom?: CustomFilter | null;
+}
+
+const DATE_RE = /^[A-Za-z]{3} (\d{2})\/(\d{2})\/(\d{2})$/;
+/** A cell's value for comparing: dates and numbers as numbers, the rest as lower-case text. */
+function comparable(text: string): number | string {
+  const d = DATE_RE.exec(text);
+  if (d) return Date.UTC(2000 + +d[3], +d[2] - 1, +d[1]);
+  const n = Number(text.replace(/[^\d.\-]/g, ""));
+  return /\d/.test(text) && /^[^A-Za-z]*\d[^A-Za-z]*(days?|hrs?|%)?\??$/.test(text.trim()) && Number.isFinite(n) ? n : text.toLowerCase();
+}
+const valueOf = (v: string): number | string => {
+  const iso = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v.trim());
+  if (iso) return Date.UTC(+iso[1], +iso[2] - 1, +iso[3]);
+  const dmy = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(v.trim());
+  if (dmy) return Date.UTC(dmy[3].length === 2 ? 2000 + +dmy[3] : +dmy[3], +dmy[2] - 1, +dmy[1]);
+  return comparable(v);
+};
+
+/** Whether a task row passes a custom filter. Rows are evaluated left to right, "and" before "or" as MS Project does. */
+export function passesCustom(r: SheetRow, f: CustomFilter, c: SheetCtx): boolean {
+  if (!f.rows.length) return true;
+  const test = (row: CustomFilter["rows"][number]) => {
+    const field = fieldFor(row.field);
+    if (!field) return true;
+    const raw = field.text(r, c);
+    const a = comparable(raw);
+    const b = valueOf(row.value);
+    switch (row.test) {
+      case "contains":
+        return raw.toLowerCase().includes(row.value.toLowerCase());
+      case "not-contains":
+        return !raw.toLowerCase().includes(row.value.toLowerCase());
+      case "eq":
+        return a === b || raw.toLowerCase() === row.value.toLowerCase();
+      case "ne":
+        return !(a === b || raw.toLowerCase() === row.value.toLowerCase());
+      case "within": {
+        const b2 = valueOf(row.value2 ?? "");
+        return a >= b && a <= b2;
+      }
+      default:
+        if (typeof a !== typeof b) return false;
+        return row.test === "gt" ? a > b : row.test === "ge" ? a >= b : row.test === "lt" ? a < b : a <= b;
+    }
+  };
+  // OR splits the rows into groups; each group is an AND.
+  let any = false;
+  let cur = true;
+  f.rows.forEach((row, i) => {
+    if (i > 0 && row.join === "or") {
+      any ||= cur;
+      cur = true;
+    }
+    cur &&= test(row);
+  });
+  return any || cur;
 }
 
 /** Rows of the sheet after filter, group and sort. fullRows is the outline (for IDs). */
@@ -351,7 +408,7 @@ export function sheetRows(s: Schedule, fullRows: GanttRow[], c: SheetCtx, o: Row
     asg.set(x.activityId, cur);
   }
   const dd = s.dataDate;
-  const shown = (a: Activity) => passesMspFilter(a, o.filter, dd, o.dateRange);
+  const shown = o.custom ? (a: Activity) => passesCustom({ kind: "task", key: a.id, depth: 0, id: a.id, fig: figOf.get(a.id)!, a }, o.custom!, c) : (a: Activity) => passesMspFilter(a, o.filter, dd, o.dateRange);
   const figOf = new Map<string, RowFigures>();
   for (const r of fullRows) if (r.kind === "activity") figOf.set(r.id, taskFigures(r.activity, asg, dd));
   const sortKey = (a: Activity): number | string => {
@@ -404,7 +461,7 @@ export function sheetRows(s: Schedule, fullRows: GanttRow[], c: SheetCtx, o: Row
 
   // Outline view: keep summaries that have something shown below them; sort tasks within each summary.
   const keepWbs = new Set<string>();
-  if (o.filter !== "all") {
+  if ((o.filter !== "all" || !!o.custom)) {
     const parent = new Map(s.wbs.map((w) => [w.id, w.parentId]));
     for (const a of allTasks) if (shown(a)) for (let w = a.wbsId, g = 0; w && g < 64; w = parent.get(w) ?? null, g++) keepWbs.add(w);
   }
@@ -421,7 +478,7 @@ export function sheetRows(s: Schedule, fullRows: GanttRow[], c: SheetCtx, o: Row
     skipDepth = Infinity;
     if (r.kind === "wbs") {
       flush();
-      if (o.filter !== "all" && !keepWbs.has(r.id)) {
+      if ((o.filter !== "all" || !!o.custom) && !keepWbs.has(r.id)) {
         skipDepth = r.depth;
         continue;
       }
