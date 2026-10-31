@@ -10,3 +10,4 @@ electron/sql-wasm.wasm
 android
 assets
 docs/manual/dist/
+mcp/dist/

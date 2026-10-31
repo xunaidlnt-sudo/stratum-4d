@@ -18,6 +18,7 @@
     "samples": "vite-node scripts/gen-samples.ts",
     "build:server": "esbuild src/server/main.ts --bundle --platform=node --target=node20 --format=cjs --outfile=server-dist/server.cjs --external:playwright --external:playwright-core --external:oracledb --external:pg-native --log-level=warning && cp node_modules/sql.js/dist/sql-wasm.wasm server-dist/",
     "server": "node server-dist/server.cjs",
+    "build:mcp": "esbuild mcp/server.ts --bundle --platform=node --target=node20 --format=cjs --outfile=mcp/dist/stratum-mcp.cjs --external:oracledb --external:pg-native --external:playwright --external:playwright-core --log-level=warning && cp node_modules/sql.js/dist/sql-wasm.wasm mcp/dist/",
     "build:electron": "esbuild electron/host.ts --bundle --platform=node --target=node20 --format=cjs --outfile=electron/host.cjs --external:electron --external:oracledb --external:pg-native --external:playwright --external:playwright-core --log-level=warning && cp node_modules/sql.js/dist/sql-wasm.wasm electron/"
   },
   "license": "UNLICENSED",
@@ -40,6 +41,7 @@
     "@fontsource-variable/jetbrains-mono": "^5.3.0",
     "@fontsource-variable/nunito-sans": "^5.3.0",
     "@fontsource-variable/source-sans-3": "^5.3.1",
+    "@modelcontextprotocol/sdk": "1.32.2",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.7",
     "@types/mssql": "^9.1.5",

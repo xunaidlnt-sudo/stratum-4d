@@ -56,6 +56,10 @@ Load either from the empty workspace or the File menu. `samples/` has the RC dem
 
 Planned work and how Stratum compares with SYNCHRO 4D Pro's public feature set are in [docs/PARITY.md](docs/PARITY.md). Development follows [docs/CLEAN_ROOM.md](docs/CLEAN_ROOM.md).
 
+## AI assistants (MCP)
+
+`mcp/` is a Model Context Protocol server, so Claude Desktop, Claude Code or any MCP client can open XER / MS Project XML / Stratum files and the desktop database, query activities, run the scheduler, report KPIs and the critical path, compare updates, record progress and export. Each release has it as `Stratum-4D-<version>-mcp.zip`; set-up is in [mcp/README.md](mcp/README.md).
+
 ## Interface modes
 
 The first time Stratum starts, a short setup asks which layout you want. All three share the same engine and data. The P6 and MS Project layouts are schedule-only and laid out like the originals; the 3D model, linking and playback live in the 4D layout. Switch at any time from the top bar or in **Settings → Interface**.

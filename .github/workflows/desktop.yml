@@ -149,6 +149,17 @@ jobs:
         with:
           path: dist-installers
           merge-multiple: true
+      # The MCP server for AI assistants: one Node file plus the SQLite engine, zipped with its README.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Build the MCP server
+        run: |
+          npm ci
+          npm run build:mcp
+          cp mcp/README.md mcp/dist/
+          (cd mcp/dist && zip -q "../../dist-installers/Stratum-4D-${{ steps.v.outputs.tag }}-mcp.zip" stratum-mcp.cjs sql-wasm.wasm README.md)
       # Tag pushes make a draft to review; a manual run with "publish" releases it.
       - uses: softprops/action-gh-release@v2
         with:
