@@ -1,7 +1,7 @@
 name: Web app (GitHub Pages)
 
-# Builds the web app with the sign-in and publishes it to the gh-pages branch,
-# which GitHub Pages serves at https://<owner>.github.io/stratum-4d/.
+# Builds the Miqyas Labs website (site/), the web app with the sign-in (/demo)
+# and the user manual (/manual), and publishes them to the gh-pages branch.
 on:
   push:
     branches: [main]
@@ -31,11 +31,21 @@ jobs:
           # OAuth client ids for the cloud folder (repository variables; public values).
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           VITE_MS_CLIENT_ID: ${{ vars.MS_CLIENT_ID }}
-        run: npx vite build && touch dist/.nojekyll
+        run: npx vite build
+      - name: Assemble the site (website at the root, demo in /demo, manual in /manual)
+        run: |
+          node scripts/manual/build.cjs --no-pdf
+          mkdir -p public_site
+          cp -r site/. public_site/
+          cp brand/miqyas-labs.png brand/miqyas-labs-dark.png brand/stratum-lockup.png public_site/
+          cp -r dist public_site/demo
+          cp -r docs/manual/dist public_site/manual
+          cp docs/Stratum-4D-Manual.pdf public_site/manual/
+          touch public_site/.nojekyll
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
-          publish_dir: dist
+          publish_dir: public_site
           publish_branch: gh-pages
           force_orphan: true
           commit_message: Publish web app

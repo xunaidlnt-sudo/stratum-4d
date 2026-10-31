@@ -6,7 +6,7 @@
 
 Stratum links a Primavera P6 schedule to an IFC building model and plays back the construction sequence over time. It runs in the browser, as a desktop app for Windows, macOS and Linux, or on a team server.
 
-**Try it in the browser:** [xunaidlnt-sudo.github.io/stratum-4d](https://xunaidlnt-sudo.github.io/stratum-4d/) (sign-in required). The site is rebuilt from `main` on every push; schedules you open stay in your browser.
+**Try it in the browser:** [miqyaslabs.com/demo](https://miqyaslabs.com/demo/) (sign-in required). The site is rebuilt from `main` on every push; schedules you open stay in your browser.
 
 Release 0.8 adds Google Drive and OneDrive folders as a shared database: a team with edit access to one folder works on the same projects, EPS, portfolios and project codes, with a conflict check so no one overwrites a newer save (set-up: [docs/CLOUD_STORAGE.md](docs/CLOUD_STORAGE.md)). The website can also be installed as an app (Chrome › Install app), which is how tablets use the shared folder.
 
