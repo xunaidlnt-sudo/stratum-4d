@@ -46,6 +46,8 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           publish_dir: public_site
+          # Custom domain (Cloudflare DNS: four A records to GitHub Pages and www as a CNAME).
+          cname: miqyaslabs.com
           publish_branch: gh-pages
           force_orphan: true
           commit_message: Publish web app
