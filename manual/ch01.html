@@ -1,0 +1,124 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>1. Introduction – Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body class="web"><nav><a href="index.html"><img src="stratum-lockup-dark.png" alt="Stratum 4D by Miqyas Labs"></a><a href="ch01.html" class="on"><span class="num">1</span>Introduction</a><a href="ch02.html" class=""><span class="num">2</span>Installation</a><a href="ch03.html" class=""><span class="num">3</span>First start</a><a href="ch04.html" class=""><span class="num">4</span>Projects and files</a><a class="pdf" href="Stratum-4D-Manual.pdf">Download the PDF</a></nav><main><section class="chapter" id="introduction">
+<h1><span class="num">1</span>Introduction</h1>
+<p class="purpose">This chapter tells you what Stratum 4D does, which layouts it has, and how to use this manual.</p>
+
+<h2>What Stratum 4D is</h2>
+<p>Stratum 4D is a planning and 4D simulation tool for construction projects. It reads a schedule from Primavera P6 or Microsoft Project. It can also read a 3D building model in the IFC format.</p>
+<p>You link the model elements to the activities of the schedule. Stratum then shows the construction sequence in 3D, day by day. You can calculate the schedule, record progress, compare against a baseline and make reports.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" role="img" aria-label="The six stages of work in Stratum 4D">
+  <style>.t{font:600 15px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.n{font:700 13px Montserrat,sans-serif;fill:#d4a574}</style>
+  <rect width="960" height="230" fill="#ebecef" rx="8"/>
+  <text x="24" y="34" style="font:700 17px Montserrat,sans-serif;fill:#0b2545">How you work in Stratum 4D</text>
+  <g transform="translate(24,58)">
+    <path d="M0 0h135l18 32-18 32H0z" fill="#0b2545"/><text class="t" x="14" y="38">Import</text>
+    <path d="M150 0h135l18 32-18 32H150l18-32z" fill="#183a63"/><text class="t" x="176" y="38">Model</text>
+    <path d="M300 0h135l18 32-18 32H300l18-32z" fill="#355b7d"/><text class="t" x="326" y="38">Link</text>
+    <path d="M450 0h135l18 32-18 32H450l18-32z" fill="#4a6f93"/><text class="t" x="476" y="38">Schedule</text>
+    <path d="M600 0h135l18 32-18 32H600l18-32z" fill="#b8874f"/><text class="t" x="626" y="38">Simulate</text>
+    <path d="M750 0h155l18 32-18 32H750l18-32z" fill="#e10600"/><text class="t" x="776" y="38">Report</text>
+  </g>
+  <g class="s">
+    <text x="24" y="150"><tspan class="n">1 </tspan>Open a P6 XER or</text><text x="24" y="166">MS Project XML file.</text>
+    <text x="174" y="150"><tspan class="n">2 </tspan>Load the IFC model</text><text x="174" y="166">(4D layout).</text>
+    <text x="324" y="150"><tspan class="n">3 </tspan>Link model elements</text><text x="324" y="166">to activities.</text>
+    <text x="474" y="150"><tspan class="n">4 </tspan>Calculate dates (F9),</text><text x="474" y="166">update progress.</text>
+    <text x="624" y="150"><tspan class="n">5 </tspan>Play the construction</text><text x="624" y="166">sequence in 3D.</text>
+    <text x="774" y="150"><tspan class="n">6 </tspan>Dashboards, KPIs, XER,</text><text x="774" y="166">XML, PowerPoint, video.</text>
+  </g>
+  <text x="24" y="206" style="font:12px Inter,sans-serif;fill:#5d6b7a">Stages 2, 3 and 5 are in the 4D layout. You can do stages 1, 4 and 6 in all three layouts.</text>
+</svg>
+<figcaption><b>Figure 1-1.</b> The six stages of work in Stratum 4D.</figcaption></figure>
+
+<h2>The three layouts</h2>
+<p>Stratum 4D has three layouts. All three layouts use the same calculation engine and the same project data. When you change the layout, the open project stays open.</p>
+<ul>
+<li>The <span class="ui">P6</span> layout looks and works like Primavera P6 Professional.</li>
+<li>The <span class="ui">Project</span> layout looks and works like Microsoft Project.</li>
+<li>The <span class="ui">4D</span> layout shows the 3D model, the Gantt chart and the playback timeline together.</li>
+</ul>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-label="The three layouts of Stratum 4D">
+  <style>.h{font:700 16px Montserrat,sans-serif;fill:#0b2545}.s{font:12.5px Inter,sans-serif;fill:#1d2733}.m{font:11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="300" fill="#fff"/>
+  <g transform="translate(10,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="16" fill="#dfe5ec"/>
+    <rect x="16" y="32" width="40" height="88" fill="#eef2f6"/>
+    <g fill="#2e6fbf"><rect x="120" y="44" width="60" height="7"/><rect x="150" y="60" width="70" height="7"/></g>
+    <g fill="#3aa346"><rect x="180" y="44" width="40" height="7"/><rect x="220" y="60" width="40" height="7"/></g>
+    <rect x="200" y="76" width="50" height="7" fill="#e10600"/>
+    <text class="h" x="16" y="148">P6 layout</text>
+    <text class="s" x="16" y="172">Looks and works like</text><text class="s" x="16" y="189">Primavera P6 Professional.</text>
+    <text class="s" x="16" y="213">Use it for: EPS, WBS, activities,</text><text class="s" x="16" y="230">resources, baselines, F9 and F10.</text>
+    <text class="m" x="16" y="262">Switch: top bar › P6 · Ctrl+Alt+1</text>
+  </g>
+  <g transform="translate(330,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="22" fill="#31752f"/>
+    <rect x="16" y="38" width="268" height="12" fill="#f3f3f3"/>
+    <g fill="#6d9fd8"><rect x="130" y="62" width="70" height="8"/><rect x="170" y="78" width="60" height="8"/></g>
+    <path d="M120 96h120v5l-4 5-4-5H124l-4 5z" fill="#1e1e1e"/>
+    <text class="h" x="16" y="148">MS Project layout</text>
+    <text class="s" x="16" y="172">Looks and works like</text><text class="s" x="16" y="189">Microsoft Project, with the ribbon.</text>
+    <text class="s" x="16" y="213">Use it for: tasks, Task Usage,</text><text class="s" x="16" y="230">Team Planner, MS Project XML.</text>
+    <text class="m" x="16" y="262">Switch: top bar › Project · Ctrl+Alt+2</text>
+  </g>
+  <g transform="translate(650,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#1e2430"/>
+    <path d="M150 104l-50-22 50-22 50 22z" fill="#355b7d"/><path d="M100 82v18l50 22v-18z" fill="#24425f"/><path d="M200 82v18l-50 22v-18z" fill="#2c5070"/>
+    <path d="M128 70l22-10 22 10-22 10z" fill="#d4a574"/>
+    <rect x="16" y="110" width="268" height="10" fill="#2a3240"/><rect x="16" y="110" width="150" height="10" fill="#e10600"/>
+    <text class="h" x="16" y="148">4D layout</text>
+    <text class="s" x="16" y="172">3D model, Gantt chart and the</text><text class="s" x="16" y="189">playback timeline together.</text>
+    <text class="s" x="16" y="213">Use it for: IFC models, links,</text><text class="s" x="16" y="230">4D simulation, video, quantities.</text>
+    <text class="m" x="16" y="262">Switch: top bar › 4D · Ctrl+Alt+3</text>
+  </g>
+</svg>
+<figcaption><b>Figure 1-2.</b> The three layouts and what each layout is for.</figcaption></figure>
+
+<h3>To change the layout</h3>
+<ol class="steps">
+<li>On the top bar, click <span class="ui">P6</span>, <span class="ui">Project</span> or <span class="ui">4D</span>.<span class="result">The new layout opens with the same project.</span></li>
+<li>Alternatively, push <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>2</kbd> or <kbd>3</kbd>.</li>
+</ol>
+<figure><img src="shots/layout-p6.png" alt="The P6 layout with the sample project"><figcaption><b>Figure 1-3.</b> The P6 layout with the 220 kV GIS substation sample project.</figcaption></figure>
+<figure><img src="shots/layout-msp.png" alt="The Project layout with the sample project"><figcaption><b>Figure 1-4.</b> The Project layout (Microsoft Project style) with the same project.</figcaption></figure>
+<figure><img src="shots/layout-4d.png" alt="The 4D layout with the sample project"><figcaption><b>Figure 1-5.</b> The 4D layout: Gantt chart on the left, 3D model in the middle, link tools on the right and the timeline at the bottom.</figcaption></figure>
+
+<h2>The sample projects</h2>
+<p>Stratum 4D has two sample projects. You can use them to learn the software without your own files. The two sample projects are fictional.</p>
+<table>
+<tr><th>Sample project</th><th>Contents</th></tr>
+<tr><td>220 kV GIS substation (UAE)</td><td>46 activities on a UAE 6-day calendar, costs in AED, resources, a baseline and a 3D model with 202 elements.</td></tr>
+<tr><td>Small RC building</td><td>A small concrete building with 14 activities and a 3D model. Use it for a fast first test.</td></tr>
+</table>
+<p>This manual uses the 220 kV GIS substation project for most examples.</p>
+
+<h2>How to use this manual</h2>
+<p>This manual is written in ASD-STE100 Simplified Technical English. Each chapter starts with its purpose. Then it gives a description and the procedures.</p>
+<ul>
+<li>A procedure is a numbered list of steps. Do the steps in the given order.</li>
+<li>A line that starts with "Result" tells you what you see after the step.</li>
+<li>Names of buttons, menus and fields are in <span class="ui">bold blue</span>.</li>
+<li>Keys are shown as <kbd>Ctrl</kbd>+<kbd>S</kbd>. Push the keys at the same time.</li>
+</ul>
+<div class="note">A NOTE gives information that helps you.</div>
+<div class="caution">A CAUTION tells you about a risk of loss of data.</div>
+
+<h2>The words in the layouts</h2>
+<p>Each layout uses the words of the software that it copies. The table gives the words for the same item in each layout.</p>
+<table>
+<tr><th>Item</th><th>P6 layout</th><th>Project layout</th><th>4D layout</th></tr>
+<tr><td>One item of work</td><td>Activity</td><td>Task</td><td>Task</td></tr>
+<tr><td>Its identifier</td><td>Activity ID</td><td>ID (row number)</td><td>Task ID</td></tr>
+<tr><td>Date of the last progress update</td><td>Data date</td><td>Status date</td><td>Data date</td></tr>
+<tr><td>Calculate the dates</td><td>Schedule (F9)</td><td>Calculate Project (F9)</td><td>Reschedule (F9)</td></tr>
+<tr><td>Time that work can slip</td><td>Total float</td><td>Total slack</td><td>TF</td></tr>
+<tr><td>Group of work</td><td>WBS</td><td>Summary task</td><td>WBS</td></tr>
+</table>
+
+<p class="related">Related chapters: 2 Installation, 3 First start, 4 Projects and files.</p>
+</section>
+<div class="pager"><span></span><a href="ch02.html">2. Installation →</a></div><p class="related">Stratum 4D User Manual, release 0.10.1. Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Written in ASD-STE100 Simplified Technical English.</p></main></body></html>

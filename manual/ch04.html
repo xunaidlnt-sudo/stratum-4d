@@ -1,0 +1,120 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>4. Projects and files – Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body class="web"><nav><a href="index.html"><img src="stratum-lockup-dark.png" alt="Stratum 4D by Miqyas Labs"></a><a href="ch01.html" class=""><span class="num">1</span>Introduction</a><a href="ch02.html" class=""><span class="num">2</span>Installation</a><a href="ch03.html" class=""><span class="num">3</span>First start</a><a href="ch04.html" class="on"><span class="num">4</span>Projects and files</a><a class="pdf" href="Stratum-4D-Manual.pdf">Download the PDF</a></nav><main><section class="chapter" id="projects-files">
+<h1><span class="num">4</span>Projects and files</h1>
+<p class="purpose">This chapter tells you how to open, import, save and export projects, and where Stratum 4D keeps them.</p>
+
+<h2>Projects and files</h2>
+<p>In this manual, a <b>project</b> is a schedule that Stratum 4D keeps in its database. A <b>file</b> is a file on the disk, for example an XER file from P6.</p>
+<p>You import a file to make a project. You export a project to make a file. The project database keeps each saved version of a project.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" role="img" aria-label="Files into and out of Stratum 4D, and where projects are kept">
+  <style>.h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.w{font:700 14px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.m{font:11px Inter,sans-serif;fill:#dfe6ee}</style>
+  <rect width="960" height="330" rx="8" fill="#ebecef"/>
+  <text class="h" x="24" y="32">Into Stratum</text><text class="h" x="740" y="32">Out of Stratum</text>
+  <g class="s">
+    <rect x="24" y="46" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="71">P6 XER (.xer)</text>
+    <rect x="24" y="94" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="119">MS Project XML (.xml)</text>
+    <rect x="24" y="142" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="167">IFC model (.ifc)</text>
+    <rect x="24" y="190" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="215">Excel (.xlsx)</text>
+    <rect x="24" y="238" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="263">P6 EPPM / P6 database</text>
+    <rect x="740" y="46" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="71">P6 XER (.xer)</text>
+    <rect x="740" y="94" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="119">MS Project XML (.xml)</text>
+    <rect x="740" y="142" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="167">Excel (.xlsx), CSV</text>
+    <rect x="740" y="190" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="215">PowerPoint, PDF</text>
+    <rect x="740" y="238" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="263">PNG picture, WebM video</text>
+  </g>
+  <g stroke="#355b7d" stroke-width="2" fill="none"><path d="M224 66h40M224 114h40M224 162h40M224 210h40M224 258h40M264 66v192M264 162h30"/><path d="M666 162h30M696 66v192M696 66h44M696 114h44M696 162h44M696 210h44M696 258h44"/></g>
+  <rect x="294" y="46" width="372" height="232" rx="10" fill="#0b2545"/>
+  <text class="w" x="480" y="76" text-anchor="middle">Stratum 4D project database</text>
+  <g>
+    <rect x="312" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="w" x="324" y="116" style="font-size:12.5px">Desktop app</text><text class="m" x="324" y="136">SQLite file in your</text><text class="m" x="324" y="152">user folder.</text>
+    <rect x="482" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="w" x="494" y="116" style="font-size:12.5px">Web browser</text><text class="m" x="494" y="136">Storage of this browser</text><text class="m" x="494" y="152">on this computer.</text>
+    <rect x="312" y="178" width="166" height="80" rx="6" fill="#355b7d"/><text class="w" x="324" y="202" style="font-size:12.5px">Cloud folder</text><text class="m" x="324" y="222">Google Drive or OneDrive,</text><text class="m" x="324" y="238">shared by a team.</text>
+    <rect x="482" y="178" width="166" height="80" rx="6" fill="#b8874f"/><text class="w" x="494" y="202" style="font-size:12.5px">Stratum Server</text><text class="m" x="494" y="222">PostgreSQL, sign-in,</text><text class="m" x="494" y="238">roles, emailed reports.</text>
+  </g>
+  <text x="480" y="306" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">A Stratum project file (.stratum.json) holds a project with its model links. Use it to move a project between computers.</text>
+</svg>
+<figcaption><b>Figure 4-1.</b> Files into and out of Stratum 4D, and the four places for the project database.</figcaption></figure>
+
+<h2>Where Stratum 4D keeps the projects</h2>
+<table>
+<tr><th>Storage</th><th>Where</th><th>Who can open the projects</th></tr>
+<tr><td>Desktop application</td><td>A SQLite file in your user folder</td><td>You, on this computer</td></tr>
+<tr><td>Web application</td><td>The storage of the browser</td><td>You, in this browser on this computer</td></tr>
+<tr><td>Cloud folder</td><td>A Google Drive or OneDrive folder</td><td>All persons with edit access to the folder</td></tr>
+<tr><td>Stratum Server</td><td>A PostgreSQL database</td><td>All users of the server, by their role</td></tr>
+</table>
+<p>Each save gets a version number. If a different person saved the project after you opened it, Stratum 4D does not save over that version. It gives you the option <span class="ui">Save as new</span>.</p>
+
+<h2>Import a schedule file</h2>
+<p>Stratum 4D can import these schedule files:</p>
+<ul>
+<li>Primavera P6 XER files (<code>.xer</code>), with activities, WBS, logic, codes, user fields, calendars, resources, costs and baselines.</li>
+<li>Microsoft Project XML files (<code>.xml</code>). In Microsoft Project, use <span class="ui">File › Save As › XML Format</span> to make this file.</li>
+<li>Microsoft Excel files (<code>.xlsx</code>) that you exported from Stratum 4D and changed.</li>
+</ul>
+<div class="note">Stratum 4D cannot open Microsoft Project <code>.mpp</code> files. Save the file as XML in Microsoft Project first.</div>
+<h3>To import a schedule in the P6 layout</h3>
+<ol class="steps">
+<li>Click <span class="ui">File › Import…</span>.</li>
+<li>Select the <code>.xer</code> or <code>.xml</code> file.</li>
+<li>Click <span class="ui">Open</span>.<span class="result">The schedule opens as a new project.</span></li>
+</ol>
+<figure><img src="shots/p6-file-menu.png" alt="The File menu of the P6 layout"><figcaption><b>Figure 4-2.</b> The File menu of the P6 layout, with Import and Export.</figcaption></figure>
+<h3>To import a schedule in the Project layout</h3>
+<ol class="steps">
+<li>Click <span class="ui">File</span>.</li>
+<li>Click <span class="ui">Open</span>.</li>
+<li>Click <span class="ui">Import XER / Microsoft Project XML</span>.</li>
+<li>Select the file and click <span class="ui">Open</span>.</li>
+</ol>
+<h3>To import a new version of the same schedule</h3>
+<p>Each week, you can import the new XER over the open project. Stratum 4D keeps the model links because it finds each activity by its Activity ID. If you click <span class="ui">Cancel</span> at step 3, the file opens as a new project.</p>
+<ol class="steps">
+<li>Open the project.</li>
+<li>Import the new XER file as usual.</li>
+<li>Stratum 4D asks "Update the open schedule with this file?". Click <span class="ui">OK</span>.<span class="result">The <span class="ui">Check</span> tab lists the changes: finish slip, new and deleted activities, and changes of status.</span></li>
+</ol>
+
+<h2>Open and save a project</h2>
+<h3>To open a project from the database</h3>
+<ol class="steps">
+<li>Click <span class="ui">Projects</span> (P6 and 4D layouts), or <span class="ui">File › Open › Projects</span> (Project layout).</li>
+<li>Select the project.</li>
+<li>Click <span class="ui">Open</span>.</li>
+</ol>
+<h3>To save a project</h3>
+<ol class="steps">
+<li>Push <kbd>Ctrl</kbd>+<kbd>S</kbd>, or click <span class="ui">Save</span>.<span class="result">Stratum 4D saves a new version of the project in the database.</span></li>
+</ol>
+<p>Stratum 4D also saves your work in the background every few seconds. If the application closes without a save, it asks you to restore the work at the next start.</p>
+
+<h2>Export a project</h2>
+<table>
+<tr><th>Export</th><th>Use it for</th></tr>
+<tr><td>P6 XER</td><td>Import into Primavera P6. Use <span class="ui">Update Existing Project</span> in P6 to bring the dates back.</td></tr>
+<tr><td>Microsoft Project XML</td><td>Open in Microsoft Project 2010 or later.</td></tr>
+<tr><td>Excel (.xlsx) or CSV</td><td>Change data in Excel, or make your own reports.</td></tr>
+<tr><td>Stratum project file (.stratum.json)</td><td>Move a project, with its model links, to a different computer.</td></tr>
+</table>
+<figure><img src="shots/msp-save-as.png" alt="The Save As page of the Project layout"><figcaption><b>Figure 4-3.</b> File › Save As in the Project layout.</figcaption></figure>
+<h3>To export a project</h3>
+<ol class="steps">
+<li>In the P6 layout, click <span class="ui">File › Export…</span>. In the Project layout, click <span class="ui">File › Save As</span>.</li>
+<li>Click the type of file.<span class="result">The file goes into the Downloads folder.</span></li>
+</ol>
+<div class="caution">Before you import an exported XER into P6, make a backup of the P6 project. An import with <span class="ui">Update Existing Project</span> changes the project in P6.</div>
+
+<h2>Share projects with a cloud folder</h2>
+<p>A team can use one Google Drive or OneDrive folder as a shared database. All persons with edit access to the folder work on the same projects. Stratum 4D does a check before each save, so no person saves over newer work.</p>
+<ol class="steps">
+<li>Click the gear icon (<span class="ui">Settings</span>).</li>
+<li>Click the <span class="ui">Data &amp; sign-in</span> tab.</li>
+<li>Under <span class="ui">Cloud folder</span>, click <span class="ui">Google Drive</span> or <span class="ui">OneDrive</span>.</li>
+<li>Sign in to the account.<span class="result">A list of your folders opens.</span></li>
+<li>Open the folder that your team shares.</li>
+<li>Click <span class="ui">Use "&lt;folder&gt;" as the Stratum folder</span>.<span class="result">The projects in the folder show in <span class="ui">Projects</span>.</span></li>
+</ol>
+<div class="note">Your administrator must first register Stratum 4D with Google or Microsoft. The file <code>docs/CLOUD_STORAGE.md</code> tells the administrator how to do this.</div>
+
+<p class="related">Related chapters: 3 First start. Later chapters: the P6 layout, the Project layout and the 4D layout.</p>
+</section>
+<div class="pager"><a href="ch03.html">← 3. First start</a><span></span></div><p class="related">Stratum 4D User Manual, release 0.10.1. Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Written in ASD-STE100 Simplified Technical English.</p></main></body></html>
