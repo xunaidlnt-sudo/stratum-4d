@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" role="img" aria-label="The six stages of work in Stratum 4D">
+  <style>.t{font:600 15px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.n{font:700 13px Montserrat,sans-serif;fill:#d4a574}</style>
+  <rect width="960" height="230" fill="#ebecef" rx="8"/>
+  <text x="24" y="34" style="font:700 17px Montserrat,sans-serif;fill:#0b2545">How you work in Stratum 4D</text>
+  <g transform="translate(24,58)">
+    <path d="M0 0h135l18 32-18 32H0z" fill="#0b2545"/><text class="t" x="14" y="38">Import</text>
+    <path d="M150 0h135l18 32-18 32H150l18-32z" fill="#183a63"/><text class="t" x="176" y="38">Model</text>
+    <path d="M300 0h135l18 32-18 32H300l18-32z" fill="#355b7d"/><text class="t" x="326" y="38">Link</text>
+    <path d="M450 0h135l18 32-18 32H450l18-32z" fill="#4a6f93"/><text class="t" x="476" y="38">Schedule</text>
+    <path d="M600 0h135l18 32-18 32H600l18-32z" fill="#b8874f"/><text class="t" x="626" y="38">Simulate</text>
+    <path d="M750 0h155l18 32-18 32H750l18-32z" fill="#e10600"/><text class="t" x="776" y="38">Report</text>
+  </g>
+  <g class="s">
+    <text x="24" y="150"><tspan class="n">1 </tspan>Open a P6 XER or</text><text x="24" y="166">MS Project XML file.</text>
+    <text x="174" y="150"><tspan class="n">2 </tspan>Load the IFC model</text><text x="174" y="166">(4D layout).</text>
+    <text x="324" y="150"><tspan class="n">3 </tspan>Link model elements</text><text x="324" y="166">to activities.</text>
+    <text x="474" y="150"><tspan class="n">4 </tspan>Calculate dates (F9),</text><text x="474" y="166">update progress.</text>
+    <text x="624" y="150"><tspan class="n">5 </tspan>Play the construction</text><text x="624" y="166">sequence in 3D.</text>
+    <text x="774" y="150"><tspan class="n">6 </tspan>Dashboards, KPIs, XER,</text><text x="774" y="166">XML, PowerPoint, video.</text>
+  </g>
+  <text x="24" y="206" style="font:12px Inter,sans-serif;fill:#5d6b7a">Stages 2, 3 and 5 are in the 4D layout. You can do stages 1, 4 and 6 in all three layouts.</text>
+</svg>

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 190" role="img" aria-label="The steps at the first start">
+  <style>.h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.s{font:12px Inter,sans-serif;fill:#1d2733}.n{font:700 18px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="190" rx="8" fill="#ebecef"/>
+  <g stroke="#d4a574" stroke-width="3"><path d="M90 60H870"/></g>
+  <g>
+    <circle cx="90" cy="60" r="24" fill="#0b2545"/><text class="n" x="90" y="66" text-anchor="middle">1</text>
+    <circle cx="285" cy="60" r="24" fill="#0b2545"/><text class="n" x="285" y="66" text-anchor="middle">2</text>
+    <circle cx="480" cy="60" r="24" fill="#0b2545"/><text class="n" x="480" y="66" text-anchor="middle">3</text>
+    <circle cx="675" cy="60" r="24" fill="#355b7d"/><text class="n" x="675" y="66" text-anchor="middle">4</text>
+    <circle cx="870" cy="60" r="24" fill="#e10600"/><text class="n" x="870" y="66" text-anchor="middle">✓</text>
+  </g>
+  <g text-anchor="middle">
+    <text class="h" x="90" y="112">Sign in</text><text class="s" x="90" y="132">Web version only.</text><text class="s" x="90" y="148">User name, password.</text>
+    <text class="h" x="285" y="112">Layout</text><text class="s" x="285" y="132">P6, MS Project or 4D.</text><text class="s" x="285" y="148">You can change it later.</text>
+    <text class="h" x="480" y="112">Storage</text><text class="s" x="480" y="132">This computer, or a</text><text class="s" x="480" y="148">Stratum Server.</text>
+    <text class="h" x="675" y="112">Options</text><text class="s" x="675" y="132">P6 connection, email.</text><text class="s" x="675" y="148">You can skip this step.</text>
+    <text class="h" x="870" y="112">Workspace</text><text class="s" x="870" y="132">Open a project or</text><text class="s" x="870" y="148">a sample project.</text>
+  </g>
+</svg>

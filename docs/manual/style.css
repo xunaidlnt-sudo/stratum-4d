@@ -1,0 +1,75 @@
+/* Stratum 4D manual: screen and print. Brand: Deep Navy #0B2545, Warm Gold #D4A574, Steel Blue #355B7D, Light Stone #EBECEF, Stratum Red #E10600. */
+@font-face { font-family: "Montserrat"; src: url("fonts/montserrat.woff2") format("woff2"); font-weight: 100 900; }
+@font-face { font-family: "Inter"; src: url("fonts/inter.woff2") format("woff2"); font-weight: 100 900; }
+:root { --navy: #0b2545; --gold: #d4a574; --steel: #355b7d; --stone: #ebecef; --red: #e10600; --ink: #1d2733; --muted: #5d6b7a; --line: #d5dae1; --note: #e8f0f8; --caution: #fdf1e3; }
+* { box-sizing: border-box; }
+html { font-family: "Inter", system-ui, sans-serif; color: var(--ink); background: #fff; font-size: 15px; line-height: 1.55; }
+body { margin: 0; }
+h1, h2, h3, .cover, .toc, .num { font-family: "Montserrat", "Inter", sans-serif; color: var(--navy); }
+h1 { font-size: 28px; font-weight: 700; margin: 0 0 6px; }
+h1 .num { color: var(--gold); margin-right: 10px; }
+h2 { font-size: 19px; font-weight: 650; margin: 30px 0 8px; padding-bottom: 4px; border-bottom: 2px solid var(--stone); }
+h3 { font-size: 15.5px; font-weight: 650; margin: 20px 0 6px; }
+p { margin: 0 0 10px; max-width: 74ch; }
+.purpose { font-size: 16px; color: var(--steel); margin-bottom: 18px; }
+a { color: var(--steel); }
+code, kbd { font-family: "JetBrains Mono", ui-monospace, monospace; font-size: 0.88em; }
+kbd { border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px; padding: 0 4px; background: #fafbfc; }
+.ui { font-weight: 600; color: var(--navy); }
+ol.steps { counter-reset: step; list-style: none; padding: 0; margin: 10px 0 16px; max-width: 76ch; }
+ol.steps > li { counter-increment: step; position: relative; padding: 6px 0 6px 40px; border-bottom: 1px solid #eef1f4; }
+ol.steps > li::before { content: counter(step); position: absolute; left: 0; top: 5px; width: 26px; height: 26px; border-radius: 50%; background: var(--navy); color: #fff; font: 600 13px/26px "Montserrat", sans-serif; text-align: center; }
+ol.steps .result { display: block; color: var(--muted); font-size: 14px; margin-top: 2px; }
+ol.steps .result::before { content: "Result: "; font-weight: 600; color: var(--steel); }
+ul { max-width: 74ch; padding-left: 22px; }
+li { margin: 2px 0; }
+.note, .caution { border-left: 5px solid var(--steel); background: var(--note); padding: 8px 12px; margin: 12px 0; max-width: 76ch; }
+.caution { border-left-color: #c46a00; background: var(--caution); }
+.note::before, .caution::before { display: block; font: 700 12px "Montserrat", sans-serif; letter-spacing: 0.08em; margin-bottom: 2px; }
+.note::before { content: "NOTE"; color: var(--steel); }
+.caution::before { content: "CAUTION"; color: #a35400; }
+table { border-collapse: collapse; margin: 10px 0 16px; font-size: 14px; max-width: 100%; }
+th, td { border: 1px solid var(--line); padding: 5px 9px; text-align: left; vertical-align: top; }
+th { background: var(--stone); color: var(--navy); font-weight: 600; }
+figure { margin: 16px 0 20px; }
+figure svg, figure img { display: block; max-width: 100%; height: auto; }
+figure img { border: 1px solid var(--line); border-radius: 4px; }
+figcaption { font-size: 13px; color: var(--muted); margin-top: 6px; }
+figcaption b { color: var(--navy); }
+.chapter { padding: 8px 0 24px; }
+.related { margin-top: 26px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 14px; color: var(--muted); }
+
+/* Web pages */
+.web { display: grid; grid-template-columns: 270px minmax(0, 1fr); min-height: 100vh; }
+.web nav { background: var(--navy); color: #fff; padding: 20px 16px; position: sticky; top: 0; height: 100vh; overflow: auto; }
+.web nav img { width: 190px; margin-bottom: 18px; }
+.web nav a { display: block; color: #dfe6ee; text-decoration: none; padding: 5px 8px; border-radius: 4px; font-size: 14px; }
+.web nav a:hover, .web nav a.on { background: rgba(255, 255, 255, 0.1); color: #fff; }
+.web nav a .num { color: var(--gold); margin-right: 6px; font-weight: 600; }
+.web nav .pdf { margin-top: 16px; border: 1px solid var(--gold); color: var(--gold); text-align: center; }
+.web main { padding: 32px 44px 60px; max-width: 1000px; }
+.pager { display: flex; justify-content: space-between; margin-top: 30px; font-size: 14px; }
+@media (max-width: 760px) {
+  .web { grid-template-columns: 1fr; }
+  .web nav { position: static; height: auto; }
+  .web main { padding: 20px 16px 40px; }
+}
+
+/* Print (PDF) */
+@page { size: A4; margin: 18mm 16mm 18mm 16mm; }
+@media print {
+  html { font-size: 10.5pt; }
+  .chapter { break-before: page; }
+  figure, .note, .caution, table, ol.steps > li { break-inside: avoid; }
+  h2, h3 { break-after: avoid; }
+  a { color: inherit; text-decoration: none; }
+}
+.cover { height: 257mm; display: flex; flex-direction: column; justify-content: space-between; padding: 30mm 0 10mm; }
+.cover .lockup { width: 120mm; }
+.cover h1 { font-size: 34pt; margin-top: 30mm; }
+.cover .sub { font-size: 14pt; color: var(--steel); }
+.cover .meta { font-size: 10pt; color: var(--muted); border-top: 3px solid var(--gold); padding-top: 6mm; }
+.toc { break-before: page; }
+.toc ol { list-style: none; padding: 0; font-size: 12pt; }
+.toc li { display: flex; gap: 10px; padding: 4px 0; border-bottom: 1px dotted var(--line); }
+.toc .num { color: var(--gold); width: 26px; font-weight: 700; }

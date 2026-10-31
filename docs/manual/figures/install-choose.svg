@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" role="img" aria-label="Which version of Stratum 4D to install">
+  <style>.h{font:700 14px Montserrat,sans-serif;fill:#fff}.f{font:600 12px Montserrat,sans-serif;fill:#0b2545}.s{font:12px Inter,sans-serif;fill:#1d2733}.m{font:11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="330" rx="8" fill="#ebecef"/>
+  <rect x="380" y="16" width="200" height="44" rx="22" fill="#0b2545"/><text class="h" x="480" y="43" text-anchor="middle">Which device?</text>
+  <g stroke="#355b7d" stroke-width="2" fill="none"><path d="M480 60v20H94v24M480 80h0M286 80v24M480 80v24M674 80v24M866 80v24"/></g>
+  <g transform="translate(14,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="h" x="80" y="23" text-anchor="middle">Windows</text>
+    <text class="f" x="12" y="58">…-win-x64.exe</text><text class="s" x="12" y="82">Installer. Select the</text><text class="s" x="12" y="98">folder, then Install.</text>
+    <text class="m" x="12" y="130">SmartScreen message:</text><text class="m" x="12" y="146">More info › Run anyway.</text><text class="m" x="12" y="178">Local SQLite database.</text><text class="m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(206,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="h" x="80" y="23" text-anchor="middle">macOS</text>
+    <text class="f" x="12" y="58">…-mac-arm64.dmg</text><text class="f" x="12" y="74">…-mac-x64.dmg</text><text class="s" x="12" y="98">arm64: Apple silicon.</text><text class="s" x="12" y="114">x64: Intel.</text>
+    <text class="m" x="12" y="146">First start: right-click</text><text class="m" x="12" y="162">the app › Open.</text><text class="m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(400,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="h" x="80" y="23" text-anchor="middle">Linux</text>
+    <text class="f" x="12" y="58">….AppImage</text><text class="f" x="12" y="74">….deb</text><text class="s" x="12" y="98">AppImage: any distro.</text><text class="s" x="12" y="114">.deb: Debian, Ubuntu.</text>
+    <text class="m" x="12" y="146">AppImage: set it as</text><text class="m" x="12" y="162">executable first.</text><text class="m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(594,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#b8874f"/><text class="h" x="80" y="23" text-anchor="middle">Android</text>
+    <text class="f" x="12" y="58">…-android.apk</text><text class="s" x="12" y="82">Phones and tablets.</text><text class="s" x="12" y="98">Allow the install from</text><text class="s" x="12" y="114">this source when asked.</text>
+    <text class="m" x="12" y="146">Shared cloud folder:</text><text class="m" x="12" y="162">use the web app instead.</text><text class="m" x="12" y="194">P6 connections: no.</text>
+  </g>
+  <g transform="translate(786,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#e10600"/><text class="h" x="80" y="23" text-anchor="middle">Web browser</text>
+    <text class="f" x="12" y="58">No installation</text><text class="s" x="12" y="82">Chrome, Edge, Firefox</text><text class="s" x="12" y="98">or Safari. Sign in.</text>
+    <text class="m" x="12" y="130">Data stays in this</text><text class="m" x="12" y="146">browser. Install it as</text><text class="m" x="12" y="162">an app: Chrome › Install.</text><text class="m" x="12" y="194">P6 connections: no.</text>
+  </g>
+</svg>

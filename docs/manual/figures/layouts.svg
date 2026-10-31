@@ -1,0 +1,40 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-label="The three layouts of Stratum 4D">
+  <style>.h{font:700 16px Montserrat,sans-serif;fill:#0b2545}.s{font:12.5px Inter,sans-serif;fill:#1d2733}.m{font:11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="300" fill="#fff"/>
+  <g transform="translate(10,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="16" fill="#dfe5ec"/>
+    <rect x="16" y="32" width="40" height="88" fill="#eef2f6"/>
+    <g fill="#2e6fbf"><rect x="120" y="44" width="60" height="7"/><rect x="150" y="60" width="70" height="7"/></g>
+    <g fill="#3aa346"><rect x="180" y="44" width="40" height="7"/><rect x="220" y="60" width="40" height="7"/></g>
+    <rect x="200" y="76" width="50" height="7" fill="#e10600"/>
+    <text class="h" x="16" y="148">P6 layout</text>
+    <text class="s" x="16" y="172">Looks and works like</text><text class="s" x="16" y="189">Primavera P6 Professional.</text>
+    <text class="s" x="16" y="213">Use it for: EPS, WBS, activities,</text><text class="s" x="16" y="230">resources, baselines, F9 and F10.</text>
+    <text class="m" x="16" y="262">Switch: top bar › P6 · Ctrl+Alt+1</text>
+  </g>
+  <g transform="translate(330,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="22" fill="#31752f"/>
+    <rect x="16" y="38" width="268" height="12" fill="#f3f3f3"/>
+    <g fill="#6d9fd8"><rect x="130" y="62" width="70" height="8"/><rect x="170" y="78" width="60" height="8"/></g>
+    <path d="M120 96h120v5l-4 5-4-5H124l-4 5z" fill="#1e1e1e"/>
+    <text class="h" x="16" y="148">MS Project layout</text>
+    <text class="s" x="16" y="172">Looks and works like</text><text class="s" x="16" y="189">Microsoft Project, with the ribbon.</text>
+    <text class="s" x="16" y="213">Use it for: tasks, Task Usage,</text><text class="s" x="16" y="230">Team Planner, MS Project XML.</text>
+    <text class="m" x="16" y="262">Switch: top bar › Project · Ctrl+Alt+2</text>
+  </g>
+  <g transform="translate(650,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#1e2430"/>
+    <path d="M150 104l-50-22 50-22 50 22z" fill="#355b7d"/><path d="M100 82v18l50 22v-18z" fill="#24425f"/><path d="M200 82v18l-50 22v-18z" fill="#2c5070"/>
+    <path d="M128 70l22-10 22 10-22 10z" fill="#d4a574"/>
+    <rect x="16" y="110" width="268" height="10" fill="#2a3240"/><rect x="16" y="110" width="150" height="10" fill="#e10600"/>
+    <text class="h" x="16" y="148">4D layout</text>
+    <text class="s" x="16" y="172">3D model, Gantt chart and the</text><text class="s" x="16" y="189">playback timeline together.</text>
+    <text class="s" x="16" y="213">Use it for: IFC models, links,</text><text class="s" x="16" y="230">4D simulation, video, quantities.</text>
+    <text class="m" x="16" y="262">Switch: top bar › 4D · Ctrl+Alt+3</text>
+  </g>
+</svg>

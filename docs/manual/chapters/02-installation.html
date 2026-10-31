@@ -1,0 +1,95 @@
+<section class="chapter" id="installation">
+<h1>Installation</h1>
+<p class="purpose">This chapter tells you how to install Stratum 4D on Windows, macOS, Linux and Android, and how to use it in a web browser.</p>
+
+<h2>Versions of Stratum 4D</h2>
+<p>Stratum 4D is available as a desktop application, an Android application and a web application. All versions have the same layouts and the same calculations.</p>
+<p>The desktop application can connect to Primavera P6 and can send reports by email. The web application and the Android application cannot connect to P6.</p>
+<figure><!--fig:install-choose--><figcaption><b>Figure 2-1.</b> Select the correct file for your device.</figcaption></figure>
+
+<h2>Get the installation files</h2>
+<p>The installation files are on the releases page of Stratum 4D on GitHub. Each release has one file for each type of device.</p>
+<ol class="steps">
+<li>Open the releases page: <code>github.com/xunaidlnt-sudo/stratum-4d/releases</code>.</li>
+<li>Find the latest release at the top of the page.</li>
+<li>Under <span class="ui">Assets</span>, click the file for your device.<span class="result">The file goes into the Downloads folder.</span></li>
+</ol>
+
+<h2>Install on Windows</h2>
+<p>Use the file that ends with <code>-win-x64.exe</code>. Windows 10 and Windows 11 (64-bit) are supported.</p>
+<div class="note">The installer does not have a code signature yet. Thus Windows SmartScreen can show the message "Windows protected your PC".</div>
+<ol class="steps">
+<li>Double-click the file <code>Stratum-4D-&lt;version&gt;-win-x64.exe</code>.</li>
+<li>If SmartScreen shows a message, click <span class="ui">More info</span>.</li>
+<li>Click <span class="ui">Run anyway</span>.</li>
+<li>Select the folder for the installation, or keep the default folder.</li>
+<li>Click <span class="ui">Install</span>.<span class="result">The installer adds Stratum 4D to the Start menu and to the desktop.</span></li>
+<li>Click <span class="ui">Finish</span>.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<p>After the installation, Windows opens <code>.xer</code> and <code>.ifc</code> files in Stratum 4D when you double-click them.</p>
+
+<h2>Install on macOS</h2>
+<p>There are two files for macOS. Use <code>-mac-arm64.dmg</code> on a Mac with Apple silicon (M1 or later). Use <code>-mac-x64.dmg</code> on a Mac with an Intel processor.</p>
+<ol class="steps">
+<li>Double-click the <code>.dmg</code> file.<span class="result">A window opens with the Stratum 4D icon.</span></li>
+<li>Drag the Stratum 4D icon to the <span class="ui">Applications</span> folder.</li>
+<li>Open the <span class="ui">Applications</span> folder.</li>
+<li>Right-click <span class="ui">Stratum 4D</span> and click <span class="ui">Open</span>.</li>
+<li>In the message, click <span class="ui">Open</span> again.<span class="result">Stratum 4D starts. Next time, you can open it as usual.</span></li>
+</ol>
+
+<h2>Install on Linux</h2>
+<p>There are two files for Linux. The <code>.AppImage</code> file operates on most distributions. The <code>.deb</code> file is for Debian and Ubuntu.</p>
+<h3>To use the AppImage file</h3>
+<ol class="steps">
+<li>Open a terminal in the Downloads folder.</li>
+<li>Type <code>chmod +x Stratum-4D-*.AppImage</code> and push <kbd>Enter</kbd>.</li>
+<li>Double-click the AppImage file.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<h3>To install the .deb file</h3>
+<ol class="steps">
+<li>Open a terminal in the Downloads folder.</li>
+<li>Type <code>sudo apt install ./Stratum-4D-*.deb</code> and push <kbd>Enter</kbd>.</li>
+<li>Start Stratum 4D from the applications menu.</li>
+</ol>
+
+<h2>Install on Android</h2>
+<p>Use the file that ends with <code>-android.apk</code>. The application is for phones and tablets with Android 8 or later.</p>
+<ol class="steps">
+<li>On the phone or tablet, open the releases page and download the <code>.apk</code> file.</li>
+<li>Open the file from the download notification.</li>
+<li>If Android asks for permission to install from this source, give the permission.</li>
+<li>Tap <span class="ui">Install</span>.</li>
+<li>Tap <span class="ui">Open</span>.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<div class="note">To share a cloud folder (Google Drive or OneDrive) with a team on a tablet, use the web application. Chapter 4 tells you about shared folders.</div>
+
+<h2>Use the web application</h2>
+<p>The web application operates in Chrome, Edge, Firefox and Safari. It is not necessary to install it. The web application keeps your projects in the storage of the browser on that computer.</p>
+<ol class="steps">
+<li>Open the address of the web application that you got from Miqyas Labs.</li>
+<li>Type your user name and password.</li>
+<li>Click <span class="ui">Sign in</span>.<span class="result">Stratum 4D opens. At the first start, the setup steps of chapter 3 open.</span></li>
+</ol>
+<h3>To install the web application as an application</h3>
+<ol class="steps">
+<li>Open the web application in Chrome or Edge.</li>
+<li>In the address bar, click the install icon.</li>
+<li>Click <span class="ui">Install</span>.<span class="result">Stratum 4D opens in its own window, with an icon on the desktop.</span></li>
+</ol>
+<div class="caution">If you clear the data of the browser, the projects in the browser storage are deleted. Save a project file or use a shared folder to keep a copy (chapter 4).</div>
+
+<h2>Update to a new release</h2>
+<p>To update the desktop application, install the new release over the old release. Your projects and settings stay. The web application updates when you open it again.</p>
+
+<h2>Remove Stratum 4D</h2>
+<ul>
+<li>Windows: open <span class="ui">Settings › Apps</span>, select <span class="ui">Stratum 4D</span> and click <span class="ui">Uninstall</span>.</li>
+<li>macOS: drag <span class="ui">Stratum 4D</span> from the Applications folder to the Bin.</li>
+<li>Linux: delete the AppImage file, or type <code>sudo apt remove stratum-4d</code>.</li>
+<li>Android: touch and hold the icon, then tap <span class="ui">Uninstall</span>.</li>
+</ul>
+<div class="caution">The projects in the database stay on the computer after you remove the application. Delete them only if you have a copy.</div>
+
+<p class="related">Related chapters: 3 First start, 4 Projects and files.</p>
+</section>

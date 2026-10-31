@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" role="img" aria-label="Files into and out of Stratum 4D, and where projects are kept">
+  <style>.h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.w{font:700 14px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.m{font:11px Inter,sans-serif;fill:#dfe6ee}</style>
+  <rect width="960" height="330" rx="8" fill="#ebecef"/>
+  <text class="h" x="24" y="32">Into Stratum</text><text class="h" x="740" y="32">Out of Stratum</text>
+  <g class="s">
+    <rect x="24" y="46" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="71">P6 XER (.xer)</text>
+    <rect x="24" y="94" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="119">MS Project XML (.xml)</text>
+    <rect x="24" y="142" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="167">IFC model (.ifc)</text>
+    <rect x="24" y="190" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="215">Excel (.xlsx)</text>
+    <rect x="24" y="238" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="263">P6 EPPM / P6 database</text>
+    <rect x="740" y="46" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="71">P6 XER (.xer)</text>
+    <rect x="740" y="94" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="119">MS Project XML (.xml)</text>
+    <rect x="740" y="142" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="167">Excel (.xlsx), CSV</text>
+    <rect x="740" y="190" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="215">PowerPoint, PDF</text>
+    <rect x="740" y="238" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="263">PNG picture, WebM video</text>
+  </g>
+  <g stroke="#355b7d" stroke-width="2" fill="none"><path d="M224 66h40M224 114h40M224 162h40M224 210h40M224 258h40M264 66v192M264 162h30"/><path d="M666 162h30M696 66v192M696 66h44M696 114h44M696 162h44M696 210h44M696 258h44"/></g>
+  <rect x="294" y="46" width="372" height="232" rx="10" fill="#0b2545"/>
+  <text class="w" x="480" y="76" text-anchor="middle">Stratum 4D project database</text>
+  <g>
+    <rect x="312" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="w" x="324" y="116" style="font-size:12.5px">Desktop app</text><text class="m" x="324" y="136">SQLite file in your</text><text class="m" x="324" y="152">user folder.</text>
+    <rect x="482" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="w" x="494" y="116" style="font-size:12.5px">Web browser</text><text class="m" x="494" y="136">Storage of this browser</text><text class="m" x="494" y="152">on this computer.</text>
+    <rect x="312" y="178" width="166" height="80" rx="6" fill="#355b7d"/><text class="w" x="324" y="202" style="font-size:12.5px">Cloud folder</text><text class="m" x="324" y="222">Google Drive or OneDrive,</text><text class="m" x="324" y="238">shared by a team.</text>
+    <rect x="482" y="178" width="166" height="80" rx="6" fill="#b8874f"/><text class="w" x="494" y="202" style="font-size:12.5px">Stratum Server</text><text class="m" x="494" y="222">PostgreSQL, sign-in,</text><text class="m" x="494" y="238">roles, emailed reports.</text>
+  </g>
+  <text x="480" y="306" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">A Stratum project file (.stratum.json) holds a project with its model links. Use it to move a project between computers.</text>
+</svg>

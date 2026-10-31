@@ -1,0 +1,61 @@
+<section class="chapter" id="introduction">
+<h1>Introduction</h1>
+<p class="purpose">This chapter tells you what Stratum 4D does, which layouts it has, and how to use this manual.</p>
+
+<h2>What Stratum 4D is</h2>
+<p>Stratum 4D is a planning and 4D simulation tool for construction projects. It reads a schedule from Primavera P6 or Microsoft Project. It can also read a 3D building model in the IFC format.</p>
+<p>You link the model elements to the activities of the schedule. Stratum then shows the construction sequence in 3D, day by day. You can calculate the schedule, record progress, compare against a baseline and make reports.</p>
+<figure><!--fig:overview-flow--><figcaption><b>Figure 1-1.</b> The six stages of work in Stratum 4D.</figcaption></figure>
+
+<h2>The three layouts</h2>
+<p>Stratum 4D has three layouts. All three layouts use the same calculation engine and the same project data. When you change the layout, the open project stays open.</p>
+<ul>
+<li>The <span class="ui">P6</span> layout looks and works like Primavera P6 Professional.</li>
+<li>The <span class="ui">Project</span> layout looks and works like Microsoft Project.</li>
+<li>The <span class="ui">4D</span> layout shows the 3D model, the Gantt chart and the playback timeline together.</li>
+</ul>
+<figure><!--fig:layouts--><figcaption><b>Figure 1-2.</b> The three layouts and what each layout is for.</figcaption></figure>
+
+<h3>To change the layout</h3>
+<ol class="steps">
+<li>On the top bar, click <span class="ui">P6</span>, <span class="ui">Project</span> or <span class="ui">4D</span>.<span class="result">The new layout opens with the same project.</span></li>
+<li>Alternatively, push <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>2</kbd> or <kbd>3</kbd>.</li>
+</ol>
+<figure><img src="shots/layout-p6.png" alt="The P6 layout with the sample project"><figcaption><b>Figure 1-3.</b> The P6 layout with the 220 kV GIS substation sample project.</figcaption></figure>
+<figure><img src="shots/layout-msp.png" alt="The Project layout with the sample project"><figcaption><b>Figure 1-4.</b> The Project layout (Microsoft Project style) with the same project.</figcaption></figure>
+<figure><img src="shots/layout-4d.png" alt="The 4D layout with the sample project"><figcaption><b>Figure 1-5.</b> The 4D layout: Gantt chart on the left, 3D model in the middle, link tools on the right and the timeline at the bottom.</figcaption></figure>
+
+<h2>The sample projects</h2>
+<p>Stratum 4D has two sample projects. You can use them to learn the software without your own files. The two sample projects are fictional.</p>
+<table>
+<tr><th>Sample project</th><th>Contents</th></tr>
+<tr><td>220 kV GIS substation (UAE)</td><td>46 activities on a UAE 6-day calendar, costs in AED, resources, a baseline and a 3D model with 202 elements.</td></tr>
+<tr><td>Small RC building</td><td>A small concrete building with 14 activities and a 3D model. Use it for a fast first test.</td></tr>
+</table>
+<p>This manual uses the 220 kV GIS substation project for most examples.</p>
+
+<h2>How to use this manual</h2>
+<p>This manual is written in ASD-STE100 Simplified Technical English. Each chapter starts with its purpose. Then it gives a description and the procedures.</p>
+<ul>
+<li>A procedure is a numbered list of steps. Do the steps in the given order.</li>
+<li>A line that starts with "Result" tells you what you see after the step.</li>
+<li>Names of buttons, menus and fields are in <span class="ui">bold blue</span>.</li>
+<li>Keys are shown as <kbd>Ctrl</kbd>+<kbd>S</kbd>. Push the keys at the same time.</li>
+</ul>
+<div class="note">A NOTE gives information that helps you.</div>
+<div class="caution">A CAUTION tells you about a risk of loss of data.</div>
+
+<h2>The words in the layouts</h2>
+<p>Each layout uses the words of the software that it copies. The table gives the words for the same item in each layout.</p>
+<table>
+<tr><th>Item</th><th>P6 layout</th><th>Project layout</th><th>4D layout</th></tr>
+<tr><td>One item of work</td><td>Activity</td><td>Task</td><td>Task</td></tr>
+<tr><td>Its identifier</td><td>Activity ID</td><td>ID (row number)</td><td>Task ID</td></tr>
+<tr><td>Date of the last progress update</td><td>Data date</td><td>Status date</td><td>Data date</td></tr>
+<tr><td>Calculate the dates</td><td>Schedule (F9)</td><td>Calculate Project (F9)</td><td>Reschedule (F9)</td></tr>
+<tr><td>Time that work can slip</td><td>Total float</td><td>Total slack</td><td>TF</td></tr>
+<tr><td>Group of work</td><td>WBS</td><td>Summary task</td><td>WBS</td></tr>
+</table>
+
+<p class="related">Related chapters: 2 Installation, 3 First start, 4 Projects and files.</p>
+</section>

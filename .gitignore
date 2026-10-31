@@ -9,3 +9,4 @@ electron/host.cjs
 electron/sql-wasm.wasm
 android
 assets
+docs/manual/dist/
