@@ -142,7 +142,7 @@ jobs:
     needs: [build, android]
     runs-on: ubuntu-latest
     env:
-      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
+      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' }}
     steps:
       - uses: actions/checkout@v4
       - id: v
@@ -167,7 +167,7 @@ jobs:
         if: env.HAS_CF == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'd90233d3db18e0173d8165819f5e9e98' }}
         run: bash scripts/cloudflare/upload.sh dist-installers "${{ steps.v.outputs.tag }}"
       # Tag pushes make a draft to review; a manual run with "publish" releases it.
       - uses: softprops/action-gh-release@v2
