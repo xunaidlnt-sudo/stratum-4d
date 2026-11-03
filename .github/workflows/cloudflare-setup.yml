@@ -49,7 +49,6 @@ jobs:
           cp -r dist public_site/demo
           cp -r docs/manual/dist public_site/manual
           cp docs/Stratum-4D-Manual.pdf public_site/manual/
-          node scripts/cloudflare/links.cjs public_site/index.html
       - name: Bucket, Pages project, domains and DNS
         run: bash scripts/cloudflare/setup.sh
       - name: Copy the latest release to the bucket
