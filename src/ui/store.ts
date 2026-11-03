@@ -180,7 +180,7 @@ export const useStore = create<AppState>((set) => {
     playing: false,
     speed: 7,
     sim: DEFAULT_SIM_OPTIONS,
-    status: "Load a P6 XER or MS Project schedule and an IFC model, or open the demo.",
+    status: "Load a P6 XER or MS Project schedule and a 3D model (IFC, glTF, OBJ, FBX), or open the demo.",
     busy: false,
     collapsedWbs: new Set(),
     ganttFilter: { text: "", kind: "all" },

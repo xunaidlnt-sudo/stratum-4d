@@ -3,7 +3,7 @@ import { linkHealth } from "../core/health";
 import { activityFields, applyRules, elementPropertyValue, mergeLinks, propertyKeys, suggestRules, unlink, type RuleSuggestion } from "../core/linking";
 import { LINK_PROFILE_KEY } from "./Present";
 import { PLAN_COLORS } from "../core/simulation";
-import { splitElement } from "../core/motion";
+import { splitAt, splitElement, splitGrid } from "../core/motion";
 import { cloneProfile, STATUS_COLORS } from "../core/profiles";
 import type { AppearanceProfile, GrowthDirection, LinkMatch, LinkRule, PhaseAppearance } from "../core/types";
 import { fmtDate, useStore, type SideTab } from "./store";
@@ -655,6 +655,13 @@ function ToolsTab() {
   const [axis, setAxis] = useState<"x" | "y" | "z">("x");
   const [parts, setParts] = useState(3);
   const [label, setLabel] = useState("Pour");
+  const [splitMode, setSplitMode] = useState<"equal" | "at" | "grid">("equal");
+  const [cutsText, setCutsText] = useState("30, 60");
+  const [grid, setGrid] = useState<[number, number, number]>([2, 2, 1]);
+  const cutList = cutsText
+    .split(/[,;\s]+/)
+    .map((x) => Number(x) / 100)
+    .filter((x) => x > 0 && x < 1);
   const [pathName, setPathName] = useState("");
   const [orient, setOrient] = useState(false);
   const act = schedule?.activities.find((a) => a.id === selectedActivity);
@@ -696,23 +703,50 @@ function ToolsTab() {
 
       <section>
         <h4>Split into pours / bays</h4>
-        <p className="muted">Cut the selected element(s) into equal parts along an axis. Each part can then be linked to its own activity.</p>
-        <div className="row">
-          <select value={axis} onChange={(e) => setAxis(e.target.value as "x" | "y" | "z")}>
-            <option value="x">Along X (west–east)</option>
-            <option value="z">Along Z (south–north)</option>
-            <option value="y">Along Y (height)</option>
+        <p className="muted">Cut the selected element(s) into parts. Each part can then be linked to its own activity.</p>
+        <label>
+          Split type
+          <select value={splitMode} onChange={(e) => setSplitMode(e.target.value as typeof splitMode)}>
+            <option value="equal">Equal parts along one axis</option>
+            <option value="at">At positions along one axis (uneven)</option>
+            <option value="grid">Grid: columns × rows × layers</option>
           </select>
-          <input type="number" min={2} max={50} value={parts} onChange={(e) => setParts(Number(e.target.value) || 2)} style={{ width: 56 }} />
-          <input value={label} onChange={(e) => setLabel(e.target.value)} style={{ width: 70 }} title="Part name" />
-        </div>
+        </label>
+        {splitMode !== "grid" ? (
+          <div className="row">
+            <select value={axis} onChange={(e) => setAxis(e.target.value as "x" | "y" | "z")}>
+              <option value="x">Along X (west–east)</option>
+              <option value="z">Along Z (south–north)</option>
+              <option value="y">Along Y (height)</option>
+            </select>
+            {splitMode === "equal" ? (
+              <input type="number" min={2} max={50} value={parts} onChange={(e) => setParts(Number(e.target.value) || 2)} style={{ width: 56 }} title="Number of parts" />
+            ) : (
+              <input value={cutsText} onChange={(e) => setCutsText(e.target.value)} style={{ width: 96 }} title="Cut positions in % of the element, for example 30, 60" />
+            )}
+            <input value={label} onChange={(e) => setLabel(e.target.value)} style={{ width: 70 }} title="Part name" />
+          </div>
+        ) : (
+          <div className="row">
+            {(["Columns (X)", "Rows (Z)", "Layers (height)"] as const).map((t, i) => (
+              <label key={t} style={{ width: 82 }}>
+                {t}
+                <input type="number" min={1} max={20} value={grid[i]} onChange={(e) => setGrid(grid.map((g, j) => (j === i ? Math.max(1, Math.min(20, Number(e.target.value) || 1)) : g)) as [number, number, number])} />
+              </label>
+            ))}
+            <input value={label} onChange={(e) => setLabel(e.target.value)} style={{ width: 70 }} title="Part name" />
+          </div>
+        )}
+        {splitMode === "at" && <p className="muted">Type the cut positions in percent of the element, for example 30, 60 for three parts of 30%, 30% and 40%.</p>}
         <div className="row">
           <button
-            disabled={!sel.length}
+            disabled={!sel.length || (splitMode === "at" && !cutList.length) || (splitMode === "grid" && grid[0] * grid[1] * grid[2] < 2)}
             onClick={() => {
               const targets = parentsOf(sel);
               const rest = segments.filter((s) => !targets.includes(s.parentId));
-              const added = targets.flatMap((id) => splitElement(id, axis, parts, label));
+              const added = targets.flatMap((id) =>
+                splitMode === "grid" ? splitGrid(id, grid[0], grid[1], grid[2], label) : splitMode === "at" ? splitAt(id, axis, cutList, label) : splitElement(id, axis, parts, label),
+              );
               // Links on the element (or its earlier parts) move to every new part.
               const parentOfId = (id: string) => (targets.includes(id) ? id : segments.find((x) => x.id === id && targets.includes(x.parentId))?.parentId);
               const seen = new Set<string>();
@@ -732,7 +766,7 @@ function ToolsTab() {
               st.setSegments([...rest, ...added]);
               st.setLinks(linksNext);
               st.selectElements(new Set(added.map((s) => s.id)));
-              st.setStatus(`Split ${targets.length} element(s) into ${parts} parts each. Link each part to its activity.`);
+              st.setStatus(`Split ${targets.length} element(s) into ${added.length / Math.max(1, targets.length)} parts each. Link each part to its activity.`);
             }}
           >
             Split selection

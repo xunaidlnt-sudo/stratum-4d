@@ -218,6 +218,8 @@ export interface ElementSegment {
   axis: "x" | "y" | "z";
   from: number; // 0..1
   to: number; // 0..1
+  /** A part of a grid split: its range on every axis (fractions of the element). Overrides axis/from/to. */
+  box?: { x: [number, number]; y: [number, number]; z: [number, number] };
 }
 
 export interface WbsNode {

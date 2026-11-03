@@ -20,9 +20,17 @@
 <h2>Load the schedule and the model</h2>
 <ol class="steps">
 <li>Import the schedule (XER or XML). Chapter 4 gives the procedure.</li>
-<li>Click <span class="ui">Import IFC model…</span>.</li>
-<li>Select the IFC file and click <span class="ui">Open</span>.<span class="result">The model shows in the 3D view. Large models can take some minutes.</span></li>
+<li>Click <span class="ui">Import model</span> on the toolbar, or <span class="ui">Import 3D model…</span> in the side panel.</li>
+<li>Select the model file and click <span class="ui">Open</span>.<span class="result">The model shows in the 3D view. Large models can take some minutes.</span></li>
 </ol>
+<table>
+<tr><th>Format</th><th>What Stratum 4D reads</th></tr>
+<tr><td>IFC (<code>.ifc</code>, IFC2x3 and IFC4)</td><td>Each building element, with its properties, quantities and storey</td></tr>
+<tr><td>glTF (<code>.glb</code>, <code>.gltf</code>)</td><td>Each mesh, with its name, its parent node and its custom properties ("extras")</td></tr>
+<tr><td>OBJ, STL, FBX</td><td>Each mesh, with its name. FBX also gives its custom properties.</td></tr>
+</table>
+<p>If the custom properties of a mesh have an identifier (for example <code>GlobalId</code>), Stratum 4D uses it. Then the links stay when you export the model again. A <code>.gltf</code> file must hold its data in the file. If it does not, export a <code>.glb</code> file.</p>
+<div class="note">If a model is very large, Stratum 4D thinks that it is in millimeters or centimeters. It then changes the scale to meters and tells you in the status bar.</div>
 <div class="note">To try the 4D layout without your own files, open <span class="ui">File</span> and select <span class="ui">Sample: 220 kV GIS substation (UAE)</span>.</div>
 
 <h2>Link the model to the schedule</h2>
@@ -49,6 +57,22 @@
 <li>Push <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>.<span class="result">Stratum 4D links the elements to the activity. It uses the profile that you selected last on the <span class="ui">Selection</span> tab.</span></li>
 </ol>
 <div class="note">Stratum 4D keeps the links when you import a new update of the schedule. It finds each activity by its Activity ID.</div>
+
+<h2>Split an element into parts</h2>
+<p>A model element can be larger than one unit of work. For example, one slab can have three pours, and one wall can have bays and lifts. You can split the element in Stratum 4D. You do not have to change the model. Each part then links to its own activity.</p>
+<ol class="steps">
+<li>Select the element in the 3D view.</li>
+<li>In the side panel, click the <span class="ui">Tools</span> tab.</li>
+<li>Under <span class="ui">Split into pours / bays</span>, select the <span class="ui">Split type</span>:
+<ul>
+<li><span class="ui">Equal parts along one axis</span>: select the axis and type the number of parts.</li>
+<li><span class="ui">At positions along one axis (uneven)</span>: select the axis and type the cut positions in percent, for example <code>30, 60</code>.</li>
+<li><span class="ui">Grid: columns × rows × layers</span>: type the number of columns (X), rows (Z) and layers (height).</li>
+</ul></li>
+<li>Type a name for the parts, for example <code>Pour</code>.</li>
+<li>Click <span class="ui">Split selection</span>.<span class="result">The parts replace the element. The links of the element go to each part.</span></li>
+</ol>
+<p>To put the element back as one part, select a part and click <span class="ui">Unsplit</span>. A growth profile, for example <span class="ui">Bottom up</span>, grows each part in its own space.</p>
 
 <h2>Appearance profiles</h2>
 <p>An appearance profile tells how an element looks before, during and after its activity. Stratum 4D has these standard profiles:</p>

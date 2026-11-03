@@ -11,7 +11,7 @@ export function Help({ onClose, onDemo }: { onClose: () => void; onDemo: () => v
             <b>Import schedule.</b> Export your project from Primavera P6 as XER, or from MS Project as XML. Stratum reads WBS, activities, logic, activity codes, actuals and baseline dates.
           </li>
           <li>
-            <b>Import IFC.</b> Export the model from Revit, ArchiCAD, Tekla or similar as IFC2x3 or IFC4.
+            <b>Import the model.</b> Export it from Revit, ArchiCAD, Tekla or similar as IFC2x3 or IFC4. glTF / GLB, OBJ, STL and FBX also load, with their names and custom properties.
           </li>
           <li>
             <b>Link.</b> Fastest: <i>Rules → Find matching properties</i>, which looks for a model parameter that already holds Activity IDs or activity codes. Otherwise select elements in 3D (or <i>Selection → Select by property</i>), pick an activity in the Gantt, choose a profile and press <i>Link</i>.

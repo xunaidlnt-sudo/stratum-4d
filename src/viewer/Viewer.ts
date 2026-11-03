@@ -9,7 +9,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { DemoBox } from "../core/demo";
-import { combineClips, type Clip, type Motion } from "../core/motion";
+import { regionEmpty, regionKey, regionWithGrowth, segmentRegion, type Motion, type Region } from "../core/motion";
 import type { ElementState } from "../core/simulation";
 import type { CameraState, CutBox, CutPlane } from "../core/presentation";
 import type { ElementSegment, MotionPath } from "../core/types";
@@ -23,7 +23,7 @@ interface Entry {
   box: THREE.Box3;
   basePos: THREE.Vector3;
   baseYaw: number;
-  segment: Clip | null;
+  segment: Region | null;
   key: string;
 }
 
@@ -187,7 +187,7 @@ export class Viewer {
     return this.entries.size;
   }
 
-  private register(id: string, object: THREE.Object3D, segment: Clip | null) {
+  private register(id: string, object: THREE.Object3D, segment: Region | null) {
     object.userData.elementId = id;
     const originals = new Map<THREE.Mesh, THREE.Material>();
     object.traverse((o) => {
@@ -223,7 +223,7 @@ export class Viewer {
         this.register(id, object, null);
         continue;
       }
-      for (const s of segs) this.register(s.id, object.clone(), { axis: s.axis, lo: s.from, hi: s.to });
+      for (const s of segs) this.register(s.id, object.clone(), segmentRegion(s));
     }
     this.modelBox = new THREE.Box3();
     for (const e of this.entries.values()) this.modelBox.union(e.box);
@@ -550,14 +550,14 @@ export class Viewer {
     const motion = this.motions.get(id);
     const ex = this.explodeOffset(id, entry);
     const isSel = this.selected.has(id);
-    const clip = combineClips(entry.segment, s.clip ?? null);
+    const clip = regionWithGrowth(entry.segment, s.clip ?? null);
     const r = (x: number) => Math.round(x * 1000) / 1000;
     const key = [
       s.visible ? 1 : 0,
       s.color ?? "",
       r(s.transparency),
       isSel ? 1 : 0,
-      clip ? `${clip.axis}${r(clip.lo)}-${r(clip.hi)}` : "",
+      regionKey(clip),
       motion ? `${r(motion.offset[0])},${r(motion.offset[1])},${r(motion.offset[2])},${r(motion.yaw)}` : "",
       ex[0] || ex[1] || ex[2] ? `${r(ex[0])},${r(ex[1])},${r(ex[2])}` : "",
     ].join("|");
@@ -573,7 +573,7 @@ export class Viewer {
     obj.updateMatrix();
     obj.updateMatrixWorld(true);
 
-    const clipEmpty = clip !== null && clip.hi - clip.lo <= 1e-4;
+    const clipEmpty = regionEmpty(clip);
     obj.visible = (s.visible && !clipEmpty) || isSel;
 
     const needOverride = isSel || s.color !== null || s.transparency > 0 || clip !== null;
@@ -591,11 +591,16 @@ export class Viewer {
     let planes: THREE.Plane[] | null = null;
     if (clip && !isSel) {
       const box = entry.box.clone().translate(new THREE.Vector3(off[0], off[1], off[2]));
-      const min = box.min[clip.axis];
-      const size = box.max[clip.axis] - min;
-      const a = min + clip.lo * size;
-      const b = min + clip.hi * size;
-      planes = [new THREE.Plane(AXIS[clip.axis].clone(), -a), new THREE.Plane(AXIS[clip.axis].clone().negate(), b)];
+      planes = [];
+      for (const ax of ["x", "y", "z"] as const) {
+        const range = clip[ax];
+        if (!range) continue;
+        const min = box.min[ax];
+        const size = box.max[ax] - min;
+        const a = min + range[0] * size;
+        const b = min + range[1] * size;
+        planes.push(new THREE.Plane(AXIS[ax].clone(), -a), new THREE.Plane(AXIS[ax].clone().negate(), b));
+      }
     }
     const opacity = isSel ? 1 : 1 - s.transparency;
     for (const [mesh, m] of entry.overrides) {

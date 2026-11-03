@@ -14,11 +14,12 @@ import { demoProfiles } from "../core/profiles";
 import { EMPTY_PRESENTATION } from "../core/presentation";
 import { parseProject, serializeProject, type StratumProject } from "../core/project";
 import { computeStates, scheduleRange } from "../core/simulation";
-import type { LinkRule, Schedule } from "../core/types";
+import type { LinkRule, ModelElement, Schedule } from "../core/types";
 import { diffSchedules, remapLinks } from "../core/update";
 import { decodeXer, listXerProjects, parseXerTables, xerToSchedule } from "../core/xer";
 import { exportCsv, exportXer } from "../core/xerExport";
 import { Viewer } from "../viewer/Viewer";
+import { MESH_FORMATS } from "../viewer/meshLoader";
 import { Present } from "./Present";
 import { Teardown, teardownHud } from "./Teardown";
 import { reportRoute, useConfig } from "../backend/config";
@@ -311,7 +312,7 @@ function Workspace() {
     if (!bridge) return;
     return bridge.onOpenFile(({ name, bytes }) => {
       if (/\.(xer|xml)$/i.test(name)) openers.current.importScheduleBytes(name, bytes);
-      else if (/\.ifc$/i.test(name)) openers.current.importIfcBytes(name, bytes);
+      else if (/\.ifc$/i.test(name) || MESH_FORMATS.test(name)) openers.current.importIfcBytes(name, bytes);
     });
   }, []);
 
@@ -505,7 +506,7 @@ function Workspace() {
     store.setCurrentProject(id, r.version);
     store.setStatus(
       `Opened ${r.project.schedule?.projectCode ?? "project"} (version ${r.version}).` +
-        (r.project.modelFileName && !demoKindOf(r.project.modelFileName) ? ` Open ${r.project.modelFileName} with Import IFC to see the 4D links.` : ""),
+        (r.project.modelFileName && !demoKindOf(r.project.modelFileName) ? ` Open ${r.project.modelFileName} with Import model to see the 4D links.` : ""),
     );
   };
 
@@ -527,7 +528,7 @@ function Workspace() {
   };
 
   const importIfc = async () => {
-    const f = await pickFile(".ifc");
+    const f = await pickFile(".ifc,.glb,.gltf,.obj,.stl,.fbx");
     if (!f) return;
     await importIfcBytes(f.name, new Uint8Array(await f.arrayBuffer()));
   };
@@ -540,19 +541,28 @@ function Workspace() {
   const importIfcBytes = async (name: string, bytes: Uint8Array) => {
     try {
       store.setStatus(`Loading ${name}…`, true);
-      const { loadIfc } = await import("../viewer/ifcLoader");
       const t0 = performance.now();
-      const loaded = await loadIfc(bytes, (m) => store.setStatus(m, true));
+      let note = "";
+      let loaded: { elements: ModelElement[]; objects: Map<string, THREE.Object3D> };
+      if (MESH_FORMATS.test(name)) {
+        const { loadMeshModel } = await import("../viewer/meshLoader");
+        const m = await loadMeshModel(name, bytes, (msg) => store.setStatus(msg, true));
+        loaded = m;
+        if (m.scaled !== 1) note = ` Scaled by ${m.scaled} (the file looks like ${m.scaled === 0.001 ? "millimetres" : "centimetres"}).`;
+      } else {
+        const { loadIfc } = await import("../viewer/ifcLoader");
+        loaded = await loadIfc(bytes, (m) => store.setStatus(m, true));
+      }
       store.setModel(loaded.elements, name);
       loadObjects(loaded.objects);
       // Keep links whose element still exists (same GlobalId).
       const ids = new Set(useStore.getState().elements.map((e) => e.id));
       const kept = useStore.getState().links.filter((l) => ids.has(l.elementId));
       store.setLinks(kept);
-      store.setStatus(`Loaded ${name}: ${loaded.elements.length} elements in ${((performance.now() - t0) / 1000).toFixed(1)} s. ${kept.length} existing link(s) kept.`);
+      store.setStatus(`Loaded ${name}: ${loaded.elements.length} elements in ${((performance.now() - t0) / 1000).toFixed(1)} s. ${kept.length} existing link(s) kept.${note}`);
     } catch (err) {
       console.error(err);
-      store.setStatus(`IFC load failed: ${(err as Error).message}`);
+      store.setStatus(`Model load failed: ${(err as Error).message}`);
     }
   };
 
@@ -638,7 +648,7 @@ function Workspace() {
       const matched = p.links.filter((l) => loadedIds.has(l.elementId)).length;
       store.setStatus(
         `Opened project (${p.links.length} links). ${p.modelFileName ? `Model: ${p.modelFileName}. ` : ""}` +
-          (loadedIds.size ? `${matched} links match the loaded model.` : "Load the IFC model to see links."),
+          (loadedIds.size ? `${matched} links match the loaded model.` : "Load the 3D model to see links."),
       );
     } catch (err) {
       store.setStatus(`Could not open project: ${(err as Error).message}`);
@@ -771,9 +781,9 @@ function Workspace() {
       </button>
     ),
     importIfc: (
-      <button className="tb" onClick={importIfc} title="Import an IFC building model">
+      <button className="tb" onClick={importIfc} title="Import a 3D model: IFC, glTF / GLB, OBJ, STL or FBX">
         <Box {...I} />
-        <span>Import IFC</span>
+        <span>Import model</span>
       </button>
     ),
     run: (
@@ -870,7 +880,7 @@ function Workspace() {
         <button onClick={() => void saveToDb(true).catch((e) => window.alert(e.message))} disabled={!schedule}>Save as new</button>
         <hr />
         <button onClick={importSchedule}>Import schedule (XER / XML)…</button>
-        <button onClick={importIfc}>Import IFC model…</button>
+        <button onClick={importIfc}>Import 3D model…</button>
         <button onClick={() => setProjectsTab("p6")}>Import from P6…</button>
         {canPush && <button onClick={pushToP6}>Update P6 with progress</button>}
         <hr />

@@ -29,7 +29,7 @@ Status: **Done**, **Partial**, **Planned** or **Not planned**.
 | Import P6, MS Project XML schedules | TM 9 | **Done** | XER and MSPDI; also P6 EPPM and P6 database |
 | Import Asta Powerproject, PMA NetPoint | TM 9 | **Not planned** | Need the vendors' own software |
 | Import 3D models: IFC | TM 10–11 | **Done** | IFC2x3 / IFC4 with properties and storeys |
-| Import other 3D formats (DWG, DGN, RVT, NWD, SKP, FBX, glTF, OBJ…) | TM 10 | **Planned** | glTF/GLB and OBJ next; proprietary CAD formats need the vendor libraries |
+| Import other 3D formats | TM 10 | **Partial** | glTF / GLB, OBJ, STL and FBX: one element per mesh, with names, parent nodes and custom properties; an id in the properties keeps links across re-exports; mm / cm models scaled to metres. DWG, DGN, RVT, NWD, SKP need the vendors' libraries: export IFC or glTF from those tools |
 | Import options: units, user fields, skip hidden or wireframe objects | TM 11 | **Partial** | IFC properties become element properties; no import dialog |
 | 3D resources and resource types (equipment, human, location, material) | TM 12–13 | **Partial** | Elements link directly to activities; named element groups; resources with types in the schedule. No resource wizard |
 | Link elements to tasks: drag and drop, context menu, shortcut | TM 14 | **Done** | Link button, rules, auto-detect, and **Ctrl+Shift+A** (selected elements to the selected activity, with the profile last used). No drag and drop yet |
@@ -47,7 +47,9 @@ Status: **Done**, **Partial**, **Planned** or **Not planned**.
 | Legend and date in the exported video | TM 18 | **Done** | Options in the export dialog |
 | Hide indicators (grid, axis, paths) for export | TM 18 | **Done** | Ground grid option; paths in the Display tab |
 | 3D subdivision: Slice (uniform) | TM 21 | **Done** | Split an element into equal parts along X, Y or Z |
-| 3D subdivision: User slice (uneven), grid of columns × rows × layers, freehand | TM 21 | **Planned** | Uneven cuts and grids next; freehand later |
+| 3D subdivision: User slice (uneven) | TM 21 | **Done** | Cut at chosen positions in % of the element |
+| 3D subdivision: grid of columns × rows × layers | TM 21 | **Done** | Up to 20 × 20 × 20 parts; growth runs inside each part |
+| 3D subdivision: freehand | TM 21 | **Planned** | |
 | Cutting planes X / Y / Z and a cutting box | TM 22 | **Done** | Sections panel: any number of planes, flip, and a section box, also fitted to the selection |
 | Viewpoints: focus time, camera, filters and cutting planes; activate | TM 23 | **Done** | Viewpoints panel: save, show, update, rename, delete |
 | Save as image | TM 24 | **Done** | Viewpoint as a 1920 × 1080 PNG with name, date and legend; snapshot of the current view |

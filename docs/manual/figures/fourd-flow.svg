@@ -10,7 +10,7 @@
     <circle cx="840" cy="70" r="26" fill="#e10600"/><text class="fd-n" x="840" y="77" text-anchor="middle">5</text>
   </g>
   <g text-anchor="middle">
-    <text class="fd-h" x="120" y="128">Schedule + model</text><text class="fd-s" x="120" y="150">Import the XER or XML,</text><text class="fd-s" x="120" y="166">then Import IFC.</text>
+    <text class="fd-h" x="120" y="128">Schedule + model</text><text class="fd-s" x="120" y="150">Import the XER or XML,</text><text class="fd-s" x="120" y="166">then the 3D model.</text>
     <text class="fd-h" x="300" y="128">Link</text><text class="fd-s" x="300" y="150">Rules (Auto-detect) or</text><text class="fd-s" x="300" y="166">select in 3D › Link.</text>
     <text class="fd-h" x="480" y="128">Profiles</text><text class="fd-s" x="480" y="150">Install, Remove, Temporary;</text><text class="fd-s" x="480" y="166">growth bottom up, west → east.</text>
     <text class="fd-h" x="660" y="128">Play</text><text class="fd-s" x="660" y="150">Timeline, speed, current</text><text class="fd-s" x="660" y="166">or baseline dates.</text>

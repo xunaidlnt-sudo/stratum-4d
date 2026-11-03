@@ -24,7 +24,7 @@ Status: **Done** (in Stratum now), **Partial** (some of it works), **Planned** (
 | Cutting planes and cutting box | [13] | **Done** | Any number of X / height / Z planes with flip, and a section box fitted to a selection |
 | Snapshots / images | [2] | **Done** | PNG export |
 | Define work areas / zones | [1] | **Partial** | Element groups and zone codes drive linking; drawn 3D work-area volumes planned |
-| Break design models into constructible components | [1] | **Done** | Split elements into equal pours/bays along X, Y or Z; each part links to its own activity. Uneven cut positions planned |
+| Break design models into constructible components | [1] | **Done** | Split elements into equal or uneven parts along X, Y or Z, or into a grid of columns × rows × layers; each part links to its own activity |
 | 3D paths for moving resources (cranes, equipment) over time | [4] | **Done** | Draw a path in 3D, attach elements and an activity; optional heading follow |
 | Resource groups | [5] | **Done** | Named element groups; exposed as a "Group" property for rules and selection |
 | User fields on tasks/resources | [5] | **Done** (tasks) | P6 UDFs imported; add/edit in the Activity tab; usable in link rules. Resource user fields planned |
@@ -80,7 +80,7 @@ A full comparison with the SYNCHRO 4D data sheet and a hands-on training manual 
 | Web app | **Done** |
 | Desktop app (Windows/macOS/Linux) | **Done**: Electron app; Windows NSIS installer, macOS DMG, Linux AppImage/deb; opens .xer/.ifc from Explorer/Finder. Unsigned until certificates are bought |
 | Project file | **Done**: `.stratum.json` (schedule, links, rules, profiles, groups, parts, paths). Links re-match the model by IFC GlobalId |
-| IFC model import | **Done**: IFC2x3 / IFC4 via web-ifc; properties, quantities and storeys are read for linking |
+| IFC model import | **Done**: IFC2x3 / IFC4 via web-ifc; properties, quantities and storeys are read for linking. glTF / GLB, OBJ, STL and FBX also load, one element per mesh |
 | Project database | **Done**: local SQLite (desktop), IndexedDB (browser) or PostgreSQL on Stratum Server; Docker Compose for the server |
 | Primavera P6 connection | **Done**: P6 EPPM REST (read, and write-back of progress); P6 Professional database on SQL Server, Oracle or SQLite (read-only) |
 | Interface modes | **Done**: P6 layout (menu bar, Directory and Command bars, Classic Schedule Layout, Activity Details tabs, usage profiles) and MS Project layout (ribbon, Timeline, Gantt Chart, Task Form, Tracking Gantt, Resource Usage), both schedule-only; 4D layout with the model. Chosen at first start, switched from the top bar or Settings |
