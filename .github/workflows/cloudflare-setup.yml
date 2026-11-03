@@ -22,7 +22,9 @@ jobs:
       - uses: actions/checkout@v4
       - name: Check the secrets
         run: |
-          [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Add the secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID first."; exit 1; }
+          echo "CLOUDFLARE_API_TOKEN: $([ -n "$CLOUDFLARE_API_TOKEN" ] && echo "found (${#CLOUDFLARE_API_TOKEN} characters)" || echo MISSING)"
+          echo "CLOUDFLARE_ACCOUNT_ID: $([ -n "$CLOUDFLARE_ACCOUNT_ID" ] && echo "found (${#CLOUDFLARE_ACCOUNT_ID} characters)" || echo MISSING)"
+          [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Add the missing repository secret(s) under Settings > Secrets and variables > Actions > Repository secrets."; exit 1; }
       - uses: actions/setup-node@v4
         with:
           node-version: 22
