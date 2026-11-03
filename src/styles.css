@@ -2018,3 +2018,18 @@ html[data-theme="dark"] .net-box.crit { background: #3d2426; }
 .mspg.splitting .mspg-bar { cursor: crosshair; }
 
 .msp-swatch { width: 44px; height: 22px; padding: 0; border: 1px solid var(--cl-line); }
+
+/* Teardown mode (4D view) */
+.td-panel { position: absolute; top: 10px; left: 10px; z-index: 6; display: flex; flex-direction: column; gap: 6px; background: rgba(255, 255, 255, 0.94); border: 1px solid var(--line); border-radius: 10px; padding: 6px; box-shadow: 0 4px 16px rgba(11, 37, 69, 0.12); max-width: calc(100% - 20px); color: #1d2733; }
+html[data-theme="dark"] .td-panel { background: rgba(30, 36, 46, 0.94); color: #e6e9ee; }
+.td-toggle { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; font-size: 12.5px; min-height: 28px; padding: 0 10px; border-radius: 7px; }
+.td-toggle.on { background: #e10600; color: #fff; border-color: #e10600; }
+.td-body { display: flex; flex-direction: column; gap: 6px; padding: 2px 4px 4px; font-size: 12.5px; }
+.td-row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.td-row > span { min-width: 92px; }
+.td-row input[type="range"] { width: 120px; accent-color: #e10600; }
+.td-row button { min-height: 26px; padding: 0 8px; font-size: 12px; display: inline-flex; align-items: center; gap: 4px; }
+.td-row button.on { background: #0b2545; color: #fff; border-color: #0b2545; }
+.td-row button.danger { background: #e10600; color: #fff; }
+.td-row select { min-height: 26px; font-size: 12px; }
+.td-hud { position: absolute; right: 12px; bottom: 12px; z-index: 6; pointer-events: none; filter: drop-shadow(0 4px 14px rgba(11, 37, 69, 0.14)); }

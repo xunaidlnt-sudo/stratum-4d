@@ -18,6 +18,7 @@ import { diffSchedules, remapLinks } from "../core/update";
 import { decodeXer, listXerProjects, parseXerTables, xerToSchedule } from "../core/xer";
 import { exportCsv, exportXer } from "../core/xerExport";
 import { Viewer } from "../viewer/Viewer";
+import { Teardown, teardownHud } from "./Teardown";
 import { reportRoute, useConfig } from "../backend/config";
 import { ConflictError } from "../backend/types";
 import { uid, type P6Connection } from "../core/reporting";
@@ -171,6 +172,7 @@ function Workspace() {
     } else viewerRef.current.attach(el);
   }, []);
   useEffect(() => () => viewerRef.current?.dispose(), []);
+  const getViewer = useCallback(() => viewerRef.current, []);
   useEffect(() => viewerRef.current?.setTheme(theme), [theme]);
 
   // Rebuild viewer objects when elements are split or unsplit.
@@ -681,12 +683,37 @@ function Workspace() {
     }
     const range = scheduleRange(schedule, sim.dateSource);
     if (!range) return;
-    const stream = v.canvas.captureStream(30);
+    // With the teardown panel open, the video carries it: the 3D frame and the panel are drawn together.
+    let stream = v.canvas.captureStream(30);
+    let stopComposite = () => {};
+    if (teardownHud.canvas) {
+      const gl = v.canvas;
+      const out = document.createElement("canvas");
+      out.width = gl.width;
+      out.height = gl.height;
+      const g = out.getContext("2d")!;
+      let raf = 0;
+      const draw = () => {
+        g.drawImage(gl, 0, 0);
+        const hud = teardownHud.canvas;
+        if (hud) {
+          const k = out.height / 900;
+          const w = (hud.width / (window.devicePixelRatio || 1)) * k;
+          const h = (hud.height / (window.devicePixelRatio || 1)) * k;
+          g.drawImage(hud, out.width - w - 24 * k, out.height - h - 24 * k, w, h);
+        }
+        raf = requestAnimationFrame(draw);
+      };
+      draw();
+      stream = out.captureStream(30);
+      stopComposite = () => cancelAnimationFrame(raf);
+    }
     const mime = MediaRecorder.isTypeSupported("video/webm;codecs=vp9") ? "video/webm;codecs=vp9" : "video/webm";
     const rec = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 8_000_000 });
     const chunks: Blob[] = [];
     rec.ondataavailable = (e) => e.data.size && chunks.push(e.data);
     rec.onstop = () => {
+      stopComposite();
       download(`${schedule.projectCode}-4d.webm`, new Blob(chunks, { type: "video/webm" }), "video/webm");
       setRecording(null);
       useStore.getState().setPlaying(false);
@@ -707,6 +734,7 @@ function Workspace() {
 
   const viewport = (
     <div className="viewport-wrap">
+      <Teardown getViewer={getViewer} gen={viewerGen} onRecord={toggleRecording} recording={!!recording} />
       <div
         className={`viewport ${pathDraft ? "drawing" : ""}`}
         ref={hostRef}

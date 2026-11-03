@@ -27,6 +27,18 @@ interface Entry {
 }
 
 const SELECT_COLOR = new THREE.Color("#ff7a00");
+/** Teardown: the accent for the work under way, and the ghost colour for everything else. */
+const FOCUS_COLOR = "#e10600";
+const GHOST_COLOR = "#9aa5b1";
+
+export type ExplodeMode = "storeys" | "radial";
+export interface CutState {
+  axis: "x" | "y" | "z";
+  /** 0..1 across the model. */
+  pos: number;
+  /** Keep the other side. */
+  flip: boolean;
+}
 const DEFAULT_STATE: ElementState = { visible: true, color: null, transparency: 0 };
 const AXIS = { x: new THREE.Vector3(1, 0, 0), y: new THREE.Vector3(0, 1, 0), z: new THREE.Vector3(0, 0, 1) };
 
@@ -47,6 +59,15 @@ export class Viewer {
   private resizeObserver: ResizeObserver;
   /** Elements repainted by the last frame (for diagnostics/tests). */
   lastRepaintCount = 0;
+  // Teardown state: exploded view, cutaway and focus on the work under way.
+  private explodeAmount = 0;
+  private explodeMode: ExplodeMode = "storeys";
+  /** Element id → storey (or group) index, bottom first. */
+  private explodeGroups = new Map<string, number>();
+  private modelBox = new THREE.Box3();
+  private cut: CutState | null = null;
+  private focus: Set<string> | null = null;
+  private flight: { from: [THREE.Vector3, THREE.Vector3]; to: [THREE.Vector3, THREE.Vector3]; t0: number; ms: number } | null = null;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -76,6 +97,16 @@ export class Viewer {
     this.resize();
     const loop = () => {
       if (this.disposed) return;
+      if (this.flight) {
+        const f = this.flight;
+        const u = Math.min(1, (performance.now() - f.t0) / f.ms);
+        // State to state: ease in and out.
+        const k = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+        this.camera.position.lerpVectors(f.from[0], f.to[0], k);
+        this.controls.target.lerpVectors(f.from[1], f.to[1], k);
+        this.needsRender = true;
+        if (u >= 1) this.flight = null;
+      }
       this.controls.update();
       if (this.needsRender) {
         this.renderer.render(this.scene, this.camera);
@@ -184,8 +215,114 @@ export class Viewer {
       }
       for (const s of segs) this.register(s.id, object.clone(), { axis: s.axis, lo: s.from, hi: s.to });
     }
+    this.modelBox = new THREE.Box3();
+    for (const e of this.entries.values()) this.modelBox.union(e.box);
     for (const id of this.entries.keys()) this.paint(id, true);
+    this.applyCut();
     if (fit) this.fit();
+  }
+
+  // ---------------------------------------------------------------- teardown
+
+  /** Pull the model apart: storeys stack apart vertically, or every element moves out from the centre. */
+  setExplode(amount: number, mode: ExplodeMode, groups?: Map<string, number>) {
+    this.explodeAmount = Math.max(0, Math.min(1, amount));
+    this.explodeMode = mode;
+    if (groups) this.explodeGroups = groups;
+    for (const id of this.entries.keys()) this.paint(id, true);
+    this.needsRender = true;
+  }
+
+  private explodeOffset(id: string, e: Entry): [number, number, number] {
+    if (this.explodeAmount <= 0 || this.modelBox.isEmpty()) return [0, 0, 0];
+    const size = this.modelBox.getSize(new THREE.Vector3());
+    const span = Math.max(size.x, size.z, size.y);
+    const a = this.explodeAmount;
+    if (this.explodeMode === "storeys") {
+      // Each storey rises by its index; the gap is a share of the model, so small and large models both read.
+      const g = this.explodeGroups.get(id) ?? this.explodeGroups.get(id.split("#")[0]) ?? 0;
+      return [0, g * a * Math.max(size.y * 0.9, span * 0.18), 0];
+    }
+    const c = this.modelBox.getCenter(new THREE.Vector3());
+    const m = e.box.getCenter(new THREE.Vector3());
+    const d = new THREE.Vector3(m.x - c.x, 0, m.z - c.z);
+    const len = d.length();
+    if (len < 1e-6) return [0, a * span * 0.25, 0];
+    d.multiplyScalar(a * 0.9);
+    return [d.x, a * (m.y - this.modelBox.min.y) * 0.6, d.z];
+  }
+
+  /** Cut the model with a section plane across one axis (null removes it). */
+  setCut(cut: CutState | null) {
+    this.cut = cut;
+    this.applyCut();
+    this.needsRender = true;
+  }
+
+  private applyCut() {
+    if (!this.cut || this.modelBox.isEmpty()) {
+      this.renderer.clippingPlanes = [];
+      return;
+    }
+    const { axis, pos, flip } = this.cut;
+    const min = this.modelBox.min[axis];
+    const max = this.modelBox.max[axis];
+    // Room for an exploded model: the cut is placed on the modelled positions.
+    const at = min + (max - min) * Math.max(0, Math.min(1, pos));
+    const n = AXIS[axis].clone();
+    this.renderer.clippingPlanes = [flip ? new THREE.Plane(n, -at) : new THREE.Plane(n.negate(), at)];
+  }
+
+  /** Show the elements of the work under way in the accent and ghost the rest (null: everything as usual). */
+  setFocus(ids: Set<string> | null) {
+    const before = this.focus;
+    this.focus = ids && ids.size ? ids : null;
+    if (before === this.focus) return;
+    for (const id of this.entries.keys()) this.paint(id, true);
+    this.needsRender = true;
+  }
+
+  /** World box of some elements, at their current (exploded) positions. */
+  boxOf(ids?: Iterable<string>): THREE.Box3 {
+    const box = new THREE.Box3();
+    const list = ids ? [...ids] : [...this.entries.keys()];
+    for (const id of list) {
+      const e = this.entries.get(id);
+      if (!e) continue;
+      const o = this.explodeOffset(id, e);
+      box.union(e.box.clone().translate(new THREE.Vector3(o[0], o[1], o[2])));
+    }
+    return box;
+  }
+
+  /** Fly the camera to frame some elements (or the whole model), keeping the current viewing direction roughly. */
+  flyTo(ids: Iterable<string> | null, ms = 1600, dir?: THREE.Vector3) {
+    const box = this.boxOf(ids ?? undefined);
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const whole = this.boxOf().getSize(new THREE.Vector3()).length();
+    // Small parts are framed with some of their surroundings, so the viewer keeps their bearings.
+    const size = Math.max(box.getSize(new THREE.Vector3()).length(), whole * 0.22);
+    const d = (dir ?? this.camera.position.clone().sub(this.controls.target)).normalize();
+    if (d.y < 0.25) d.y = 0.35;
+    d.normalize();
+    const to = center.clone().addScaledVector(d, size * 1.5);
+    this.flight = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [to, center], t0: performance.now(), ms };
+    this.needsRender = true;
+  }
+
+  /** Turn the camera around its target (radians), for the auto tour. */
+  orbit(rad: number) {
+    if (this.flight) return;
+    const t = this.controls.target;
+    const p = this.camera.position.clone().sub(t);
+    p.applyAxisAngle(AXIS.y, rad);
+    this.camera.position.copy(t).add(p);
+    this.needsRender = true;
+  }
+
+  get flying() {
+    return this.flight !== null;
   }
 
   static demoObjects(boxes: DemoBox[]): Map<string, THREE.Object3D> {
@@ -255,8 +392,12 @@ export class Viewer {
   private paint(id: string, force = false): boolean {
     const entry = this.entries.get(id);
     if (!entry) return false;
-    const s = this.states.get(id) ?? DEFAULT_STATE;
+    const s0 = this.states.get(id) ?? DEFAULT_STATE;
+    // Focus: work under way in the accent, the rest ghosted (hidden elements stay hidden).
+    const ghost = this.focus !== null && !this.focus.has(id);
+    const s: ElementState = !this.focus ? s0 : ghost ? { ...s0, color: GHOST_COLOR, transparency: Math.max(s0.transparency, 0.84) } : { ...s0, color: FOCUS_COLOR, transparency: 0 };
     const motion = this.motions.get(id);
+    const ex = this.explodeOffset(id, entry);
     const isSel = this.selected.has(id);
     const clip = combineClips(entry.segment, s.clip ?? null);
     const r = (x: number) => Math.round(x * 1000) / 1000;
@@ -267,13 +408,15 @@ export class Viewer {
       isSel ? 1 : 0,
       clip ? `${clip.axis}${r(clip.lo)}-${r(clip.hi)}` : "",
       motion ? `${r(motion.offset[0])},${r(motion.offset[1])},${r(motion.offset[2])},${r(motion.yaw)}` : "",
+      ex[0] || ex[1] || ex[2] ? `${r(ex[0])},${r(ex[1])},${r(ex[2])}` : "",
     ].join("|");
     if (!force && key === entry.key) return false;
     entry.key = key;
 
     // Position (equipment on a path).
     const obj = entry.object;
-    const off = motion?.offset ?? [0, 0, 0];
+    const mo = motion?.offset ?? [0, 0, 0];
+    const off: [number, number, number] = [mo[0] + ex[0], mo[1] + ex[1], mo[2] + ex[2]];
     obj.position.set(entry.basePos.x + off[0], entry.basePos.y + off[1], entry.basePos.z + off[2]);
     obj.rotation.y = entry.baseYaw + (motion?.yaw ?? 0);
     obj.updateMatrix();
