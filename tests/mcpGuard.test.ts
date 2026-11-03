@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StdioClientTransport } from "@modelcontextprotocol/sdk/client/stdio.js";
-import { execFileSync } from "node:child_process";
+import { execFileSync, execSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -34,7 +34,8 @@ async function connect(env: Record<string, string>) {
 const textOf = (r: unknown) => ((r as { content: { text: string }[] }).content ?? []).map((c) => c.text).join("\n");
 
 beforeAll(() => {
-  if (!fs.existsSync(BUNDLE)) execFileSync("npm", ["run", "-s", "build:mcp"], { stdio: "inherit" });
+  // Through a shell, so npm (npm.cmd on Windows) is found on every system.
+  if (!fs.existsSync(BUNDLE)) execSync("npm run -s build:mcp", { stdio: "inherit" });
   fs.writeFileSync(path.join(work, "planted.xer"), plantedXer());
 }, 120_000);
 
@@ -50,8 +51,9 @@ describe("MCP guard (unit)", () => {
   it("refuses paths outside the allowed folders, including through ..", () => {
     expect(checkPath(path.join(work, "a.xer"), [work])).toBe(path.join(work, "a.xer"));
     expect(() => checkPath(path.join(work, "..", "b.xer"), [work])).toThrow(/outside/);
-    expect(() => checkPath("/etc/passwd", [work])).toThrow(/outside/);
-    expect(checkPath("/etc/passwd", null)).toBe("/etc/passwd");
+    const elsewhere = path.resolve(tmp, "..", "elsewhere.txt");
+    expect(() => checkPath(elsewhere, [work])).toThrow(/outside/);
+    expect(checkPath(elsewhere, null)).toBe(elsewhere);
   });
 
   it("chains ledger entries and shows an edit", () => {
