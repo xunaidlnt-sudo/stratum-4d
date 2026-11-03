@@ -13,3 +13,4 @@ docs/manual/dist/
 mcp/dist/
 site/hero.js
 site/hero.css
+wrangler.toml

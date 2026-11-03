@@ -8,6 +8,7 @@ import { cloudBackend } from "./cloud/drive";
 import { googleDrive } from "./cloud/google";
 import { oneDrive } from "./cloud/onedrive";
 import { desktopBackend } from "./desktop";
+import { DEMO_SESSIONS, demoBackend, demoSession } from "./demo";
 import { serverBackend } from "./server";
 import type { Backend, SessionUser } from "./types";
 
@@ -41,12 +42,19 @@ const KEY = "stratum.config.v1";
 const DEFAULT: AppConfig = { configured: false, mode: "4d", storage: "local", serverUrl: "", token: null, user: null, serverPdf: true, font: "stratum", fontSize: 13, theme: "mode", density: "compact" };
 
 function load(): AppConfig {
+  let c = DEFAULT;
   try {
     const raw = localStorage.getItem(KEY);
-    return raw ? { ...DEFAULT, ...JSON.parse(raw) } : DEFAULT;
+    c = raw ? { ...DEFAULT, ...JSON.parse(raw) } : DEFAULT;
   } catch {
-    return DEFAULT;
+    /* storage blocked */
   }
+  // The hosted demo skips the setup questions; a new session opens in the P6 layout.
+  if (DEMO_SESSIONS) {
+    c = { ...c, configured: true, storage: "local", ...(demoSession.fresh ? { mode: "p6" as const } : {}) };
+    if (demoSession.fresh) save(c);
+  }
+  return c;
 }
 
 function save(c: AppConfig) {
@@ -74,6 +82,7 @@ export function cloudDrive(kind: "gdrive" | "onedrive", c: AppConfig) {
 }
 
 export function makeBackend(c: AppConfig): Backend {
+  if (DEMO_SESSIONS) return demoBackend();
   if ((c.storage === "gdrive" || c.storage === "onedrive") && c.cloudFolder) return cloudBackend(cloudDrive(c.storage, c), c.cloudFolder, c.user);
   if (c.storage === "server" && c.serverUrl && c.token) return serverBackend(c.serverUrl, c.token, c.user, c.serverPdf);
   return isDesktop() ? desktopBackend() : browserBackend();

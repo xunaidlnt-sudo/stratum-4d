@@ -9,6 +9,7 @@
 
 import { Check, Copy } from "lucide-react";
 import { useState, type FormEvent, type ReactNode } from "react";
+import { endDemoSession } from "../backend/demo";
 
 const HASH = (import.meta.env.VITE_LOGIN_HASH as string | undefined)?.trim().toLowerCase() || "";
 const DEMO_USER = (import.meta.env.VITE_DEMO_USER as string | undefined)?.trim() || "";
@@ -30,12 +31,14 @@ const signedIn = () => {
   }
 };
 
-export function signOut() {
+/** Sign out; in the demo this also ends the session, so the next sign-in starts with fresh samples. */
+export async function signOut() {
   try {
     localStorage.removeItem(KEY);
   } catch {
     /* ignore */
   }
+  await endDemoSession();
   location.reload();
 }
 

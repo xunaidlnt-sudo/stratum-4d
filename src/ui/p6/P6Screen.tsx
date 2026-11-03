@@ -113,6 +113,7 @@ import { ContextMenuHost } from "./ContextMenu";
 import { P6Dialogs, printLayout } from "./Dialogs";
 import { exportLayoutXlsx } from "./Dialogs3";
 import { openBudgets } from "./Dialogs5";
+import { SAMPLE_ORDER, SAMPLES } from "../../core/samples";
 import { EnterpriseProjectsWindow } from "./EnterpriseProjects";
 import { loginEnabled, signOut } from "../LoginGate";
 import { STOCK_LAYOUTS, useLayout, type LowerTab, type LowerView } from "./layout";
@@ -518,9 +519,8 @@ export function P6Screen({ a, banners, status, displays }: { a: ClassicActions; 
         { label: "Open Project File…", onClick: a.openFile },
         { label: "Save Project File", onClick: a.saveFile, disabled: none },
         "sep",
-        { label: "Sample: 220 kV GIS Substation (UAE)", onClick: () => a.sample("gis") },
+        ...SAMPLE_ORDER.map((k) => ({ label: `Sample: ${SAMPLES[k].label}`, onClick: () => a.sample(k) })),
         ...(loginEnabled ? ["sep" as const, { label: "Sign Out", onClick: signOut }] : []),
-        { label: "Sample: RC Building", onClick: () => a.sample("rc") },
       ],
     ],
     [

@@ -1,15 +1,26 @@
 // Browser-only storage (IndexedDB). Projects, dashboards and schedules are
 // kept in this browser. Email and P6 need the desktop app or a server.
+//
+// The backend is written against a small key-value store (Kv), so the web
+// demo can run the same code on a per-session store: IndexedDB under its own
+// name, or Cloudflare D1 behind /api/demo (see demo.ts).
 
 import type { StratumProject } from "../core/project";
 import { computeNextRun, type Dashboard, type ReportSchedule } from "../core/reporting";
 import { ConflictError, NOT_IN_BROWSER, type Backend, type ProjectSummary } from "./types";
 
-const DB = "stratum-local";
 const STORES = ["projects", "dashboards", "schedules", "settings"] as const;
-type Store = (typeof STORES)[number];
+export type Store = (typeof STORES)[number];
 
-function open(): Promise<IDBDatabase> {
+/** The storage the browser backend needs: get, list, put and delete JSON values by key. */
+export interface Kv {
+  get<T>(store: Store, key: string): Promise<T | undefined>;
+  all<T>(store: Store): Promise<T[]>;
+  put(store: Store, key: string, value: unknown): Promise<void>;
+  del(store: Store, key: string): Promise<void>;
+}
+
+function open(DB: string): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, 1);
     req.onupgradeneeded = () => {
@@ -20,8 +31,8 @@ function open(): Promise<IDBDatabase> {
   });
 }
 
-async function tx<T>(store: Store, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T> {
-  const db = await open();
+async function tx<T>(DB: string, store: Store, mode: IDBTransactionMode, fn: (s: IDBObjectStore) => IDBRequest<T> | void): Promise<T> {
+  const db = await open(DB);
   return new Promise<T>((resolve, reject) => {
     const t = db.transaction(store, mode);
     const req = fn(t.objectStore(store));
@@ -33,28 +44,37 @@ async function tx<T>(store: Store, mode: IDBTransactionMode, fn: (s: IDBObjectSt
   });
 }
 
-const get = <T>(store: Store, key: string) => tx<T | undefined>(store, "readonly", (s) => s.get(key) as IDBRequest<T | undefined>);
-const all = <T>(store: Store) => tx<T[]>(store, "readonly", (s) => s.getAll() as IDBRequest<T[]>);
-const put = (store: Store, key: string, value: unknown) => tx<void>(store, "readwrite", (s) => void s.put(value, key));
-const del = (store: Store, key: string) => tx<void>(store, "readwrite", (s) => void s.delete(key));
+/** IndexedDB under a database name ("stratum-local" for the browser app). */
+export function idbKv(DB: string): Kv {
+  return {
+    get: <T>(store: Store, key: string) => tx<T | undefined>(DB, store, "readonly", (s) => s.get(key) as IDBRequest<T | undefined>),
+    all: <T>(store: Store) => tx<T[]>(DB, store, "readonly", (s) => s.getAll() as IDBRequest<T[]>),
+    put: (store: Store, key: string, value: unknown) => tx<void>(DB, store, "readwrite", (s) => void s.put(value, key)),
+    del: (store: Store, key: string) => tx<void>(DB, store, "readwrite", (s) => void s.delete(key)),
+  };
+}
 
-interface StoredProject {
+export interface StoredProjectRecord {
   summary: ProjectSummary;
   project: StratumProject;
 }
+
+type StoredProject = StoredProjectRecord;
 
 const unsupported = async (): Promise<never> => {
   throw new Error(NOT_IN_BROWSER);
 };
 
-export function browserBackend(): Backend {
+export function browserBackend(kv: Kv = idbKv("stratum-local"), label = "This browser", listSummaries?: () => Promise<ProjectSummary[]>): Backend {
+  const { get, all, put, del } = kv;
   return {
     kind: "browser",
-    label: "This browser",
+    label,
     caps: { email: false, p6: false, pdf: false, alwaysOn: false, multiUser: false },
     user: null,
     async listProjects() {
-      return (await all<StoredProject>("projects")).map((p) => p.summary).sort((a, b) => a.code.localeCompare(b.code));
+      const list = listSummaries ? await listSummaries() : (await all<StoredProject>("projects")).map((p) => p.summary);
+      return list.sort((a, b) => a.code.localeCompare(b.code));
     },
     async getProject(id) {
       const p = await get<StoredProject>("projects", id);

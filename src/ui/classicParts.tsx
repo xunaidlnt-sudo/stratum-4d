@@ -27,7 +27,7 @@ export interface ClassicActions {
   exportMspdi: () => void;
   openFile: () => void;
   saveFile: () => void;
-  sample: (kind: "gis" | "rc") => void;
+  sample: (kind: import("../core/samples").SampleKind) => void;
   /** Take baseline dates from an approved-baseline XER/XML (P6: Assign Baselines). */
   assignBaseline: () => void;
   dashboards: () => void;

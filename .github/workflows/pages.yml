@@ -35,6 +35,8 @@ jobs:
           # Public demo account, shown on the sign-in page with copy buttons.
           VITE_DEMO_USER: demo
           VITE_DEMO_PASS: Stratum4D-Demo
+          # Each visitor gets a fresh copy of the sample projects (functions/api/demo, D1).
+          VITE_DEMO_SESSIONS: "1"
           # OAuth client ids for the cloud folder (repository variables; public values).
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           VITE_MS_CLIENT_ID: ${{ vars.MS_CLIENT_ID }}
@@ -64,9 +66,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'd90233d3db18e0173d8165819f5e9e98' }}
-        run: |
-          npx --yes wrangler@3.99.0 pages project create miqyaslabs --production-branch main 2>/dev/null || true
-          npx --yes wrangler@3.99.0 pages deploy public_site --project-name miqyaslabs --branch main --commit-dirty=true
+        run: bash scripts/cloudflare/pages-deploy.sh
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}

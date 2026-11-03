@@ -4,21 +4,19 @@ import { recalcAssignmentCosts } from "../core/ops";
 import { useP6 } from "./p6/commands";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { scheduleCpm, ScheduleLoopError } from "../core/cpm";
-import { demoModel, demoPaths, demoProfileFor, demoXer, DEMO_LINK_RULE, type DemoBox } from "../core/demo";
-import { gisModel, gisPaths, gisProfileFor, gisXer } from "../core/demoGis";
-import { applyRules } from "../core/linking";
+import { SAMPLE_ORDER, SAMPLES, sampleKindOf, sampleProject, type SampleKind } from "../core/samples";
 import { motionAt } from "../core/motion";
 import { parseMspdi } from "../core/mspdi";
 import { writeMspdi } from "../core/mspdiWrite";
-import { demoProfiles } from "../core/profiles";
 import { EMPTY_PRESENTATION } from "../core/presentation";
 import { parseProject, serializeProject, type StratumProject } from "../core/project";
 import { computeStates, scheduleRange } from "../core/simulation";
-import type { LinkRule, ModelElement, Schedule } from "../core/types";
+import type { ModelElement, Schedule } from "../core/types";
 import { diffSchedules, remapLinks } from "../core/update";
 import { decodeXer, listXerProjects, parseXerTables, xerToSchedule } from "../core/xer";
 import { exportCsv, exportXer } from "../core/xerExport";
 import { Viewer } from "../viewer/Viewer";
+import { DEMO_SESSIONS, demoSession, demoStoreKind } from "../backend/demo";
 import { MESH_FORMATS } from "../viewer/meshLoader";
 import { Present } from "./Present";
 import { Teardown, teardownHud } from "./Teardown";
@@ -80,33 +78,9 @@ const LEFT_TABS: { id: LeftTab; label: string }[] = [
   { id: "quantities", label: "Quantities" },
 ];
 
-/** The two built-in sample projects. The model name tells a saved project which one to rebuild. */
-type DemoKind = "gis" | "rc";
-const DEMO_MODEL_NAME: Record<DemoKind, string> = { rc: "Demo model", gis: "Demo model: 220 kV GIS substation" };
-const demoKindOf = (modelFileName: string | null | undefined): DemoKind | null =>
-  modelFileName === DEMO_MODEL_NAME.gis ? "gis" : modelFileName === DEMO_MODEL_NAME.rc ? "rc" : null;
-const DEMOS: Record<DemoKind, { model: () => DemoBox[]; xer: () => string; paths: (b: DemoBox[]) => ReturnType<typeof demoPaths>; profileFor: (code: string, ifcType: string) => string; done: string }> = {
-  gis: {
-    model: gisModel,
-    xer: gisXer,
-    paths: gisPaths,
-    profileFor: gisProfileFor,
-    done: "Sample loaded: 220/33 kV GIS substation, Abu Dhabi (fictional). Data date 19-Oct-2026.",
-  },
-  rc: {
-    model: demoModel,
-    xer: demoXer,
-    paths: demoPaths,
-    profileFor: (code, ifcType) => {
-      const p = demoProfileFor(code);
-      if (p === "install" && ifcType === "IfcSlab") return "install-pour";
-      if (p === "install" && ifcType === "IfcWall") return "install-rise";
-      return p;
-    },
-    done: "Demo loaded: two-storey RC building.",
-  },
-};
-
+/** Built-in sample projects (see core/samples). The model name tells a saved project which one to rebuild. */
+type DemoKind = SampleKind;
+const demoKindOf = sampleKindOf;
 
 /** Report pages (#report=…) render alone, for PDF printing; everything else is the workspace. */
 export function App() {
@@ -139,6 +113,8 @@ function Workspace() {
   // Offer to restore the last autosaved session, then keep autosaving.
   useEffect(() => {
     let stop: (() => void) | undefined;
+    // The demo starts every session from the samples, so it has nothing to restore.
+    if (DEMO_SESSIONS) return;
     loadAutosave().then((p) => {
       if (p?.schedule) setRestore(p);
       stop = startAutosave(setSavedAt);
@@ -570,40 +546,26 @@ function Workspace() {
   saveRef.current = saveToDb;
 
   const loadDemoModelOnly = (kind: DemoKind) => {
-    const boxes = DEMOS[kind].model();
+    const boxes = SAMPLES[kind].model();
     store.setModel(
       boxes.map((b) => b.element),
-      DEMO_MODEL_NAME[kind],
+      SAMPLES[kind].modelName,
     );
     loadObjects(Viewer.demoObjects(boxes));
   };
 
   const loadDemo = (kind: DemoKind = "gis") => {
-    const d = DEMOS[kind];
+    const d = SAMPLES[kind];
+    const p = sampleProject(kind);
     const boxes = d.model();
-    const els = boxes.map((b) => b.element);
     store.setSegments([]);
     store.setGroups([]);
-    store.setModel(els, DEMO_MODEL_NAME[kind]);
+    store.setModel(boxes.map((x) => x.element), d.modelName);
     loadObjects(Viewer.demoObjects(boxes));
-    const s = xerToSchedule(parseXerTables(d.xer()));
-    store.setSchedule(s);
-    store.setProfiles(demoProfiles());
-    const rule: LinkRule = { ...DEMO_LINK_RULE, profileId: "install" };
-    const typeOf = new Map(els.map((e) => [e.id, e.ifcType]));
-    const found = applyRules([rule], els, s).map((l) => {
-      const code = s.activities.find((a) => a.id === l.activityId)!.code;
-      return { ...l, profileId: d.profileFor(code, typeOf.get(l.elementId) ?? "") };
-    });
-    store.setRules([rule]);
-    store.setLinks(found);
-    store.setPaths(d.paths(boxes));
-    store.setLastUpdate(null);
-    store.setScheduleReport(null);
+    applyProject(p);
     store.setCurrentProject(null, null);
-    store.setStatus(
-      `${d.done} ${els.length} elements linked to ${new Set(found.map((l) => l.activityId)).size} activities, with costs, resources and a crane path. Press Play, or F9 to reschedule.`,
-    );
+    const acts = new Set(p.links.map((l) => l.activityId)).size;
+    store.setStatus(`${d.done} ${boxes.length} elements linked to ${acts} activities, with costs and resources. Press Play, or F9 to reschedule.`);
   };
 
   const applyProject = (p: StratumProject) => {
@@ -738,6 +700,32 @@ function Workspace() {
     store.setStatus("Recording 4D video… press Stop to finish early.");
   };
 
+  // Web demo: a new session gets its own copy of every sample project, opens the
+  // GIS substation and shows the P6 Projects window.
+  const demoBoot = useRef(false);
+  useEffect(() => {
+    if (!DEMO_SESSIONS || demoBoot.current) return;
+    demoBoot.current = true;
+    (async () => {
+      const be = useConfig.getState().backend;
+      try {
+        let list = await be.listProjects();
+        if (demoSession.fresh || !list.length) {
+          store.setStatus("Preparing your demo session with the sample projects…", true);
+          for (const k of SAMPLE_ORDER) await be.saveProject(`demo-${k}`, sampleProject(k));
+          list = await be.listProjects();
+        }
+        if (!useStore.getState().schedule && list.some((p) => p.id === "demo-gis")) await openFromDb("demo-gis");
+        useP6.getState().show("projects");
+        const where = (await demoStoreKind()) === "cloudflare" ? "on the demo server" : "in this browser";
+        store.setStatus(`Demo session ready: ${list.length} sample projects, saved ${where}. Change, add or delete anything; sign out or open a new tab to start again with fresh samples.`);
+      } catch (e) {
+        store.setStatus(`Could not prepare the demo session: ${(e as Error).message}`);
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const viewport = (
     <div className="viewport-wrap">
       <Teardown getViewer={getViewer} gen={viewerGen} onRecord={toggleRecording} recording={!!recording} />
@@ -769,7 +757,7 @@ function Workspace() {
   const canPush = !!schedule?.p6Source && schedule.p6Source.kind === "eppm";
   const dbLabel = backend.label;
   // Short form for the top bar; the full label is in the tooltip.
-  const dbShort = backend.kind === "server" ? "Server" : backend.kind === "desktop" ? "Local database" : "This browser";
+  const dbShort = DEMO_SESSIONS ? "Demo session" : backend.kind === "server" ? "Server" : backend.kind === "desktop" ? "Local database" : "This browser";
 
   // Buttons shared by every layout, so all three modes keep the same features.
   const I = { size: 16, strokeWidth: 1.9, "aria-hidden": true } as const;
@@ -886,8 +874,11 @@ function Workspace() {
         <hr />
         <button onClick={openProject}>Open project file…</button>
         <button onClick={saveProject} disabled={!schedule}>Save project file</button>
-        <button onClick={() => loadDemo("gis")}>Sample: 220 kV GIS substation (UAE)</button>
-        <button onClick={() => loadDemo("rc")}>Sample: small RC building</button>
+        {SAMPLE_ORDER.map((k) => (
+          <button key={k} onClick={() => loadDemo(k)}>
+            Sample: {SAMPLES[k].label}
+          </button>
+        ))}
       </div>
     </details>
   );
