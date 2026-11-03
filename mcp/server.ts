@@ -33,7 +33,7 @@ import { Repository } from "../src/services/repo";
 import { openSqlite } from "../src/services/sql";
 
 const DAY = 86_400_000;
-const VERSION = "0.10.1";
+const VERSION = "0.11.0";
 
 // ---------------------------------------------------------------- open schedules
 
