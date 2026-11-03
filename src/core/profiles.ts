@@ -70,3 +70,14 @@ export const STATUS_COLORS = {
 export function cloneProfile(p: AppearanceProfile, id: string, name: string): AppearanceProfile {
   return { ...structuredClone(p), id, name };
 }
+
+/** Profiles of the sample projects: slabs pour west to east, walls build bottom-up. */
+export function demoProfiles(): AppearanceProfile[] {
+  const base = structuredClone(DEFAULT_PROFILES);
+  const install = base.find((p) => p.id === "install")!;
+  return [
+    ...base,
+    { ...structuredClone(install), id: "install-pour", name: "Install – pour west→east", growth: "west-east", progressiveFade: false },
+    { ...structuredClone(install), id: "install-rise", name: "Install – build up", growth: "bottom-up", progressiveFade: false },
+  ];
+}

@@ -67,6 +67,8 @@ export class Viewer {
   private modelBox = new THREE.Box3();
   private cut: CutState | null = null;
   private focus: Set<string> | null = null;
+  /** Whether focused elements take the accent colour (otherwise they keep their 4D colours). */
+  private focusRecolor = true;
   private flight: { from: [THREE.Vector3, THREE.Vector3]; to: [THREE.Vector3, THREE.Vector3]; t0: number; ms: number } | null = null;
 
   constructor(private container: HTMLElement) {
@@ -274,10 +276,12 @@ export class Viewer {
   }
 
   /** Show the elements of the work under way in the accent and ghost the rest (null: everything as usual). */
-  setFocus(ids: Set<string> | null) {
+  setFocus(ids: Set<string> | null, opts: { recolor?: boolean } = {}) {
     const before = this.focus;
     this.focus = ids && ids.size ? ids : null;
-    if (before === this.focus) return;
+    const recolor = opts.recolor ?? true;
+    if (before === this.focus && recolor === this.focusRecolor) return;
+    this.focusRecolor = recolor;
     for (const id of this.entries.keys()) this.paint(id, true);
     this.needsRender = true;
   }
@@ -296,7 +300,7 @@ export class Viewer {
   }
 
   /** Fly the camera to frame some elements (or the whole model), keeping the current viewing direction roughly. */
-  flyTo(ids: Iterable<string> | null, ms = 1600, dir?: THREE.Vector3) {
+  flyTo(ids: Iterable<string> | null, ms = 1600, dir?: THREE.Vector3, distance = 1.5) {
     const box = this.boxOf(ids ?? undefined);
     if (box.isEmpty()) return;
     const center = box.getCenter(new THREE.Vector3());
@@ -306,7 +310,7 @@ export class Viewer {
     const d = (dir ?? this.camera.position.clone().sub(this.controls.target)).normalize();
     if (d.y < 0.25) d.y = 0.35;
     d.normalize();
-    const to = center.clone().addScaledVector(d, size * 1.5);
+    const to = center.clone().addScaledVector(d, size * distance);
     this.flight = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [to, center], t0: performance.now(), ms };
     this.needsRender = true;
   }
@@ -395,7 +399,7 @@ export class Viewer {
     const s0 = this.states.get(id) ?? DEFAULT_STATE;
     // Focus: work under way in the accent, the rest ghosted (hidden elements stay hidden).
     const ghost = this.focus !== null && !this.focus.has(id);
-    const s: ElementState = !this.focus ? s0 : ghost ? { ...s0, color: GHOST_COLOR, transparency: Math.max(s0.transparency, 0.84) } : { ...s0, color: FOCUS_COLOR, transparency: 0 };
+    const s: ElementState = !this.focus ? s0 : ghost ? { ...s0, color: GHOST_COLOR, transparency: Math.max(s0.transparency, 0.84) } : this.focusRecolor ? { ...s0, color: FOCUS_COLOR, transparency: 0 } : s0;
     const motion = this.motions.get(id);
     const ex = this.explodeOffset(id, entry);
     const isSel = this.selected.has(id);

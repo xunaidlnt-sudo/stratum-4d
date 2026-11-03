@@ -1,0 +1,36 @@
+/* Hero: the live model full bleed, the copy on the left, the product windows on the right. */
+#hero-live { position: absolute; inset: 0; overflow: hidden; }
+.hx-scene { position: absolute; inset: 0; }
+.hx-scene canvas { display: block; }
+.hx-scene.no-webgl { background: url("manual/shots/layout-4d.png") center / cover no-repeat; }
+/* A soft light field behind the copy so it reads over the model; the model stays clear on the right. */
+.hx-shade { position: absolute; inset: 0; pointer-events: none; background: linear-gradient(90deg, rgba(238, 241, 245, 0.97) 0%, rgba(238, 241, 245, 0.9) 30%, rgba(238, 241, 245, 0) 58%), linear-gradient(0deg, rgba(238, 241, 245, 0.9), rgba(238, 241, 245, 0) 26%); }
+.hx-ui { position: absolute; right: clamp(16px, 4vw, 56px); bottom: clamp(20px, 5vh, 56px); width: min(540px, 44vw); pointer-events: none; }
+.hx-ui .ss-fit { pointer-events: auto; }
+
+/* Product windows: the stageshow look mapped to the Stratum tokens. */
+.hx-stage .ss-stage { --ss-accent: #e10600; --ss-accent-2: #f26a62; --ss-font: Inter, system-ui, sans-serif; background: transparent; }
+.hx-win { position: absolute; left: 0; top: 64px; width: 470px; height: 236px; }
+.hx-app { padding: 14px 18px 12px; display: flex; flex-direction: column; gap: 4px; height: 100%; background: var(--ss-surface); }
+.hx-head { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.hx-date { font: 700 19px/1.2 Montserrat, Inter, sans-serif; color: #0b2545; }
+.hx-day { font-size: 12.5px; color: #5d6b7a; font-variant-numeric: tabular-nums; }
+.hx-row { padding: 7px 0; border-top: 1px solid var(--ss-line, #e6e8ec); }
+.hx-name { font-size: 13.5px; font-weight: 600; color: #1d2733; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 330px; display: block; }
+.hx-meter { width: 300px; margin-top: 2px; }
+.hx-pct { font-size: 12.5px; font-variant-numeric: tabular-nums; color: #1d2733; min-width: 40px; text-align: right; }
+.hx-card { position: absolute; right: 0; top: 0; z-index: 2; width: 196px; padding: 14px 16px; background: #fff; border-radius: 12px; box-shadow: 0 18px 40px rgba(11, 37, 69, 0.18), 0 2px 6px rgba(11, 37, 69, 0.08); display: flex; flex-direction: column; gap: 3px; }
+.hx-card-k { font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: #5d6b7a; font-weight: 600; }
+.hx-card-v { font: 700 30px/1.1 Montserrat, Inter, sans-serif; color: #0b2545; font-variant-numeric: tabular-nums; }
+.hx-card-sub { font-size: 12.5px; color: #5d6b7a; margin-bottom: 6px; }
+.hx-card-sub b { font-weight: 600; }
+.hx-card-sub b.behind { color: #b45309; }
+.hx-card-sub b.ok { color: #31752f; }
+
+/* Phones: a redesign, not a squeeze. */
+.hx-stage .ss-stage[data-layout="compact"] .hx-win { width: 358px; top: 74px; height: 206px; }
+.hx-stage .ss-stage[data-layout="compact"] .hx-head { flex-direction: column; gap: 0; }
+.hx-stage .ss-stage[data-layout="compact"] .hx-meter { width: 220px; }
+.hx-stage .ss-stage[data-layout="compact"] .hx-name { max-width: 240px; font-size: 13px; }
+.hx-stage .ss-stage[data-layout="compact"] .hx-card { width: 150px; padding: 10px 12px; }
+.hx-stage .ss-stage[data-layout="compact"] .hx-card-v { font-size: 24px; }

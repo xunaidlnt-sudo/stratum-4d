@@ -10,10 +10,10 @@ import { applyRules } from "../core/linking";
 import { motionAt } from "../core/motion";
 import { parseMspdi } from "../core/mspdi";
 import { writeMspdi } from "../core/mspdiWrite";
-import { DEFAULT_PROFILES } from "../core/profiles";
+import { demoProfiles } from "../core/profiles";
 import { parseProject, serializeProject, type StratumProject } from "../core/project";
 import { computeStates, scheduleRange } from "../core/simulation";
-import type { AppearanceProfile, LinkRule, Schedule } from "../core/types";
+import type { LinkRule, Schedule } from "../core/types";
 import { diffSchedules, remapLinks } from "../core/update";
 import { decodeXer, listXerProjects, parseXerTables, xerToSchedule } from "../core/xer";
 import { exportCsv, exportXer } from "../core/xerExport";
@@ -104,16 +104,6 @@ const DEMOS: Record<DemoKind, { model: () => DemoBox[]; xer: () => string; paths
   },
 };
 
-/** Demo profiles: slabs pour west to east, walls build bottom-up. */
-function demoProfiles(): AppearanceProfile[] {
-  const base = structuredClone(DEFAULT_PROFILES);
-  const install = base.find((p) => p.id === "install")!;
-  return [
-    ...base,
-    { ...structuredClone(install), id: "install-pour", name: "Install – pour west→east", growth: "west-east", progressiveFade: false },
-    { ...structuredClone(install), id: "install-rise", name: "Install – build up", growth: "bottom-up", progressiveFade: false },
-  ];
-}
 
 /** Report pages (#report=…) render alone, for PDF printing; everything else is the workspace. */
 export function App() {

@@ -11,3 +11,5 @@ android
 assets
 docs/manual/dist/
 mcp/dist/
+site/hero.js
+site/hero.css

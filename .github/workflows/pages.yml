@@ -35,8 +35,10 @@ jobs:
       - name: Assemble the site (website at the root, demo in /demo, manual in /manual)
         run: |
           node scripts/manual/build.cjs --no-pdf
+          npx esbuild site/hero/main.tsx --bundle --minify --format=esm --target=es2020 --jsx=automatic --loader:.css=css --external:manual/* --outfile=site/hero.js --log-level=warning
           mkdir -p public_site
           cp -r site/. public_site/
+          rm -rf public_site/hero
           cp brand/miqyas-labs.png brand/miqyas-labs-dark.png brand/stratum-lockup.png public_site/
           cp -r dist public_site/demo
           cp -r docs/manual/dist public_site/manual
