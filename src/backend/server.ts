@@ -24,6 +24,16 @@ export interface AuditVerify {
   head?: { seq: number; hash: string };
   checkpoints: { id: number; at: string; cutSeq: number; removed: number; days: number }[];
 }
+export interface AisocConfig {
+  enabled: boolean;
+  consoleUrl: string;
+  ingestUrl: string;
+  tenantId: string;
+  token: string;
+  forward: "security" | "all";
+  connectorId: string;
+  status?: { enabled: boolean; queued: number; sent: number; dropped: number; lastSentAt: string | null; lastError: string | null; lastErrorAt: string | null };
+}
 export interface Approval {
   id: string;
   kind: string;
@@ -89,6 +99,10 @@ export function serverBackend(base: string, token: string, user: SessionUser | n
   listAudit(o?: { before?: number; action?: string; actor?: string; limit?: number }): Promise<AuditEntry[]>;
   verifyAudit(): Promise<AuditVerify>;
   exportAudit(): Promise<Blob>;
+  getAisoc(): Promise<AisocConfig>;
+  setAisoc(c: Partial<AisocConfig>): Promise<AisocConfig>;
+  testAisoc(c: Partial<AisocConfig>): Promise<{ ok: boolean; message: string }>;
+  flushAisoc(): Promise<NonNullable<AisocConfig["status"]>>;
 } {
   const r = <T>(method: string, path: string, body?: unknown) => request<T>(base, method, path, token, body);
   return {
@@ -137,6 +151,10 @@ export function serverBackend(base: string, token: string, user: SessionUser | n
       return r("GET", `/api/audit${q.size ? `?${q}` : ""}`);
     },
     verifyAudit: () => r("GET", "/api/audit/verify"),
+    getAisoc: () => r("GET", "/api/aisoc"),
+    setAisoc: (c) => r("PUT", "/api/aisoc", c),
+    testAisoc: (c) => r("POST", "/api/aisoc/test", c),
+    flushAisoc: () => r("POST", "/api/aisoc/flush"),
     exportAudit: async () => {
       const res = await fetch(`${clean(base)}/api/audit/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
       if (!res.ok) throw new Error(`Export failed (${res.status})`);

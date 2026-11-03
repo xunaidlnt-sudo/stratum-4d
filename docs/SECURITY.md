@@ -67,6 +67,10 @@ These checks raise the cost of a planted instruction and make it visible; they d
 
 miqyaslabs.com is served by Cloudflare over HTTPS with `nosniff`, `SAMEORIGIN`, a strict referrer policy and HSTS (`site/_headers`). The contact form has a hidden field and a minimum time on the page against bots, and stores enquiries in a private R2 bucket.
 
+## AiSOC
+
+Stratum Server can send its audit events to a self-hosted [AiSOC](https://github.com/beenuar/AiSOC), and admins open the AiSOC console from Settings › AiSOC. See [AISOC.md](AISOC.md).
+
 ## Not yet
 
 - Desktop installers are not code-signed.

@@ -2,13 +2,13 @@ import { X } from "lucide-react";
 import { CloudSettings } from "./CloudSettings";
 import { useEffect, useState } from "react";
 import { isDesktop, useConfig } from "../backend/config";
-import { serverLogin, serverStatus, type Approval, type AuditEntry, type AuditVerify, type SecurityPolicy, type serverBackend } from "../backend/server";
+import { serverLogin, serverStatus, type AisocConfig, type Approval, type AuditEntry, type AuditVerify, type SecurityPolicy, type serverBackend } from "../backend/server";
 import type { CheckStep, P6Diagnosis, SessionUser } from "../backend/types";
 import { uid, type InterfaceMode, type P6Connection, type P6ConnectionKind, type SmtpSettings } from "../core/reporting";
 import { FONTS } from "./appearance";
 import { MODE_INFO } from "./terms";
 
-type Tab = "interface" | "data" | "p6" | "email" | "users" | "security";
+type Tab = "interface" | "data" | "p6" | "email" | "users" | "security" | "aisoc";
 
 export function SettingsDialog({ initialTab = "interface", onClose }: { initialTab?: Tab; onClose: () => void }) {
   const { backend } = useConfig();
@@ -22,6 +22,7 @@ export function SettingsDialog({ initialTab = "interface", onClose }: { initialT
       ? ([
           ["users", "Users"],
           ["security", "Security"],
+          ["aisoc", "AiSOC"],
         ] as [Tab, string][])
       : []),
   ];
@@ -48,6 +49,7 @@ export function SettingsDialog({ initialTab = "interface", onClose }: { initialT
           {tab === "email" && <EmailTab />}
           {tab === "users" && <UsersTab />}
           {tab === "security" && <SecurityTab />}
+          {tab === "aisoc" && <AisocTab />}
         </div>
       </div>
     </div>
@@ -652,6 +654,9 @@ const ACTION_LABEL: Record<string, string> = {
   "audit.export": "Log exported",
   "audit.retention": "Old entries removed",
   "server.start": "Server started",
+  "settings.aisoc": "AiSOC settings",
+  "aisoc.test": "AiSOC test event",
+  "audit.broken": "LOG DOES NOT VERIFY",
 };
 
 const short = (d: Record<string, unknown>) =>
@@ -848,6 +853,7 @@ function SecurityTab() {
               <option value="approval">Approvals</option>
               <option value="settings">Settings</option>
               <option value="security">Security policy</option>
+              <option value="aisoc">AiSOC</option>
             </select>
           </label>
         </div>
@@ -897,6 +903,158 @@ function SecurityTab() {
         )}
       </section>
       {msg && <p className={/fail|error|not|cannot|must|needs|already/i.test(msg) ? "bad" : "good"}>{msg}</p>}
+    </div>
+  );
+}
+
+function AisocTab() {
+  const backend = useConfig((s) => s.backend) as ReturnType<typeof serverBackend>;
+  const [c, setC] = useState<AisocConfig | null>(null);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const load = () =>
+    backend
+      .getAisoc()
+      .then(setC)
+      .catch((e) => setMsg({ ok: false, text: e.message }));
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 15_000);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  if (!c) return <p className="muted">{msg?.text ?? "Loading…"}</p>;
+  const set = (patch: Partial<AisocConfig>) => setC({ ...c, ...patch });
+  const run = async (fn: () => Promise<string>) => {
+    setBusy(true);
+    try {
+      setMsg({ ok: true, text: await fn() });
+    } catch (e) {
+      setMsg({ ok: false, text: (e as Error).message });
+    } finally {
+      setBusy(false);
+    }
+  };
+  const st = c.status;
+  const consoleOk = /^https?:\/\//i.test(c.consoleUrl);
+  return (
+    <div className="stack">
+      <section className="stack aisoc-head">
+        <div className="row" style={{ alignItems: "center" }}>
+          <div style={{ flex: 1 }}>
+            <h3>AiSOC security operations</h3>
+            <p className="muted">
+              AiSOC is an open-source, self-hosted security operations center. Stratum sends its audit events to AiSOC (sign-ins, lockouts, user and role changes, approvals, P6 pushes, and an audit log that does not verify), so your security team sees Stratum with the company&apos;s other systems and AiSOC&apos;s detections and AI triage run on them.
+            </p>
+          </div>
+          <button className="primary" disabled={!consoleOk} title={consoleOk ? c.consoleUrl : "Set the console address first"} onClick={() => window.open(c.consoleUrl, "_blank", "noopener,noreferrer")}>
+            Open AiSOC console ↗
+          </button>
+        </div>
+        <p className={st?.lastError ? "bad" : "muted"}>
+          {!c.enabled
+            ? "Sending is off."
+            : st?.lastError
+              ? `Last attempt failed (${st.lastErrorAt ? new Date(st.lastErrorAt).toLocaleString() : ""}): ${st.lastError}. ${st.queued} events wait and are sent again automatically.`
+              : `Sending is on. ${st?.sent ?? 0} events sent since the server started${st?.lastSentAt ? `, last at ${new Date(st.lastSentAt).toLocaleString()}` : ""}${st?.queued ? `; ${st.queued} waiting` : ""}.`}
+        </p>
+      </section>
+
+      <section className="stack form">
+        <label className="check">
+          <input type="checkbox" checked={c.enabled} onChange={(e) => set({ enabled: e.target.checked })} /> Send Stratum audit events to AiSOC
+        </label>
+        <div className="row">
+          <label style={{ flex: 1 }}>
+            AiSOC console address
+            <input value={c.consoleUrl} onChange={(e) => set({ consoleUrl: e.target.value })} placeholder="https://aisoc.company.local:3000" />
+          </label>
+          <label style={{ flex: 1 }}>
+            Ingest address
+            <input value={c.ingestUrl} onChange={(e) => set({ ingestUrl: e.target.value })} placeholder="https://aisoc.company.local:8081" />
+          </label>
+        </div>
+        <div className="row">
+          <label style={{ flex: 1 }}>
+            Push token
+            <input type="password" value={c.token} onChange={(e) => set({ token: e.target.value })} autoComplete="off" placeholder="From AiSOC: Connectors › Reveal push URL" />
+          </label>
+          <label style={{ flex: 1 }}>
+            Tenant ID
+            <input value={c.tenantId} onChange={(e) => set({ tenantId: e.target.value })} />
+          </label>
+        </div>
+        <div className="row">
+          <label style={{ flex: 1 }}>
+            Events to send
+            <select value={c.forward} onChange={(e) => set({ forward: e.target.value as AisocConfig["forward"] })}>
+              <option value="security">Security events: sign-ins, users, approvals, P6, settings, audit log</option>
+              <option value="all">Everything in the audit log, including project and report changes</option>
+            </select>
+          </label>
+          <label style={{ flex: 1 }}>
+            Connector name in AiSOC
+            <input value={c.connectorId} onChange={(e) => set({ connectorId: e.target.value })} />
+          </label>
+        </div>
+        <div className="row">
+          <button
+            className="primary"
+            disabled={busy}
+            onClick={() =>
+              void run(async () => {
+                const { status: _s, ...body } = c;
+                await backend.setAisoc(body);
+                await load();
+                return "Saved.";
+              })
+            }
+          >
+            Save
+          </button>
+          <button
+            disabled={busy || !c.ingestUrl}
+            onClick={() =>
+              void run(async () => {
+                const { status: _s, ...body } = c;
+                return (await backend.testAisoc(body)).message;
+              })
+            }
+          >
+            Send a test event
+          </button>
+          {!!st?.queued && (
+            <button
+              disabled={busy}
+              onClick={() =>
+                void run(async () => {
+                  const r = await backend.flushAisoc();
+                  await load();
+                  return r.lastError ? `Still failing: ${r.lastError}` : `Sent. ${r.queued} waiting.`;
+                })
+              }
+            >
+              Send waiting events now
+            </button>
+          )}
+        </div>
+        {msg && <p className={msg.ok ? "good" : "bad"}>{msg.text}</p>}
+      </section>
+
+      <details>
+        <summary>How to connect AiSOC</summary>
+        <ol className="steps">
+          <li>
+            Install AiSOC on a server your team controls: <code>git clone https://github.com/beenuar/AiSOC &amp;&amp; cd AiSOC &amp;&amp; make up</code>. It needs Docker with 8 GB of memory. <code>make up</code> prints the console address and the admin password.
+          </li>
+          <li>
+            Make a push token for Stratum: in the AiSOC console add a connector and click <b>Reveal push URL</b>, or run <code>docker compose run --rm -T api python -m app.scripts.mint_ingest_token</code>.
+          </li>
+          <li>Enter the console address (port 3000), the ingest address (port 8081), the token and the tenant ID here. Save, then send a test event.</li>
+          <li>Keep the token secret. It is stored encrypted on Stratum Server and is never shown again here.</li>
+        </ol>
+        <p className="muted">AiSOC is a separate open-source project (MIT licence) by its own authors; Miqyas Labs is not affiliated with it.</p>
+      </details>
     </div>
   );
 }

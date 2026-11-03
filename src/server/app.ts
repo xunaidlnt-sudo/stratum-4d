@@ -22,8 +22,10 @@ import path from "node:path";
 import { uid, type P6Connection, type SmtpSettings } from "../core/reporting";
 import type { Schedule } from "../core/types";
 import { StratumApi } from "../services/api";
+import { AisocForwarder, DEFAULT_AISOC, send as aisocSend, toAisocEvent, type AisocSettings } from "../services/aisoc";
 import { AuditLog, auditCsv, canonical } from "../services/audit";
 import { Repository, VersionConflictError, type ApprovalRecord, type UserRecord } from "../services/repo";
+import { aesBox, MASK, type SecretBox } from "../services/secrets";
 
 export type Role = UserRecord["role"];
 
@@ -39,6 +41,10 @@ export interface ServerOptions {
   audit?: AuditLog;
   /** Wrong passwords before a sign-in is locked, and for how long. */
   lockout?: { attempts: number; minutes: number };
+  /** Encrypts stored secrets (the AiSOC token). Defaults to one keyed from jwtSecret. */
+  box?: SecretBox;
+  /** For tests: the fetch used to reach AiSOC. */
+  aisocFetch?: typeof fetch;
 }
 
 /** Settings > Security. */
@@ -144,6 +150,20 @@ export async function buildServer(o: ServerOptions) {
   const userOf = (req: FastifyRequest) => (req as FastifyRequest & { user: Claims }).user;
   const log = (req: FastifyRequest, action: string, target = "", detail: Record<string, unknown> = {}, actor?: string) =>
     audit.append({ actor: actor ?? (req as FastifyRequest & { user?: Claims }).user?.email ?? "anonymous", action, target, detail, ip: req.ip });
+
+  // ---- AiSOC: audit events go to its ingest API (services/aisoc.ts)
+  const box = o.box ?? aesBox(o.jwtSecret);
+  const aisocSettings = async (): Promise<AisocSettings> => {
+    const s = { ...DEFAULT_AISOC, ...((await repo.getSetting<Partial<AisocSettings>>("aisoc")) ?? {}) };
+    return { ...s, token: s.token ? box.open(s.token) : "" };
+  };
+  let aisocCache: { at: number; s: AisocSettings } | null = null;
+  const aisocCached = async () => {
+    if (!aisocCache || Date.now() - aisocCache.at > 10_000) aisocCache = { at: Date.now(), s: await aisocSettings() };
+    return aisocCache.s;
+  };
+  const aisoc = new AisocForwarder(aisocCached, { fetch: o.aisocFetch, delayMs: o.aisocFetch ? 0 : undefined });
+  audit.subscribe((e) => aisoc.offer(e));
 
   const policy = async (): Promise<SecurityPolicy> => ({ ...DEFAULT_POLICY, ...((await repo.getSetting<Partial<SecurityPolicy>>("security")) ?? {}) });
 
@@ -457,6 +477,50 @@ export async function buildServer(o: ServerOptions) {
     return auditCsv(all.reverse());
   });
 
+  // ---- AiSOC (admin)
+  const publicAisoc = (s: AisocSettings) => ({ ...s, token: s.token ? MASK : "" });
+  app.get("/api/aisoc", { preHandler: auth("admin") }, async () => ({ ...publicAisoc(await aisocSettings()), status: aisoc.status() }));
+  app.put<{ Body: Partial<AisocSettings> }>("/api/aisoc", { preHandler: auth("admin") }, async (req) => {
+    const old = { ...DEFAULT_AISOC, ...((await repo.getSetting<Partial<AisocSettings>>("aisoc")) ?? {}) };
+    const b = req.body ?? {};
+    const url = (v: unknown, fallback: string) => {
+      const t = String(v ?? fallback).trim().replace(/\/+$/, "");
+      if (t && !/^https?:\/\/[^\s]+$/i.test(t)) throw new Error(`"${t}" is not an http(s) address`);
+      return t;
+    };
+    const next: AisocSettings = {
+      enabled: b.enabled ?? old.enabled,
+      consoleUrl: url(b.consoleUrl, old.consoleUrl),
+      ingestUrl: url(b.ingestUrl, old.ingestUrl),
+      tenantId: String(b.tenantId ?? old.tenantId).trim() || DEFAULT_AISOC.tenantId,
+      // A masked token means "keep the stored one".
+      token: b.token === undefined || b.token === MASK ? old.token : b.token ? box.seal(String(b.token).trim()) : "",
+      forward: b.forward === "all" ? "all" : b.forward === "security" ? "security" : old.forward,
+      connectorId: String(b.connectorId ?? old.connectorId).trim() || DEFAULT_AISOC.connectorId,
+    };
+    await repo.setSetting("aisoc", next);
+    aisocCache = null;
+    await log(req, "settings.aisoc", next.ingestUrl, { enabled: next.enabled, consoleUrl: next.consoleUrl, tenantId: next.tenantId, forward: next.forward, tokenChanged: next.token !== old.token });
+    return publicAisoc(await aisocSettings());
+  });
+  /** Sends one test event with the saved settings (or the ones in the form, with the stored token when masked). */
+  app.post<{ Body: Partial<AisocSettings> }>("/api/aisoc/test", { preHandler: auth("admin") }, async (req, reply) => {
+    const saved = await aisocSettings();
+    const b = req.body ?? {};
+    const s: AisocSettings = { ...saved, ...b, token: !b.token || b.token === MASK ? saved.token : String(b.token) } as AisocSettings;
+    const e = await log(req, "aisoc.test", s.ingestUrl, { tenantId: s.tenantId });
+    try {
+      await aisocSend(s, [toAisocEvent({ ...e, action: "aisoc.test" })], o.aisocFetch);
+      return { ok: true, message: `AiSOC accepted a test event from Stratum (connector "${s.connectorId}"). Find it in the AiSOC console under Alerts or Events.` };
+    } catch (err) {
+      return reply.code(502).send({ ok: false, error: (err as Error).message });
+    }
+  });
+  app.post("/api/aisoc/flush", { preHandler: auth("admin") }, async () => {
+    await aisoc.flush();
+    return aisoc.status();
+  });
+
   // ---- render tokens (used by the PDF renderer; also lets a user preview a report)
   app.post<{ Body: { dashboardId: string } }>("/api/render-token", { preHandler: auth("viewer") }, async (req) => {
     const u = userOf(req);
@@ -480,10 +544,12 @@ export async function buildServer(o: ServerOptions) {
       if (cp) out(`[stratum] audit retention: removed ${cp.removed} entries older than ${pol.auditDays} days (checkpoint ${cp.id})`);
     }
     const v = await audit.verify();
+    // A broken chain is a security event: it goes into the log (and so to AiSOC when connected).
+    if (!v.ok) await audit.append({ actor: "system@stratum", action: "audit.broken", detail: { brokenAt: v.brokenAt, reason: v.reason } });
     out(v.ok ? `[stratum] audit log verified: ${v.checked} entries, head ${v.head ? `${v.head.seq} ${v.head.hash}` : "empty"}` : `[stratum] AUDIT LOG BROKEN at entry ${v.brokenAt}: ${v.reason}`);
     return v;
   };
 
   // Returned in a wrapper: a Fastify instance is "thenable", so awaiting it directly would start it.
-  return { app, internalRenderToken, audit, auditMaintenance };
+  return { app, internalRenderToken, audit, auditMaintenance, aisoc };
 }

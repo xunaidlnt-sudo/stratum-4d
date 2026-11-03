@@ -125,6 +125,12 @@ export class AuditLog {
   private key: Buffer;
   /** Appends are serialised in this process; the primary key on seq refuses a fork from another process. */
   private tail: Promise<unknown> = Promise.resolve();
+  private listeners: ((e: AuditEntry) => void | Promise<void>)[] = [];
+
+  /** Called after each entry is written (for example to forward it to AiSOC). */
+  subscribe(fn: (e: AuditEntry) => void | Promise<void>) {
+    this.listeners.push(fn);
+  }
 
   constructor(
     private db: SqlDriver,
@@ -172,6 +178,7 @@ export class AuditLog {
             entry.prevHash,
             entry.hash,
           ]);
+          for (const fn of this.listeners) Promise.resolve(fn(entry)).catch(() => undefined);
           return entry;
         } catch (err) {
           // Another server process took this seq: read the new tail and try again.
