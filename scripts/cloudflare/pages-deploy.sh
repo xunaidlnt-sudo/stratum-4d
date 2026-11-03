@@ -1,12 +1,16 @@
 #!/usr/bin/env bash
-# Deploy public_site to Cloudflare Pages, with the demo's session store:
-# the Pages Function in functions/ and a D1 database bound as DB.
+# Deploy the site to Cloudflare Pages with its functions:
+#   functions/api/demo   the demo's per-session store, D1 database bound as DB
+#   functions/downloads  the installers at miqyaslabs.com/downloads, R2 bucket bound as DOWNLOADS
 # If the database cannot be made (the token needs D1 Edit), the site is still
 # deployed; the demo then keeps each session in the visitor's browser.
+# Usage: pages-deploy.sh [site folder, default public_site]
 set -euo pipefail
+OUT=${1:-public_site}
 W="npx --yes wrangler@3.99.0"
 PROJECT=miqyaslabs
 DBNAME=stratum-demo
+BUCKET=miqyas-downloads
 
 $W pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
 $W d1 create "$DBNAME" >/dev/null 2>&1 || true
@@ -14,8 +18,12 @@ DBID=$($W d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data"
 
 {
   echo "name = \"$PROJECT\""
-  echo 'pages_build_output_dir = "public_site"'
+  echo "pages_build_output_dir = \"$OUT\""
   echo 'compatibility_date = "2024-09-23"'
+  echo ''
+  echo '[[r2_buckets]]'
+  echo 'binding = "DOWNLOADS"'
+  echo "bucket_name = \"$BUCKET\""
   if [ -n "$DBID" ]; then
     echo ''
     echo '[[d1_databases]]'

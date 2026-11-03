@@ -7,7 +7,7 @@ DIR=$1
 VER=$2
 BUCKET=miqyas-downloads
 W="npx --yes wrangler@3.99.0"
-put() { $W r2 object put "$BUCKET/latest/$2" --file "$1" --remote --content-type "$3" >/dev/null && echo "uploaded latest/$2"; }
+put() { $W r2 object put "$BUCKET/latest/$2" --file "$1" --content-type "$3" >/dev/null && echo "uploaded latest/$2"; }
 shopt -s nullglob
 for f in "$DIR"/*; do
   b=$(basename "$f")

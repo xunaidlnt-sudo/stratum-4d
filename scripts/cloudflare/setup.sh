@@ -46,7 +46,7 @@ SUB=$(cf GET "/accounts/$ACC/pages/projects/$PROJECT" | field 'result.subdomain'
 echo "pages host $SUB"
 
 echo "== First deploy (so the site is there before DNS moves)"
-[ -d public_site ] && bash "$(dirname "$0")/pages-deploy.sh"
+if [ -d public_site ]; then cp -r public_site public_cf && node "$(dirname "$0")/links.cjs" public_cf/index.html /downloads && bash "$(dirname "$0")/pages-deploy.sh" public_cf; fi
 
 echo "== Attach $DOMAIN and www"
 for d in "$DOMAIN" "www.$DOMAIN"; do

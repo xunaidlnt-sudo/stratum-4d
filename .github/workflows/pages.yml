@@ -53,16 +53,18 @@ jobs:
           cp -r docs/manual/dist public_site/manual
           cp docs/Stratum-4D-Manual.pdf public_site/manual/
           touch public_site/.nojekyll
-      - name: Download links on our own domain (when the download bucket answers)
+      # The Cloudflare copy serves the installers itself at /downloads (functions/downloads, R2 bucket).
+      # The GitHub copy (backup) links to the bucket's public r2.dev address, or to GitHub Releases.
+      - name: Download links
         run: |
-          # Our own domain first; until it is connected, the bucket's public r2.dev address.
+          cp -r public_site public_cf
+          rm -f public_cf/.nojekyll
+          node scripts/cloudflare/links.cjs public_cf/index.html /downloads
           R2DEV=https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev
-          if curl -sf https://downloads.miqyaslabs.com/latest/latest.json >/dev/null; then
-            node scripts/cloudflare/links.cjs public_site/index.html https://downloads.miqyaslabs.com
-          elif curl -sf "$R2DEV/latest/latest.json" >/dev/null; then
-            node scripts/cloudflare/links.cjs public_site/index.html "$R2DEV"
+          if curl -sf "$R2DEV/latest/latest.json" >/dev/null; then
+            node scripts/cloudflare/links.cjs public_site/index.html "$R2DEV/latest"
           else
-            echo "The download bucket is not ready: the links stay on GitHub."
+            echo "The download bucket is not ready: the GitHub copy keeps the GitHub links."
           fi
       # Company firewalls often block GitHub, so the site is served by Cloudflare Pages.
       - name: Deploy to Cloudflare Pages
@@ -70,7 +72,7 @@ jobs:
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'd90233d3db18e0173d8165819f5e9e98' }}
-        run: bash scripts/cloudflare/pages-deploy.sh
+        run: bash scripts/cloudflare/pages-deploy.sh public_cf
       - uses: peaceiris/actions-gh-pages@v4
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
