@@ -26,6 +26,7 @@ const payload = (schedule: Schedule, old?: StratumProject | null): StratumProjec
   segments: old?.segments ?? [],
   groups: old?.groups ?? [],
   paths: old?.paths ?? [],
+  presentation: old?.presentation,
 } as StratumProject);
 
 /** Save every project of a combined view back to its own database record. */
@@ -53,6 +54,7 @@ function openCombined(schedule: Schedule) {
   st.setSchedule(schedule);
   st.setLinks([]);
   st.setPaths([]);
+  st.setPresentation({ viewpoints: [], animations: [] });
   st.setLastUpdate(null);
   st.setScheduleReport(null);
   st.setCurrentProject(null, null);

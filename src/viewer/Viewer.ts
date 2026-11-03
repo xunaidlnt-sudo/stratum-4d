@@ -11,6 +11,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import type { DemoBox } from "../core/demo";
 import { combineClips, type Clip, type Motion } from "../core/motion";
 import type { ElementState } from "../core/simulation";
+import type { CameraState, CutBox, CutPlane } from "../core/presentation";
 import type { ElementSegment, MotionPath } from "../core/types";
 
 interface Entry {
@@ -66,10 +67,13 @@ export class Viewer {
   private explodeGroups = new Map<string, number>();
   private modelBox = new THREE.Box3();
   private cut: CutState | null = null;
+  /** Section planes and the section box from the Sections panel (kept with the teardown cut). */
+  private sections: { planes: CutPlane[]; box: CutBox | null } = { planes: [], box: null };
+  private boxHelper: THREE.Box3Helper | null = null;
   private focus: Set<string> | null = null;
   /** Whether focused elements take the accent colour (otherwise they keep their 4D colours). */
   private focusRecolor = true;
-  private flight: { from: [THREE.Vector3, THREE.Vector3]; to: [THREE.Vector3, THREE.Vector3]; t0: number; ms: number } | null = null;
+  private flight: { from: [THREE.Vector3, THREE.Vector3]; to: [THREE.Vector3, THREE.Vector3]; t0: number; ms: number; fov?: [number, number] } | null = null;
 
   constructor(private container: HTMLElement) {
     this.renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
@@ -106,6 +110,10 @@ export class Viewer {
         const k = u < 0.5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
         this.camera.position.lerpVectors(f.from[0], f.to[0], k);
         this.controls.target.lerpVectors(f.from[1], f.to[1], k);
+        if (f.fov) {
+          this.camera.fov = f.fov[0] + (f.fov[1] - f.fov[0]) * k;
+          this.camera.updateProjectionMatrix();
+        }
         this.needsRender = true;
         if (u >= 1) this.flight = null;
       }
@@ -261,18 +269,157 @@ export class Viewer {
     this.needsRender = true;
   }
 
+  /** Section planes and a section box (fractions of the model's extent). Everything outside all of them is cut away. */
+  setSections(planes: CutPlane[], box: CutBox | null) {
+    this.sections = { planes, box };
+    this.applyCut();
+    this.needsRender = true;
+  }
+
+  /** World coordinate of a fraction across the model on one axis. */
+  private at(axis: "x" | "y" | "z", pos: number) {
+    const min = this.modelBox.min[axis];
+    const max = this.modelBox.max[axis];
+    return min + (max - min) * Math.max(0, Math.min(1, pos));
+  }
+
+  /** The plane that keeps the near side of `at` (or the far side with flip). */
+  private keep(axis: "x" | "y" | "z", at: number, flip: boolean) {
+    const n = AXIS[axis].clone();
+    return flip ? new THREE.Plane(n, -at) : new THREE.Plane(n.negate(), at);
+  }
+
   private applyCut() {
-    if (!this.cut || this.modelBox.isEmpty()) {
+    if (this.boxHelper) {
+      this.overlay.remove(this.boxHelper);
+      this.boxHelper = null;
+    }
+    if (this.modelBox.isEmpty()) {
       this.renderer.clippingPlanes = [];
       return;
     }
-    const { axis, pos, flip } = this.cut;
-    const min = this.modelBox.min[axis];
-    const max = this.modelBox.max[axis];
-    // Room for an exploded model: the cut is placed on the modelled positions.
-    const at = min + (max - min) * Math.max(0, Math.min(1, pos));
-    const n = AXIS[axis].clone();
-    this.renderer.clippingPlanes = [flip ? new THREE.Plane(n, -at) : new THREE.Plane(n.negate(), at)];
+    // Renderer planes clip what is outside any of them, so the kept part is the intersection.
+    // Room for an exploded model: cuts are placed on the modelled positions.
+    const planes: THREE.Plane[] = [];
+    if (this.cut) planes.push(this.keep(this.cut.axis, this.at(this.cut.axis, this.cut.pos), this.cut.flip));
+    for (const c of this.sections.planes) if (c.on) planes.push(this.keep(c.axis, this.at(c.axis, c.pos), c.flip));
+    const b = this.sections.box;
+    if (b?.on) {
+      const axes = ["x", "y", "z"] as const;
+      const lo = new THREE.Vector3();
+      const hi = new THREE.Vector3();
+      axes.forEach((a, i) => {
+        const p = this.at(a, Math.min(b.min[i], b.max[i]));
+        const q = this.at(a, Math.max(b.min[i], b.max[i]));
+        lo[a] = p;
+        hi[a] = q;
+        planes.push(this.keep(a, p, true), this.keep(a, q, false));
+      });
+      this.boxHelper = new THREE.Box3Helper(new THREE.Box3(lo, hi), new THREE.Color("#e10600"));
+      this.overlay.add(this.boxHelper);
+    }
+    this.renderer.clippingPlanes = planes;
+  }
+
+  /** Extent of some elements as fractions (0..1) of the model on each axis, for a section box around them. */
+  fractionsOf(ids: Iterable<string>): { min: [number, number, number]; max: [number, number, number] } | null {
+    const box = new THREE.Box3();
+    for (const id of ids) {
+      const e = this.entries.get(id);
+      if (e) box.union(e.box);
+    }
+    if (box.isEmpty() || this.modelBox.isEmpty()) return null;
+    const f = (v: number, a: "x" | "y" | "z") => {
+      const span = this.modelBox.max[a] - this.modelBox.min[a];
+      return span > 0 ? Math.max(0, Math.min(1, (v - this.modelBox.min[a]) / span)) : 0;
+    };
+    // A small margin, so faces on the box do not flicker.
+    const pad = 0.01;
+    return {
+      min: [Math.max(0, f(box.min.x, "x") - pad), Math.max(0, f(box.min.y, "y") - pad), Math.max(0, f(box.min.z, "z") - pad)],
+      max: [Math.min(1, f(box.max.x, "x") + pad), Math.min(1, f(box.max.y, "y") + pad), Math.min(1, f(box.max.z, "z") + pad)],
+    };
+  }
+
+  /** The camera as plain numbers, for viewpoints and animation keys. */
+  getCamera(): CameraState {
+    const p = this.camera.position;
+    const t = this.controls.target;
+    return { pos: [p.x, p.y, p.z], target: [t.x, t.y, t.z], fov: this.camera.fov };
+  }
+
+  /** Put the camera at a stored state, at once (ms = 0) or in a short flight. */
+  setCamera(c: CameraState, ms = 0) {
+    const pos = new THREE.Vector3(...c.pos);
+    const target = new THREE.Vector3(...c.target);
+    if (ms > 0) {
+      this.flight = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [pos, target], t0: performance.now(), ms, fov: [this.camera.fov, c.fov] };
+    } else {
+      this.flight = null;
+      this.camera.position.copy(pos);
+      this.controls.target.copy(target);
+      this.camera.fov = c.fov;
+      this.camera.updateProjectionMatrix();
+      this.controls.update();
+    }
+    this.needsRender = true;
+  }
+
+  /** Look at the whole model from a standard direction (Y is up; the front looks along -Z). */
+  viewFrom(dir: "top" | "front" | "back" | "left" | "right" | "iso") {
+    const d = {
+      top: new THREE.Vector3(0, 1, 0.0001),
+      front: new THREE.Vector3(0, 0.0001, 1),
+      back: new THREE.Vector3(0, 0.0001, -1),
+      left: new THREE.Vector3(-1, 0.0001, 0),
+      right: new THREE.Vector3(1, 0.0001, 0),
+      iso: new THREE.Vector3(1, 0.75, 1.15),
+    }[dir].normalize();
+    const box = this.boxOf();
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3()).length();
+    this.flight = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [center.clone().addScaledVector(d, size * 1.25), center], t0: performance.now(), ms: 700 };
+    this.needsRender = true;
+  }
+
+  /** Frame the whole model from the current direction. */
+  zoomAll() {
+    const box = this.boxOf();
+    if (box.isEmpty()) return;
+    const center = box.getCenter(new THREE.Vector3());
+    const size = box.getSize(new THREE.Vector3()).length();
+    const d = this.camera.position.clone().sub(this.controls.target).normalize();
+    this.flight = { from: [this.camera.position.clone(), this.controls.target.clone()], to: [center.clone().addScaledVector(d, size * 1.3), center], t0: performance.now(), ms: 600 };
+    this.needsRender = true;
+  }
+
+  /**
+   * Render one frame at a fixed size (for video and image export), then put the
+   * viewport back. The camera keeps its field of view; only the aspect changes.
+   */
+  renderFrame(width: number, height: number): HTMLCanvasElement {
+    const canvas = this.renderer.domElement;
+    const ratio = this.renderer.getPixelRatio();
+    this.flight = null;
+    this.renderer.setPixelRatio(1);
+    this.renderer.setSize(width, height, false);
+    this.camera.aspect = width / height;
+    this.camera.updateProjectionMatrix();
+    this.renderer.render(this.scene, this.camera);
+    const out = document.createElement("canvas");
+    out.width = width;
+    out.height = height;
+    out.getContext("2d")!.drawImage(canvas, 0, 0);
+    this.renderer.setPixelRatio(ratio);
+    this.resize();
+    return out;
+  }
+
+  /** Show or hide the ground grid (hidden in exported videos if wanted). */
+  setGridVisible(on: boolean) {
+    if (this.grid) this.grid.visible = on;
+    this.needsRender = true;
   }
 
   /** Show the elements of the work under way in the accent and ghost the rest (null: everything as usual). */

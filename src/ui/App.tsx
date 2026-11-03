@@ -11,6 +11,7 @@ import { motionAt } from "../core/motion";
 import { parseMspdi } from "../core/mspdi";
 import { writeMspdi } from "../core/mspdiWrite";
 import { demoProfiles } from "../core/profiles";
+import { EMPTY_PRESENTATION } from "../core/presentation";
 import { parseProject, serializeProject, type StratumProject } from "../core/project";
 import { computeStates, scheduleRange } from "../core/simulation";
 import type { LinkRule, Schedule } from "../core/types";
@@ -18,6 +19,7 @@ import { diffSchedules, remapLinks } from "../core/update";
 import { decodeXer, listXerProjects, parseXerTables, xerToSchedule } from "../core/xer";
 import { exportCsv, exportXer } from "../core/xerExport";
 import { Viewer } from "../viewer/Viewer";
+import { Present } from "./Present";
 import { Teardown, teardownHud } from "./Teardown";
 import { reportRoute, useConfig } from "../backend/config";
 import { ConflictError } from "../backend/types";
@@ -440,6 +442,7 @@ function Workspace() {
         store.setSchedule(s);
         store.setLinks([]);
         store.setPaths([]);
+        store.setPresentation({ viewpoints: [], animations: [] });
         store.setLastUpdate(null);
         store.setScheduleReport(null);
         store.setCurrentProject(null, null);
@@ -467,6 +470,7 @@ function Workspace() {
       segments: st.segments,
       groups: st.groups,
       paths: st.paths,
+      presentation: st.presentation,
     };
   };
 
@@ -600,6 +604,7 @@ function Workspace() {
     store.setSegments(p.segments ?? []);
     store.setGroups(p.groups ?? []);
     store.setPaths(p.paths ?? []);
+    store.setPresentation(p.presentation ?? EMPTY_PRESENTATION);
     store.setLastUpdate(null);
     store.setScheduleReport(null);
   };
@@ -615,6 +620,7 @@ function Workspace() {
       segments: s.segments,
       groups: s.groups,
       paths: s.paths,
+      presentation: s.presentation,
     });
     download(`${s.schedule?.projectCode ?? "project"}.stratum.json`, text, "application/json");
     store.setStatus("Project saved.");
@@ -725,6 +731,7 @@ function Workspace() {
   const viewport = (
     <div className="viewport-wrap">
       <Teardown getViewer={getViewer} gen={viewerGen} onRecord={toggleRecording} recording={!!recording} />
+      <Present getViewer={getViewer} gen={viewerGen} />
       <div
         className={`viewport ${pathDraft ? "drawing" : ""}`}
         ref={hostRef}
@@ -947,6 +954,7 @@ function Workspace() {
       store.setSchedule({ ...s, eps });
       store.setLinks([]);
       store.setPaths([]);
+      store.setPresentation({ viewpoints: [], animations: [] });
       store.setLastUpdate(null);
       store.setScheduleReport(null);
       store.setCurrentProject(null, null);

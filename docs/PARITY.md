@@ -19,14 +19,18 @@ Status: **Done** (in Stratum now), **Partial** (some of it works), **Planned** (
 | Appearance profiles: Install, Remove, Temporary, Maintain, Neutral | [3] | **Done** | Before/during/after: visibility, colour, transparency. Editable, duplicable |
 | Custom appearance profiles and colour legend | [3] | **Done** | Profiles tab; legend in Display tab |
 | Growth simulation (element appears progressively during the task) | [3] | **Done** | Bottom-up, top-down, west→east, east→west, south→north, north→south; also progressive fade |
-| Export 4D sequence as video | [2] | **Done** | WebM from the viewport. MP4 and scripted camera paths planned |
+| Export 4D sequence as video | [2] | **Done** | Recording of the playback, and the animation editor: camera, date and view keyframes; WebM or PNG series at 720p–4K, 15–60 fps, with date and legend |
+| Viewpoints (date, camera, sections, colour mode) | [13] | **Done** | Save, show, update, rename; save as a 1920 × 1080 image |
+| Cutting planes and cutting box | [13] | **Done** | Any number of X / height / Z planes with flip, and a section box fitted to a selection |
 | Snapshots / images | [2] | **Done** | PNG export |
 | Define work areas / zones | [1] | **Partial** | Element groups and zone codes drive linking; drawn 3D work-area volumes planned |
 | Break design models into constructible components | [1] | **Done** | Split elements into equal pours/bays along X, Y or Z; each part links to its own activity. Uneven cut positions planned |
 | 3D paths for moving resources (cranes, equipment) over time | [4] | **Done** | Draw a path in 3D, attach elements and an activity; optional heading follow |
 | Resource groups | [5] | **Done** | Named element groups; exposed as a "Group" property for rules and selection |
 | User fields on tasks/resources | [5] | **Done** (tasks) | P6 UDFs imported; add/edit in the Activity tab; usable in link rules. Resource user fields planned |
-| Baseline vs current comparison | [6] | **Done** | Simulate either date set; status colouring flags late work; baseline bars in the Gantt |
+| Baseline vs current comparison | [6] | **Done** | Simulate either date set; status colouring flags late work; planned-vs-actual colouring (ahead / on plan / behind); baseline bars in the Gantt |
+
+A full comparison with the SYNCHRO 4D data sheet and a hands-on training manual is in [SYNCHRO_GAP_ANALYSIS.md](SYNCHRO_GAP_ANALYSIS.md).
 
 ## Scheduling
 
@@ -114,3 +118,5 @@ Reviews are a mix of verified, trial and incentivised users; treat them as signa
 10. G2 reviews: https://www.g2.com/products/synchro-construction/reviews
 11. Elecosoft, "The future of model-based planning": https://eleco.com/news/future-model-based-planning/
 12. Bentley knowledge base articles on crashes and performance, e.g. https://bentleysystems.service-now.com/community?id=kb_article&sysparm_article=KB0017792
+13. "Comprehensive Synchro Pro 4D Hands-On Training Manual" (third-party training deck, supplied by the project owner): workspace, 4D review, import, resources, linking, appearance profiles, animation editor and export, 3D subdivision, cutting planes, viewpoints, output
+14. Bentley, SYNCHRO 4D product data sheet (2025, supplied by the project owner)

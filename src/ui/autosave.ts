@@ -65,7 +65,8 @@ export function startAutosave(onSaved?: (at: Date) => void): () => void {
       s.profiles === prev.profiles &&
       s.segments === prev.segments &&
       s.groups === prev.groups &&
-      s.paths === prev.paths
+      s.paths === prev.paths &&
+      s.presentation === prev.presentation
     )
       return;
     if (!s.schedule) return;
@@ -83,6 +84,7 @@ export function startAutosave(onSaved?: (at: Date) => void): () => void {
             segments: st.segments,
             groups: st.groups,
             paths: st.paths,
+            presentation: st.presentation,
           }),
         );
         onSaved?.(new Date());

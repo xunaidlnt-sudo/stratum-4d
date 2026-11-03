@@ -643,4 +643,4 @@ export interface LinkRule {
 }
 
 export type DateSource = "current" | "baseline";
-export type ColorMode = "profile" | "status";
+export type ColorMode = "profile" | "status" | "plan-vs-actual";

@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { linkHealth } from "../core/health";
 import { activityFields, applyRules, elementPropertyValue, mergeLinks, propertyKeys, suggestRules, unlink, type RuleSuggestion } from "../core/linking";
+import { LINK_PROFILE_KEY } from "./Present";
+import { PLAN_COLORS } from "../core/simulation";
 import { splitElement } from "../core/motion";
 import { cloneProfile, STATUS_COLORS } from "../core/profiles";
 import type { AppearanceProfile, GrowthDirection, LinkMatch, LinkRule, PhaseAppearance } from "../core/types";
@@ -32,7 +34,24 @@ export function SidePanel() {
 
 function SelectionTab() {
   const { elements, selectedElements, selectElements, schedule, selectedActivity, links, setLinks, profiles, setStatus } = useStore();
-  const [profileId, setProfileId] = useState(profiles[0]?.id ?? "install");
+  const [profileId, setProfileIdState] = useState(() => {
+    try {
+      const p = localStorage.getItem(LINK_PROFILE_KEY);
+      if (p && profiles.some((x) => x.id === p)) return p;
+    } catch {
+      /* storage blocked */
+    }
+    return profiles[0]?.id ?? "install";
+  });
+  // Remembered for the Ctrl+Shift+A shortcut.
+  const setProfileId = (id: string) => {
+    setProfileIdState(id);
+    try {
+      localStorage.setItem(LINK_PROFILE_KEY, id);
+    } catch {
+      /* storage blocked */
+    }
+  };
   const [propKey, setPropKey] = useState("IfcType");
   const [propValue, setPropValue] = useState("");
   const keys = useMemo(() => propertyKeys(elements), [elements]);
@@ -411,6 +430,10 @@ function DisplayTab() {
           <input type="radio" checked={sim.colorMode === "status"} onChange={() => setSim({ colorMode: "status" })} />
           Activity status vs baseline
         </label>
+        <label className="check" title="Green: ahead of the baseline. Blue: on plan. Red: behind the baseline, also for work the baseline has already built.">
+          <input type="radio" checked={sim.colorMode === "plan-vs-actual"} onChange={() => setSim({ colorMode: "plan-vs-actual" })} />
+          Planned vs actual (ahead / behind)
+        </label>
       </section>
       <section>
         <h4>Unlinked elements</h4>
@@ -435,6 +458,18 @@ function DisplayTab() {
             {profiles.map((p) => (
               <li key={p.id}>
                 <span className="swatch" style={{ background: p.active.color ?? "#999" }} /> {p.name} (during task)
+              </li>
+            ))}
+          </ul>
+        ) : sim.colorMode === "plan-vs-actual" ? (
+          <ul className="legend">
+            {[
+              ["Ahead of baseline", PLAN_COLORS.ahead],
+              ["On plan", PLAN_COLORS.onPlan],
+              ["Behind baseline", PLAN_COLORS.behind],
+            ].map(([k, c]) => (
+              <li key={k}>
+                <span className="swatch" style={{ background: c }} /> {k}
               </li>
             ))}
           </ul>

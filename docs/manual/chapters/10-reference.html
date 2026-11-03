@@ -13,6 +13,8 @@
 <tr><td>Elements of the model do not show during the simulation.</td><td>The elements have no link to an activity.</td><td>On the <span class="ui">Display</span> tab, look at <span class="ui">Unlinked elements</span>. Link them with a rule or by hand.</td></tr>
 <tr><td><span class="ui">Explode</span> <span class="ui">By storey</span> does not move the model.</td><td>The elements have no <code>Storey</code> property.</td><td>Select <span class="ui">From centre</span>, or add the <code>Storey</code> property to the IFC model.</td></tr>
 <tr><td><span class="ui">Split Task</span> does not split the task.</td><td>You clicked near an end of the bar, or in its completed part.</td><td>Click inside the bar, away from its ends and after its progress.</td></tr>
+<tr><td>A section plane removes almost all of the model.</td><td>The position is a fraction of the full height, and the model has deep foundations.</td><td>Move the slider, or click <span class="ui">⇄</span> to keep the other side.</td></tr>
+<tr><td>The exported video is slower or shorter than the animation.</td><td>The computer cannot draw the frames at the frame rate.</td><td>Use a lower resolution or frame rate. Or export a series of images and join them with a video editor.</td></tr>
 <tr><td>The assistant does not show the Stratum tools.</td><td>The configuration is incorrect, or the assistant application did not start again.</td><td>Do a check of the path in the configuration. Make sure that Node.js 20 or newer is installed. Start the assistant application again.</td></tr>
 <tr><td>The MCP server cannot open the database.</td><td><code>sql-wasm.wasm</code> is not in the folder of <code>stratum-mcp.cjs</code>, or the path is incorrect.</td><td>Put the two files in the same folder. To use a different database file, set <code>STRATUM_DB</code>.</td></tr>
 </table>
@@ -56,6 +58,8 @@
 <table>
 <tr><th>Keys</th><th>Action</th></tr>
 <tr><td><kbd>Space</kbd></td><td>Play or pause the simulation</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Link the selected elements to the selected activity</td></tr>
+<tr><td><kbd>Del</kbd></td><td>In the animation editor: remove the selected key</td></tr>
 </table>
 
 <h2>Glossary</h2>
@@ -69,16 +73,20 @@
 <tr><td>Data date</td><td>The date of the progress. Work before it is actual, and work after it is forecast.</td></tr>
 <tr><td>DCMA 14-point check</td><td>A set of 14 checks of the quality of a schedule, from the US Defense Contract Management Agency</td></tr>
 <tr><td>Element</td><td>One object of the 3D model, for example a wall or a transformer</td></tr>
+<tr><td>Key (animation)</td><td>A record of the camera, the date or the view at one time of an animation</td></tr>
 <tr><td>IFC</td><td>Industry Foundation Classes. An open file format for building models.</td></tr>
 <tr><td>Link (4D)</td><td>A connection between an element and an activity</td></tr>
 <tr><td>MCP</td><td>Model Context Protocol. A standard that lets an AI assistant use tools.</td></tr>
 <tr><td>MSPDI</td><td>The XML file format of Microsoft Project</td></tr>
 <tr><td>Relationship</td><td>The logic between two activities: Finish to Start (FS), Start to Start (SS), Finish to Finish (FF) or Start to Finish (SF), with a lag</td></tr>
+<tr><td>Planned vs actual</td><td>A color mode that compares the progress on the current dates with the progress on the baseline dates</td></tr>
 <tr><td>Rule (4D)</td><td>An instruction that links each element to the activity that has the same value</td></tr>
 <tr><td>S-curve</td><td>A chart of the cumulative cost, hours or progress against time</td></tr>
+<tr><td>Section plane</td><td>A plane that cuts the model and removes one side of it</td></tr>
 <tr><td>Slicer</td><td>A filter on a dashboard. It applies to all the widgets.</td></tr>
 <tr><td>SPI / CPI</td><td>Schedule and Cost Performance Index. Earned value divided by planned value, and earned value divided by actual cost.</td></tr>
 <tr><td>Total float</td><td>The time that an activity can slip before it delays the project finish</td></tr>
+<tr><td>Viewpoint</td><td>A saved view: the date, the camera, the sections and the color mode</td></tr>
 <tr><td>Widget</td><td>One chart, table or number on a dashboard</td></tr>
 <tr><td>XER</td><td>The export file format of Primavera P6</td></tr>
 </table>

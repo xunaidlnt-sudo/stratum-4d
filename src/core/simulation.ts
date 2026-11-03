@@ -88,6 +88,8 @@ export function computeStates(
       const base = fromPhase(profile[phase]);
       const color = s === "in-progress" && act.critical ? STATUS_COLORS.critical : STATUS_COLORS[s];
       state = { visible: base.visible || s === "late", color, transparency: s === "not-started" ? 0.7 : 0 };
+    } else if (options.colorMode === "plan-vs-actual") {
+      state = planVsActual(act, profile, t);
     } else {
       state = fromPhase(profile[phase]);
       if (phase === "active" && profile.progressiveFade) {
@@ -114,6 +116,25 @@ export function computeStates(
     else out.set(id, { visible: true, color: null, transparency: 0 });
   }
   return out;
+}
+
+/** Colours of the planned-versus-actual mode. */
+export const PLAN_COLORS = { ahead: "#2e9d4f", onPlan: "#3b7dd8", behind: "#d64545" } as const;
+
+/**
+ * Planned versus actual: the element's progress on the current dates against
+ * its progress on the baseline dates at t. Ahead is green, behind is red, on
+ * plan is blue. An element that the baseline has already built but the
+ * current schedule has not shows in red, so missing work is visible.
+ */
+export function planVsActual(act: Activity, profile: AppearanceProfile, t: number): ElementState {
+  const cur = phaseAt(act, t, "current");
+  const base = phaseAt(act, t, "baseline");
+  if (cur.phase === "after" && base.phase === "after") return fromPhase(profile.after);
+  if (cur.phase === "before" && base.phase === "before") return fromPhase(profile.before);
+  const diff = cur.progress - base.progress;
+  const color = Math.abs(diff) < 0.02 ? PLAN_COLORS.onPlan : diff > 0 ? PLAN_COLORS.ahead : PLAN_COLORS.behind;
+  return { visible: true, color, transparency: diff < -0.02 && cur.phase === "before" ? 0.45 : 0 };
 }
 
 export function scheduleRange(schedule: Schedule, source: DateSource = "current"): { start: number; finish: number } | null {

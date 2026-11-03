@@ -2,6 +2,7 @@
 // The model itself is not embedded; elements are re-matched by GlobalId when
 // the same IFC file is loaded again.
 
+import { normalizePresentation, type Presentation } from "./presentation";
 import { DEFAULT_PROFILES } from "./profiles";
 import type { AppearanceProfile, ElementGroup, ElementSegment, Link, LinkRule, MotionPath, Schedule } from "./types";
 
@@ -20,6 +21,8 @@ export interface StratumProject {
   segments?: ElementSegment[];
   groups?: ElementGroup[];
   paths?: MotionPath[];
+  /** Viewpoints and animations. */
+  presentation?: Presentation;
 }
 
 export function serializeProject(p: Omit<StratumProject, "format" | "version" | "savedAt">): string {
@@ -43,5 +46,6 @@ export function parseProject(text: string): StratumProject {
     segments: Array.isArray(doc.segments) ? doc.segments : [],
     groups: Array.isArray(doc.groups) ? doc.groups : [],
     paths: Array.isArray(doc.paths) ? doc.paths : [],
+    presentation: normalizePresentation(doc.presentation),
   };
 }

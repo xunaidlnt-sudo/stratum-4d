@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { expandElements } from "../core/motion";
+import { EMPTY_PRESENTATION, EMPTY_VIEW, type Presentation, type ViewSettings } from "../core/presentation";
 import { DEFAULT_PROFILES } from "../core/profiles";
 import { DEFAULT_SIM_OPTIONS, scheduleRange, type SimulationOptions } from "../core/simulation";
 import type {
@@ -46,6 +47,10 @@ export interface AppState {
   segments: ElementSegment[];
   groups: ElementGroup[];
   paths: MotionPath[];
+  /** Saved viewpoints and animations of the project. */
+  presentation: Presentation;
+  /** Live 3D view settings: section planes, section box, legend. */
+  view3d: ViewSettings;
   modelFileName: string | null;
   links: Link[];
   rules: LinkRule[];
@@ -93,6 +98,8 @@ export interface AppState {
   setSegments: (s: ElementSegment[]) => void;
   setGroups: (g: ElementGroup[]) => void;
   setPaths: (p: MotionPath[]) => void;
+  setPresentation: (p: Presentation) => void;
+  setView3d: (v: Partial<ViewSettings>) => void;
   setPathDraft: (p: [number, number, number][] | null) => void;
   setCurrentProject: (id: string | null, version: number | null) => void;
   setView: (v: AppState["view"]) => void;
@@ -157,6 +164,8 @@ export const useStore = create<AppState>((set) => {
     segments: [],
     groups: [],
     paths: [],
+    presentation: EMPTY_PRESENTATION,
+    view3d: EMPTY_VIEW,
     modelFileName: null,
     links: [],
     rules: [],
@@ -216,6 +225,8 @@ export const useStore = create<AppState>((set) => {
     setSegments: (segments) => set((st) => ({ segments, elements: derive(st.baseElements, segments, st.groups) })),
     setGroups: (groups) => set((st) => ({ groups, elements: derive(st.baseElements, st.segments, groups) })),
     setPaths: (paths) => set({ paths }),
+    setPresentation: (presentation) => set({ presentation }),
+    setView3d: (v) => set((s) => ({ view3d: { ...s.view3d, ...v } })),
     setPathDraft: (pathDraft) => set({ pathDraft }),
     setCurrentProject: (currentProjectId, currentVersion) => set({ currentProjectId, currentVersion }),
     setView: (view) => set({ view }),

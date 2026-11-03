@@ -23,7 +23,7 @@ async function page(b, cfg) {
 const shot = (p, name, clip) => p.screenshot({ path: path.join(dir, `${name}.png`), ...(clip ? { clip } : {}) });
 
 (async () => {
-  if (process.argv.includes("--part2") || process.argv.includes("--part3")) return;
+  if (["--part2", "--part3", "--part4"].some((a) => process.argv.includes(a))) return;
   const b = await chromium.launch();
 
   // First start: setup wizard.
@@ -171,3 +171,44 @@ const shot = (p, name, clip) => p.screenshot({ path: path.join(dir, `${name}.png
   await b.close();
   console.log("Part 3 screenshots done");
 })();
+
+// Part 4: 4D presentation (sections, viewpoints, animation editor), from the GIS sample.
+(async () => {
+  if (!process.argv.includes("--part4")) return;
+  const b = await chromium.launch();
+  const p = await page(b, config("4d"));
+  p.on("dialog", (d) => d.accept(d.type() === "prompt" ? "GIS hall – mid project" : undefined));
+  await p.click('summary[title="File"]');
+  await p.click("text=Sample: 220 kV GIS substation (UAE)");
+  await p.waitForTimeout(4000);
+  const panel = async (name) => {
+    const box = await p.locator(".viewport-wrap").first().boundingBox();
+    await p.screenshot({ path: path.join(dir, `${name}.png`), clip: box });
+  };
+  await p.click('.pr-bar button[title^="Section planes"]');
+  await p.click('.pr-panel button:has-text("Height")');
+  await p.locator(".pr-panel input[type=range]").first().fill("0.8");
+  await p.check('.pr-panel label:has-text("legend") input');
+  await p.waitForTimeout(800);
+  await panel("4d-sections");
+  await p.click('.pr-bar button[title^="Section planes"]');
+  await p.click('.pr-bar button[title^="Saved viewpoints"]');
+  await p.click('.pr-panel button:has-text("Save viewpoint")');
+  await p.waitForTimeout(500);
+  await panel("4d-viewpoints");
+  await p.click('.pr-bar button[title^="Saved viewpoints"]');
+  await p.click('.pr-bar button[title^="Animation editor"]');
+  await p.click('.pr-anim button:has-text("New")');
+  const tr = await p.locator(".pr-track").first().boundingBox();
+  await p.mouse.click(tr.x + tr.width * 0.5, tr.y + tr.height / 2);
+  const rl = await p.locator(".pr-ruler").boundingBox();
+  await p.mouse.click(rl.x + rl.width * 0.62, rl.y + 5);
+  await p.waitForTimeout(800);
+  await panel("4d-animation");
+  await p.click('.pr-anim button:has-text("Export")');
+  await p.waitForTimeout(300);
+  await panel("4d-export");
+  await b.close();
+  console.log("Part 4 screenshots done");
+})();
+
