@@ -3,16 +3,17 @@
 #   macOS:   .dmg (Intel + Apple Silicon)
 #   Linux:   .AppImage and .deb
 #   Android: .apk (Capacitor) for phones and tablets
-# Push to the stratum-4d branch (or main) to get installers as workflow artifacts.
+# Run it by hand to get installers as workflow artifacts.
 # Push a tag like v0.2.0 to also attach them to a draft GitHub Release, or run
 # the workflow by hand with "publish" ticked to tag v<package.json version>
 # and publish the release in one go.
 
 name: Desktop installers
 
+# Only for releases (a v* tag) or a manual run: a private repository has limited
+# Actions minutes, and macOS minutes count ten times.
 on:
   push:
-    branches: [stratum-4d, main]
     tags: ["v*"]
   workflow_dispatch:
     inputs:
