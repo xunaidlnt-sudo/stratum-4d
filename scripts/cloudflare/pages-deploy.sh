@@ -11,9 +11,11 @@ W="npx --yes wrangler@3.99.0"
 PROJECT=miqyaslabs
 DBNAME=stratum-demo
 BUCKET=miqyas-downloads
+LEADS=miqyas-leads
 
 $W pages project create "$PROJECT" --production-branch main >/dev/null 2>&1 || true
 $W d1 create "$DBNAME" >/dev/null 2>&1 || true
+$W r2 bucket create "$LEADS" >/dev/null 2>&1 || true
 DBID=$($W d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{const l=JSON.parse(s);const d=l.find(x=>x.name===process.argv[1]);console.log(d?d.uuid:"")}catch{console.log("")}})' "$DBNAME" || true)
 
 {
@@ -24,6 +26,10 @@ DBID=$($W d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data"
   echo '[[r2_buckets]]'
   echo 'binding = "DOWNLOADS"'
   echo "bucket_name = \"$BUCKET\""
+  echo ''
+  echo '[[r2_buckets]]'
+  echo 'binding = "LEADS"'
+  echo "bucket_name = \"$LEADS\""
   if [ -n "$DBID" ]; then
     echo ''
     echo '[[d1_databases]]'
@@ -34,3 +40,5 @@ DBID=$($W d1 list --json 2>/dev/null | node -e 'let s="";process.stdin.on("data"
 } > wrangler.toml
 if [ -n "$DBID" ]; then echo "Demo database: $DBNAME ($DBID)"; else echo "NOTE: no D1 database (token needs Account > D1 > Edit); the demo keeps sessions in the browser."; fi
 $W pages deploy --branch main --commit-dirty=true
+# The key that lists contact-form enquiries at /api/contact?key=... (GitHub secret LEADS_KEY, optional).
+if [ -n "${LEADS_KEY:-}" ]; then printf '%s' "$LEADS_KEY" | $W pages secret put LEADS_KEY --project-name "$PROJECT" >/dev/null && echo "LEADS_KEY set"; fi

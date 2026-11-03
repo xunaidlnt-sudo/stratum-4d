@@ -715,8 +715,12 @@ function Workspace() {
           for (const k of SAMPLE_ORDER) await be.saveProject(`demo-${k}`, sampleProject(k));
           list = await be.listProjects();
         }
-        if (!useStore.getState().schedule && list.some((p) => p.id === "demo-gis")) await openFromDb("demo-gis");
-        useP6.getState().show("projects");
+        // A link like /demo/?project=road (from the website) opens that sample on the Activities view.
+        const want = new URLSearchParams(location.search).get("project");
+        const linked = want && list.some((p) => p.id === `demo-${want}`) ? `demo-${want}` : null;
+        if (linked) await openFromDb(linked);
+        else if (!useStore.getState().schedule && list.some((p) => p.id === "demo-gis")) await openFromDb("demo-gis");
+        useP6.getState().show(linked ? "activities" : "projects");
         const where = (await demoStoreKind()) === "cloudflare" ? "on the demo server" : "in this browser";
         store.setStatus(`Demo session ready: ${list.length} sample projects, saved ${where}. Change, add or delete anything; sign out or open a new tab to start again with fresh samples.`);
       } catch (e) {
