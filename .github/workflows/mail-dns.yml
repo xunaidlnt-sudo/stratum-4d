@@ -1,0 +1,37 @@
+name: Mail DNS (Zoho)
+
+# Adds the DNS records for Zoho Mail on miqyaslabs.com through the Cloudflare API.
+# Run it with the verification code from Zoho; run it again later with the DKIM values.
+on:
+  workflow_dispatch:
+    inputs:
+      region:
+        description: "Zoho data centre (the end of your Zoho address: com, eu, in, com.au, jp, sa, ae)"
+        default: com
+      verify:
+        description: "Zoho verification TXT value (zoho-verification=zb...)"
+        required: false
+      dkim_selector:
+        description: "DKIM selector from Zoho (for example: zmail)"
+        required: false
+      dkim_value:
+        description: "DKIM TXT value from Zoho (v=DKIM1; k=rsa; p=...)"
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  dns:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Records
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID || 'd90233d3db18e0173d8165819f5e9e98' }}
+          ZOHO_REGION: ${{ inputs.region }}
+          ZOHO_VERIFY: ${{ inputs.verify }}
+          DKIM_SELECTOR: ${{ inputs.dkim_selector }}
+          DKIM_VALUE: ${{ inputs.dkim_value }}
+        run: bash scripts/cloudflare/mail-dns.sh
