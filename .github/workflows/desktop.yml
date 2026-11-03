@@ -141,6 +141,8 @@ jobs:
     if: startsWith(github.ref, 'refs/tags/v') || (github.event_name == 'workflow_dispatch' && inputs.publish)
     needs: [build, android]
     runs-on: ubuntu-latest
+    env:
+      HAS_CF: ${{ secrets.CLOUDFLARE_API_TOKEN != '' && secrets.CLOUDFLARE_ACCOUNT_ID != '' }}
     steps:
       - uses: actions/checkout@v4
       - id: v
@@ -160,6 +162,13 @@ jobs:
           npm run build:mcp
           cp mcp/README.md mcp/dist/
           (cd mcp/dist && zip -q "../../dist-installers/Stratum-4D-${{ steps.v.outputs.tag }}-mcp.zip" stratum-mcp.cjs sql-wasm.wasm README.md)
+      # The installers also go to downloads.miqyaslabs.com (Cloudflare R2), for visitors whose firewall blocks GitHub.
+      - name: Upload to the download bucket
+        if: env.HAS_CF == 'true' && github.event_name == 'workflow_dispatch' && inputs.publish
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: bash scripts/cloudflare/upload.sh dist-installers "${{ steps.v.outputs.tag }}"
       # Tag pushes make a draft to review; a manual run with "publish" releases it.
       - uses: softprops/action-gh-release@v2
         with:

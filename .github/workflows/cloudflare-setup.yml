@@ -1,0 +1,54 @@
+name: Cloudflare setup (one time)
+
+# Moves miqyaslabs.com from GitHub Pages to Cloudflare Pages, creates the download
+# bucket at downloads.miqyaslabs.com and copies the latest release into it.
+# Needs the repository secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID.
+# The token needs: Account > Cloudflare Pages: Edit, Account > Workers R2 Storage: Edit,
+# Zone > DNS: Edit and Zone > Zone Settings: Edit (zone miqyaslabs.com).
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  setup:
+    runs-on: ubuntu-latest
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check the secrets
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] && [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "Add the secrets CLOUDFLARE_API_TOKEN and CLOUDFLARE_ACCOUNT_ID first."; exit 1; }
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the site
+        env:
+          VITE_LOGIN_HASH: 47178b2cffdab4e520ea04dc0a2c8c0e0761b01558e2602c19b78f346dc83ef1
+          VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
+          VITE_MS_CLIENT_ID: ${{ vars.MS_CLIENT_ID }}
+        run: |
+          npx vite build
+          node scripts/manual/build.cjs --no-pdf
+          npx esbuild site/hero/main.tsx --bundle --minify --format=esm --target=es2020 --jsx=automatic --loader:.css=css --external:manual/* --outfile=site/hero.js --log-level=warning
+          mkdir -p public_site
+          cp -r site/. public_site/
+          rm -rf public_site/hero
+          cp brand/miqyas-labs.png brand/miqyas-labs-dark.png brand/stratum-lockup.png public_site/
+          cp -r dist public_site/demo
+          cp -r docs/manual/dist public_site/manual
+          cp docs/Stratum-4D-Manual.pdf public_site/manual/
+          node scripts/cloudflare/links.cjs public_site/index.html
+      - name: Bucket, Pages project, domains and DNS
+        run: bash scripts/cloudflare/setup.sh
+      - name: Copy the latest release to the bucket
+        run: |
+          mkdir -p latest
+          gh release download --repo "$GITHUB_REPOSITORY" --dir latest
+          bash scripts/cloudflare/upload.sh latest "$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)"
