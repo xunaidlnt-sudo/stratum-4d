@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-label="How an update to P6 is approved on Stratum Server">
+  <style>.h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.w{font:700 15px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.sw{font:12px Inter,sans-serif;fill:#dfe6ee}.m{font:12px Inter,sans-serif;fill:#5d6b7a}.n{font:700 13px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="250" rx="8" fill="#ebecef"/>
+  <g>
+    <rect x="24" y="40" width="190" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="48" cy="64" r="13" fill="#d4a574"/><text class="n" x="48" y="69" text-anchor="middle">1</text>
+    <text class="h" x="119" y="98" text-anchor="middle">Planner</text>
+    <text class="s" x="119" y="120" text-anchor="middle">Clicks Update P6</text>
+    <text class="m" x="119" y="140" text-anchor="middle">"Sent for approval"</text>
+    <rect x="262" y="40" width="200" height="120" rx="10" fill="#0b2545"/>
+    <circle cx="286" cy="64" r="13" fill="#d4a574"/><text class="n" x="286" y="69" text-anchor="middle">2</text>
+    <text class="w" x="362" y="98" text-anchor="middle">Stratum Server</text>
+    <text class="sw" x="362" y="120" text-anchor="middle">Keeps the exact update</text>
+    <text class="sw" x="362" y="138" text-anchor="middle">and its SHA-256 fingerprint</text>
+    <rect x="510" y="40" width="200" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="534" cy="64" r="13" fill="#d4a574"/><text class="n" x="534" y="69" text-anchor="middle">3</text>
+    <text class="h" x="610" y="98" text-anchor="middle">Administrator</text>
+    <text class="s" x="610" y="120" text-anchor="middle">Settings › Security</text>
+    <text class="m" x="610" y="140" text-anchor="middle">Review, approve or reject</text>
+    <rect x="758" y="40" width="178" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="782" cy="64" r="13" fill="#d4a574"/><text class="n" x="782" y="69" text-anchor="middle">4</text>
+    <text class="h" x="847" y="98" text-anchor="middle">Primavera P6</text>
+    <text class="s" x="847" y="120" text-anchor="middle">Gets the progress</text>
+    <text class="m" x="847" y="140" text-anchor="middle">only after approval</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M216 100h40M464 100h40M712 100h40"/></g>
+  <g fill="#d4a574"><path d="M256 94l10 6-10 6zM504 94l10 6-10 6zM752 94l10 6-10 6z"/></g>
+  <rect x="262" y="186" width="448" height="40" rx="8" fill="#fff" stroke="#c9d1db" stroke-dasharray="5 4"/>
+  <text class="s" x="486" y="211" text-anchor="middle">Audit log: request, decision, reason and the push, each in one entry</text>
+  <g stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-dasharray="4 4"><path d="M362 160v24M610 160v24"/></g>
+</svg>

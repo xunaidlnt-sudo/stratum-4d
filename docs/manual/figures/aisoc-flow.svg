@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 270" role="img" aria-label="Stratum Server sends its audit events to AiSOC">
+  <style>.h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.w{font:700 15px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.sw{font:12px Inter,sans-serif;fill:#dfe6ee}.m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="270" rx="8" fill="#ebecef"/>
+  <rect x="16" y="16" width="928" height="200" rx="10" fill="none" stroke="#9aa5b1" stroke-dasharray="6 5"/>
+  <text class="m" x="32" y="38">Your company network</text>
+  <g>
+    <rect x="40" y="56" width="240" height="140" rx="10" fill="#0b2545"/>
+    <text class="w" x="160" y="86" text-anchor="middle">Stratum Server</text>
+    <text class="sw" x="160" y="110" text-anchor="middle">Audit log (hash chain)</text>
+    <text class="sw" x="160" y="128" text-anchor="middle">sign-ins, lockouts, users,</text>
+    <text class="sw" x="160" y="146" text-anchor="middle">approvals, P6, settings</text>
+    <text class="sw" x="160" y="174" text-anchor="middle">Settings › AiSOC</text>
+    <rect x="380" y="56" width="250" height="140" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="h" x="505" y="86" text-anchor="middle">AiSOC</text>
+    <text class="s" x="505" y="110" text-anchor="middle">Ingest (port 8081)</text>
+    <text class="s" x="505" y="128" text-anchor="middle">Detections and correlation</text>
+    <text class="s" x="505" y="146" text-anchor="middle">AI triage, human approval</text>
+    <text class="m" x="505" y="174" text-anchor="middle">Console (port 3000)</text>
+    <rect x="730" y="56" width="190" height="140" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="h" x="825" y="96" text-anchor="middle">Security team</text>
+    <text class="s" x="825" y="120" text-anchor="middle">Alerts and cases</text>
+    <text class="s" x="825" y="138" text-anchor="middle">with the other systems</text>
+    <text class="m" x="825" y="166" text-anchor="middle">of the company</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M282 112h92M632 126h92"/></g>
+  <g fill="#d4a574"><path d="M374 106l10 6-10 6zM724 120l10 6-10 6z"/></g>
+  <text class="m" x="328" y="102" text-anchor="middle">events</text>
+  <text class="m" x="678" y="116" text-anchor="middle">alerts</text>
+  <g stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-dasharray="4 4"><path d="M160 198v8h345v-8"/></g>
+  <text class="m" x="332" y="226" text-anchor="middle">Open AiSOC console (new tab)</text>
+  <text class="m" x="480" y="252" text-anchor="middle">AiSOC is a separate open-source project (MIT licence). You install it on your own server.</text>
+</svg>
