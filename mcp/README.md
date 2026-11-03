@@ -21,6 +21,26 @@ It runs on your computer. It reads files and the Stratum 4D desktop database on 
 | `export` | Write P6 XER, MS Project XML, CSV or a Stratum project file |
 | `save_project` | Save back to the Stratum 4D database (as a new version; refused if someone saved in the meantime) |
 
+
+## Safety
+
+- **Tool ledger.** Every tool call is written to `~/.stratum/mcp-ledger.jsonl`, chained so that an edited or removed line shows. Check it with `node stratum-mcp.cjs --verify-ledger`. Set `STRATUM_MCP_LEDGER` to another file, or `off`.
+- **Read-only.** Set `STRATUM_MCP_READONLY=1` to turn off `export` and `save_project`.
+- **Folders.** Set `STRATUM_MCP_ROOTS` to the folders the server may read and write (separate them with `;` on Windows, `:` elsewhere).
+- **Text from files.** Activity names and notes come from other people's files. The server tells the assistant to treat them as data, and adds a note to a result when text in it reads like an instruction to the assistant.
+
+Example for Claude Desktop:
+
+```json
+"stratum-4d": {
+  "command": "node",
+  "args": ["C:\\Stratum\\mcp\\stratum-mcp.cjs"],
+  "env": { "STRATUM_MCP_ROOTS": "C:\\Projects\\Schedules", "STRATUM_MCP_READONLY": "1" }
+}
+```
+
+More in [docs/SECURITY.md](../docs/SECURITY.md).
+
 ## Install
 
 You need **Node.js 20 or newer** (nodejs.org).

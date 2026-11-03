@@ -1,5 +1,44 @@
 import { ConflictError, type Backend, type SessionUser } from "./types";
 
+/** Settings > Security on Stratum Server. */
+export interface SecurityPolicy {
+  p6Approval: "off" | "admin" | "two-person";
+  auditDays: number;
+}
+export interface AuditEntry {
+  seq: number;
+  at: string;
+  actor: string;
+  action: string;
+  target: string;
+  detail: Record<string, unknown>;
+  ip: string;
+  prevHash: string;
+  hash: string;
+}
+export interface AuditVerify {
+  ok: boolean;
+  checked: number;
+  brokenAt?: number;
+  reason?: string;
+  head?: { seq: number; hash: string };
+  checkpoints: { id: number; at: string; cutSeq: number; removed: number; days: number }[];
+}
+export interface Approval {
+  id: string;
+  kind: string;
+  status: "pending" | "approved" | "rejected" | "failed";
+  title: string;
+  payloadHash: string;
+  requestedBy: string;
+  requestedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  reason: string;
+  result: unknown;
+  summary?: { projectCode: string; projectName: string; dataDate: number | null; activities: number; started: number; finished: number } | null;
+}
+
 export interface ServerStatus {
   needsSetup: boolean;
   pdf: boolean;
@@ -40,8 +79,16 @@ export function serverBackend(base: string, token: string, user: SessionUser | n
   base: string;
   token: string;
   listUsers(): Promise<SessionUser[]>;
-  saveUser(id: string, u: { email: string; name: string; role: string; password?: string }): Promise<void>;
+  saveUser(id: string, u: { email: string; name: string; role: string; password?: string; reason?: string }): Promise<void>;
   deleteUser(id: string): Promise<void>;
+  getSecurity(): Promise<SecurityPolicy>;
+  setSecurity(p: Partial<SecurityPolicy>): Promise<SecurityPolicy>;
+  listApprovals(status?: Approval["status"]): Promise<Approval[]>;
+  getApproval(id: string): Promise<Approval>;
+  decideApproval(id: string, approve: boolean, reason?: string): Promise<{ status: string; result?: unknown }>;
+  listAudit(o?: { before?: number; action?: string; actor?: string; limit?: number }): Promise<AuditEntry[]>;
+  verifyAudit(): Promise<AuditVerify>;
+  exportAudit(): Promise<Blob>;
 } {
   const r = <T>(method: string, path: string, body?: unknown) => request<T>(base, method, path, token, body);
   return {
@@ -79,5 +126,21 @@ export function serverBackend(base: string, token: string, user: SessionUser | n
     listUsers: () => r("GET", "/api/users"),
     saveUser: async (id, u) => void (await r("PUT", `/api/users/${encodeURIComponent(id)}`, u)),
     deleteUser: async (id) => void (await r("DELETE", `/api/users/${encodeURIComponent(id)}`)),
+    getSecurity: () => r("GET", "/api/security"),
+    setSecurity: (p) => r("PUT", "/api/security", p),
+    listApprovals: (status) => r("GET", `/api/approvals${status ? `?status=${status}` : ""}`),
+    getApproval: (id) => r("GET", `/api/approvals/${encodeURIComponent(id)}`),
+    decideApproval: (id, approve, reason) => r("POST", `/api/approvals/${encodeURIComponent(id)}/${approve ? "approve" : "reject"}`, { reason }),
+    listAudit: (o = {}) => {
+      const q = new URLSearchParams();
+      for (const [k, v] of Object.entries(o)) if (v !== undefined && v !== "") q.set(k, String(v));
+      return r("GET", `/api/audit${q.size ? `?${q}` : ""}`);
+    },
+    verifyAudit: () => r("GET", "/api/audit/verify"),
+    exportAudit: async () => {
+      const res = await fetch(`${clean(base)}/api/audit/export.csv`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!res.ok) throw new Error(`Export failed (${res.status})`);
+      return res.blob();
+    },
   };
 }

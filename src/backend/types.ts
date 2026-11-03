@@ -84,7 +84,8 @@ export interface Backend {
   p6Test(c: P6Connection): Promise<P6Diagnosis>;
   p6Projects(connectionId: string): Promise<P6ProjectInfo[]>;
   p6Import(connectionId: string, objectId: string): Promise<Schedule>;
-  p6Push(connectionId: string, schedule: Schedule): Promise<{ updated: number; skipped: string[] }>;
+  /** On Stratum Server the push can wait for an admin's approval: then `pendingApproval` is the request id and nothing was sent yet. */
+  p6Push(connectionId: string, schedule: Schedule): Promise<{ updated: number; skipped: string[]; pendingApproval?: string }>;
   /** Enterprise data shared by everyone using this store (EPS, portfolios, project codes). */
   getShared?(key: string): Promise<unknown>;
   setShared?(key: string, value: unknown): Promise<void>;

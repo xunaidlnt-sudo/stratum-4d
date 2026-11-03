@@ -48,11 +48,14 @@
 <ul>
 <li>Runs in your data centre or private cloud with Docker and PostgreSQL. You control the network, backups and retention.</li>
 <li>Users sign in with roles. Every save makes a new version, and a save never overwrites changes that someone else made in the meantime.</li>
+<li>An audit log records every sign-in and every change. Each entry is chained to the one before it, so a changed or removed entry shows when the log is verified. The database refuses edits to it, and it can be exported for an auditor.</li>
+<li>Sending progress to Primavera P6 waits for an admin's approval by default, with an optional two-person rule. The approver approves exactly the content that will be sent.</li>
+<li>Repeated wrong passwords lock the sign-in for 15 minutes. A new password or role ends the user's other sessions at once.</li>
 <li>Scheduled email reports go through your own mail server.</li>
 </ul>
 
 <h2>AI assistants (MCP)</h2>
-<p>The optional MCP server runs on the user's computer and reads only the files and the database that the user points it at. The assistant application shows each tool call before it runs. The assistant application itself sends the user's questions and the tool results to its AI service, so follow your company's rules before you use it with project data.</p>
+<p>The optional MCP server runs on the user's computer and reads only the files and the database that the user points it at. The assistant application shows each tool call before it runs. The server also keeps its own chained log of every tool call, can run read-only or be limited to chosen folders, and tells the assistant that text from schedule files is data, not instructions. The assistant application itself sends the user's questions and the tool results to its AI service, so follow your company's rules before you use it with project data.</p>
 
 <h2>The web demo</h2>
 <ul>

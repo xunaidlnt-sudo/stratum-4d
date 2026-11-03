@@ -2117,3 +2117,7 @@ html[data-theme="dark"] .pr-panel, html[data-theme="dark"] .pr-anim, html[data-t
 .pr-dialog label:not(.check) { display: flex; flex-direction: column; gap: 2px; }
 .pr-progress { position: absolute; right: 10px; bottom: calc(100% + 8px); display: flex; align-items: center; gap: 8px; background: #0b2545; color: #fff; border-radius: 8px; padding: 8px 12px; }
 
+/* Settings > Security: audit log */
+table.data.audit td { font-size: 12px; vertical-align: top; }
+table.data.audit td:last-child { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+table.data tr.warn td { background: color-mix(in srgb, #e11d48 8%, transparent); }

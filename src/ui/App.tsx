@@ -497,6 +497,10 @@ function Workspace() {
     if (!window.confirm(`Send progress (actual dates, % complete, remaining duration) for ${s.projectCode} back to P6?`)) return;
     try {
       const r = await useConfig.getState().backend.p6Push(s.p6Source.connectionId, s);
+      if (r.pendingApproval) {
+        store.setStatus(`Sent for approval: an admin reviews the change in Settings > Security before it goes to P6.`);
+        return;
+      }
       store.setStatus(`Sent progress for ${r.updated} activities to P6.${r.skipped.length ? ` Not sent (new in Stratum, use XER): ${r.skipped.slice(0, 8).join(", ")}${r.skipped.length > 8 ? "…" : ""}.` : ""} Reschedule in P6 (F9).`);
     } catch (e) {
       store.setStatus(`P6 update failed: ${(e as Error).message}`);

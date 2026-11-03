@@ -31,6 +31,7 @@ import { decodeXer, parseXer } from "../src/core/xer";
 import { exportCsv, exportXer } from "../src/core/xerExport";
 import { Repository } from "../src/services/repo";
 import { openSqlite } from "../src/services/sql";
+import { checkPath, defaultLedgerFile, guard, guardOptionsFromEnv, INSTRUCTIONS, verifyLedger } from "./guard";
 
 const DAY = 86_400_000;
 const VERSION = "0.11.0";
@@ -63,7 +64,7 @@ function get(handle: string): Open {
 }
 
 function readScheduleFile(file: string): { schedule: Schedule; project?: StratumProject } {
-  const abs = path.resolve(file.replace(/^~(?=$|\/|\\)/, os.homedir()));
+  const abs = checkPath(file);
   if (!fs.existsSync(abs)) throw new Error(`File not found: ${abs}`);
   const ext = path.extname(abs).toLowerCase();
   const bytes = fs.readFileSync(abs);
@@ -182,7 +183,14 @@ const parseDate = (v: string) => {
 
 // ---------------------------------------------------------------- server
 
-const server = new McpServer({ name: "stratum-4d", version: VERSION });
+const server = new McpServer({ name: "stratum-4d", version: VERSION }, { instructions: INSTRUCTIONS });
+// Every tool goes through the guard: read-only mode, flags on untrusted text, and the tool ledger (mcp/guard.ts).
+const guardOpts = process.argv.includes("--verify-ledger") ? { ledger: null } : guardOptionsFromEnv();
+{
+  const register = server.registerTool.bind(server) as (...a: unknown[]) => unknown;
+  (server as unknown as { registerTool: (...a: unknown[]) => unknown }).registerTool = (name: unknown, cfg: unknown, cb: unknown) =>
+    register(name, cfg, guard(String(name), cb as never, guardOpts));
+}
 const handle = z.string().describe("Handle of an open schedule, e.g. s1 (from open_file, open_project or list_open)");
 
 server.registerTool(
@@ -424,7 +432,7 @@ server.registerTool(
   { description: "Write an open schedule to a file: xer (P6), mspdi (MS Project XML), csv, or stratum (.stratum.json, keeps model links).", inputSchema: { handle, format: z.enum(["xer", "mspdi", "csv", "stratum"]), path: z.string().describe("Output file path") } },
   tool(({ handle: h, format, path: p }: { handle: string; format: "xer" | "mspdi" | "csv" | "stratum"; path: string }) => {
     const o = get(h);
-    const abs = path.resolve(p.replace(/^~(?=$|\/|\\)/, os.homedir()));
+    const abs = checkPath(p);
     fs.mkdirSync(path.dirname(abs), { recursive: true });
     if (format === "xer") fs.writeFileSync(abs, exportXer(o.schedule));
     else if (format === "mspdi") fs.writeFileSync(abs, writeMspdi(o.schedule), "utf8");
@@ -461,6 +469,14 @@ server.registerTool(
 server.registerTool("close", { description: "Close an open schedule (unsaved changes are lost).", inputSchema: { handle } }, tool(({ handle: h }: { handle: string }) => ({ closed: open.delete(h) })));
 
 async function main() {
+  // node stratum-mcp.cjs --verify-ledger   checks the tool ledger and exits.
+  if (process.argv.includes("--verify-ledger")) {
+    const file = defaultLedgerFile();
+    if (!file) return void process.stdout.write("The tool ledger is turned off (STRATUM_MCP_LEDGER=off).\n");
+    const r = verifyLedger(file);
+    process.stdout.write(r.ok ? `Tool ledger ${file}: ${r.checked} entries, intact.\n` : `Tool ledger ${file}: NOT intact at entry ${r.brokenAt}: ${r.reason}\n`);
+    process.exit(r.ok ? 0 : 2);
+  }
   await server.connect(new StdioServerTransport());
 }
 main().catch((e) => {

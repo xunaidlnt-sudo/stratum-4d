@@ -22,6 +22,26 @@ export interface UserRecord {
   name: string;
   role: "admin" | "planner" | "viewer";
   passwordHash: string;
+  /** Raised on a password or role change; sessions signed with an older value stop working. */
+  tokenVersion?: number;
+}
+
+/** A change that waits for a person to approve it before it runs (for example a push to P6). */
+export interface ApprovalRecord {
+  id: string;
+  kind: "p6.push";
+  status: "pending" | "approved" | "rejected" | "failed";
+  /** Short description shown in the queue. */
+  title: string;
+  /** What runs on approval. Its SHA-256 is recorded in the audit log, so the approver approves exactly this. */
+  payload: unknown;
+  payloadHash: string;
+  requestedBy: string;
+  requestedAt: string;
+  decidedBy: string | null;
+  decidedAt: string | null;
+  reason: string;
+  result: unknown;
 }
 
 export class VersionConflictError extends Error {
@@ -42,6 +62,9 @@ const SCHEMA = [
   `create table if not exists runs (id text primary key, schedule_id text not null, at text not null, status text not null, message text not null, manual integer not null default 0)`,
   `create table if not exists settings (key text primary key, value text not null)`,
   `create table if not exists users (id text primary key, email text unique not null, name text not null, role text not null, password_hash text not null)`,
+  `create table if not exists approvals (
+     id text primary key, kind text not null, status text not null, title text not null, payload text not null, payload_hash text not null,
+     requested_by text not null, requested_at text not null, decided_by text, decided_at text, reason text not null, result text)`,
 ];
 
 export class Repository {
@@ -53,6 +76,17 @@ export class Repository {
 
   async migrate() {
     for (const sql of SCHEMA) await this.db.exec(sql);
+    // Columns added after the first release.
+    if (this.db.dialect === "postgres") await this.db.exec("alter table users add column if not exists token_version integer not null default 0");
+    else {
+      const cols = await this.db.query<{ name: string }>("pragma table_info(users)");
+      if (!cols.some((c) => c.name === "token_version")) await this.db.exec("alter table users add column token_version integer not null default 0");
+    }
+  }
+
+  /** The driver, for modules that keep their own tables (the audit log). */
+  get driver() {
+    return this.db;
   }
 
   async close() {
@@ -231,23 +265,112 @@ export class Repository {
     return Number(r?.n ?? 0);
   }
 
-  async getUserByEmail(email: string): Promise<UserRecord | null> {
-    const [r] = await this.db.query<Record<string, string>>("select * from users where lower(email) = lower(?)", [email]);
-    return r ? { id: r.id, email: r.email, name: r.name, role: r.role as UserRecord["role"], passwordHash: r.password_hash } : null;
+  private user(r: Record<string, unknown>): UserRecord {
+    return { id: String(r.id), email: String(r.email), name: String(r.name), role: r.role as UserRecord["role"], passwordHash: String(r.password_hash), tokenVersion: Number(r.token_version ?? 0) };
   }
 
-  async listUsers(): Promise<Omit<UserRecord, "passwordHash">[]> {
+  async getUserByEmail(email: string): Promise<UserRecord | null> {
+    const [r] = await this.db.query<Record<string, unknown>>("select * from users where lower(email) = lower(?)", [email]);
+    return r ? this.user(r) : null;
+  }
+
+  async getUserById(id: string): Promise<UserRecord | null> {
+    const [r] = await this.db.query<Record<string, unknown>>("select * from users where id = ?", [id]);
+    return r ? this.user(r) : null;
+  }
+
+  async listUsers(): Promise<Omit<UserRecord, "passwordHash" | "tokenVersion">[]> {
     const rows = await this.db.query<Record<string, string>>("select id, email, name, role from users order by email");
     return rows.map((r) => ({ id: r.id, email: r.email, name: r.name, role: r.role as UserRecord["role"] }));
   }
 
+  async countAdmins(): Promise<number> {
+    const [r] = await this.db.query<{ n: number | string }>("select count(*) as n from users where role = 'admin'");
+    return Number(r?.n ?? 0);
+  }
+
   async saveUser(u: UserRecord) {
     const exists = (await this.db.query("select 1 from users where id = ?", [u.id])).length > 0;
-    if (exists) await this.db.exec("update users set email = ?, name = ?, role = ?, password_hash = ? where id = ?", [u.email, u.name, u.role, u.passwordHash, u.id]);
-    else await this.db.exec("insert into users (id, email, name, role, password_hash) values (?, ?, ?, ?, ?)", [u.id, u.email, u.name, u.role, u.passwordHash]);
+    if (exists) await this.db.exec("update users set email = ?, name = ?, role = ?, password_hash = ?, token_version = ? where id = ?", [u.email, u.name, u.role, u.passwordHash, u.tokenVersion ?? 0, u.id]);
+    else await this.db.exec("insert into users (id, email, name, role, password_hash, token_version) values (?, ?, ?, ?, ?, ?)", [u.id, u.email, u.name, u.role, u.passwordHash, u.tokenVersion ?? 0]);
   }
 
   async deleteUser(id: string) {
     await this.db.exec("delete from users where id = ?", [id]);
+  }
+
+  // ---- approvals (server)
+
+  private approval(r: Record<string, unknown>): ApprovalRecord {
+    return {
+      id: String(r.id),
+      kind: r.kind as ApprovalRecord["kind"],
+      status: r.status as ApprovalRecord["status"],
+      title: String(r.title),
+      payload: JSON.parse(String(r.payload)),
+      payloadHash: String(r.payload_hash),
+      requestedBy: String(r.requested_by),
+      requestedAt: String(r.requested_at),
+      decidedBy: (r.decided_by as string) ?? null,
+      decidedAt: (r.decided_at as string) ?? null,
+      reason: String(r.reason ?? ""),
+      result: r.result ? JSON.parse(String(r.result)) : null,
+    };
+  }
+
+  async addApproval(a: ApprovalRecord) {
+    await this.db.exec("insert into approvals (id, kind, status, title, payload, payload_hash, requested_by, requested_at, decided_by, decided_at, reason, result) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)", [
+      a.id,
+      a.kind,
+      a.status,
+      a.title,
+      JSON.stringify(a.payload),
+      a.payloadHash,
+      a.requestedBy,
+      a.requestedAt,
+      a.decidedBy,
+      a.decidedAt,
+      a.reason,
+      a.result === null ? null : JSON.stringify(a.result),
+    ]);
+  }
+
+  async getApproval(id: string): Promise<ApprovalRecord | null> {
+    const [r] = await this.db.query<Record<string, unknown>>("select * from approvals where id = ?", [id]);
+    return r ? this.approval(r) : null;
+  }
+
+  /** Newest first, without the payloads (they can be whole schedules). */
+  async listApprovals(status?: ApprovalRecord["status"], limit = 100): Promise<Omit<ApprovalRecord, "payload">[]> {
+    const rows = await this.db.query<Record<string, unknown>>(
+      `select id, kind, status, title, '' as payload, payload_hash, requested_by, requested_at, decided_by, decided_at, reason, result from approvals ${status ? "where status = ?" : ""} order by requested_at desc limit ?`,
+      status ? [status, limit] : [limit],
+    );
+    return rows.map((r) => {
+      const { payload: _p, ...rest } = this.approval({ ...r, payload: "null" });
+      return rest;
+    });
+  }
+
+  /**
+   * Moves a request on to its decision, only if it is still in the state `from`
+   * (pending, or approved while it runs). The update is conditional, so two
+   * people deciding at once cannot both win. Returns false when it lost.
+   */
+  async decideApproval(id: string, status: Exclude<ApprovalRecord["status"], "pending">, by: string, reason: string, result: unknown = null, from: ApprovalRecord["status"] = "pending"): Promise<boolean> {
+    const stamp = `${new Date().toISOString()}#${Math.random().toString(36).slice(2, 10)}`;
+    await this.db.exec("update approvals set status = ?, decided_by = ?, decided_at = ?, reason = ?, result = ? where id = ? and status = ?", [
+      status,
+      by,
+      stamp,
+      reason,
+      result === null ? null : JSON.stringify(result),
+      id,
+      from,
+    ]);
+    const [r] = await this.db.query<{ decided_at: string; status: string }>("select decided_at, status from approvals where id = ?", [id]);
+    if (r?.decided_at !== stamp || r.status !== status) return false;
+    await this.db.exec("update approvals set decided_at = ? where id = ? and decided_at = ?", [stamp.split("#")[0], id, stamp]);
+    return true;
   }
 }

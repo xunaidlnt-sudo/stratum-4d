@@ -6,6 +6,7 @@
 //   PUBLIC_URL       how the server reaches its own web app for PDF rendering (default http://127.0.0.1:PORT)
 //   STATIC_DIR       built web app (default ./dist)
 //   STRATUM_PDF      "off" to disable PDF rendering (Excel is still sent)
+//   STRATUM_TRUST_PROXY  "1" when behind a reverse proxy, so the audit log and sign-in lockout see the real client address
 
 import path from "node:path";
 import { StratumApi } from "../services/api";
@@ -38,8 +39,13 @@ async function main() {
     if (!renderPdf) console.warn("[stratum] Playwright/Chromium not available: reports will attach Excel only.");
   }
   const api = new StratumApi({ repo, box: aesBox(secret), renderPdf, wasmDir, log: (m) => console.log(m), where: "server" });
-  const { app, internalRenderToken } = await buildServer({ repo, api, jwtSecret: secret, staticDir, log: true });
+  const { app, internalRenderToken, audit, auditMaintenance } = await buildServer({ repo, api, jwtSecret: secret, staticDir, log: true });
   tokenSource = internalRenderToken;
+  await audit.append({ actor: "system@stratum", action: "server.start", detail: { db: repo.dialect } });
+  // Verify the audit log at start and daily, apply retention, and write the head of the chain to this log (outside the database).
+  const maintain = () => auditMaintenance().catch((e) => console.error("[stratum] audit maintenance failed:", e));
+  await maintain();
+  setInterval(maintain, 24 * 3600_000).unref();
   await app.listen({ port, host: "0.0.0.0" });
   console.log(`[stratum] server on ${publicUrl} using ${repo.dialect}`);
   startScheduler(api.runnerDeps());

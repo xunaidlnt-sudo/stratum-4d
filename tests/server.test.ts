@@ -117,7 +117,7 @@ describe("Stratum Server", () => {
       console.warn("PostgreSQL not reachable; skipping");
       return;
     }
-    for (const t of ["projects", "dashboards", "schedules", "runs", "settings", "users"]) await d.exec(`drop table if exists ${t}`);
+    for (const t of ["projects", "dashboards", "schedules", "runs", "settings", "users", "approvals", "audit_log", "audit_checkpoints"]) await d.exec(`drop table if exists ${t}`);
     await scenario(d, port, mails);
   });
 });

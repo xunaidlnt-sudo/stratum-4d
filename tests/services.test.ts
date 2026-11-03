@@ -124,7 +124,7 @@ describe("repository", () => {
       console.warn("PostgreSQL not reachable; skipping");
       return;
     }
-    for (const t of ["projects", "dashboards", "schedules", "runs", "settings", "users"]) await driver.exec(`drop table if exists ${t}`);
+    for (const t of ["projects", "dashboards", "schedules", "runs", "settings", "users", "approvals", "audit_log", "audit_checkpoints"]) await driver.exec(`drop table if exists ${t}`);
     await repoContract(async () => new Repository(driver!));
   });
 });

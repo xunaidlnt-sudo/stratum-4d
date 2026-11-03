@@ -2,13 +2,13 @@ import { X } from "lucide-react";
 import { CloudSettings } from "./CloudSettings";
 import { useEffect, useState } from "react";
 import { isDesktop, useConfig } from "../backend/config";
-import { serverLogin, serverStatus, type serverBackend } from "../backend/server";
+import { serverLogin, serverStatus, type Approval, type AuditEntry, type AuditVerify, type SecurityPolicy, type serverBackend } from "../backend/server";
 import type { CheckStep, P6Diagnosis, SessionUser } from "../backend/types";
 import { uid, type InterfaceMode, type P6Connection, type P6ConnectionKind, type SmtpSettings } from "../core/reporting";
 import { FONTS } from "./appearance";
 import { MODE_INFO } from "./terms";
 
-type Tab = "interface" | "data" | "p6" | "email" | "users";
+type Tab = "interface" | "data" | "p6" | "email" | "users" | "security";
 
 export function SettingsDialog({ initialTab = "interface", onClose }: { initialTab?: Tab; onClose: () => void }) {
   const { backend } = useConfig();
@@ -18,7 +18,12 @@ export function SettingsDialog({ initialTab = "interface", onClose }: { initialT
     ["data", "Data & sign-in"],
     ["p6", "Primavera P6"],
     ["email", "Email"],
-    ...(backend.kind === "server" && backend.user?.role === "admin" ? ([["users", "Users"]] as [Tab, string][]) : []),
+    ...(backend.kind === "server" && backend.user?.role === "admin"
+      ? ([
+          ["users", "Users"],
+          ["security", "Security"],
+        ] as [Tab, string][])
+      : []),
   ];
   return (
     <div className="help-backdrop" onClick={onClose}>
@@ -42,6 +47,7 @@ export function SettingsDialog({ initialTab = "interface", onClose }: { initialT
           {tab === "p6" && <P6Tab />}
           {tab === "email" && <EmailTab />}
           {tab === "users" && <UsersTab />}
+          {tab === "security" && <SecurityTab />}
         </div>
       </div>
     </div>
@@ -510,7 +516,7 @@ function EmailTab() {
 function UsersTab() {
   const backend = useConfig((s) => s.backend) as ReturnType<typeof serverBackend>;
   const [users, setUsers] = useState<(SessionUser & { id: string })[]>([]);
-  const [edit, setEdit] = useState<{ id: string; email: string; name: string; role: string; password: string } | null>(null);
+  const [edit, setEdit] = useState<{ id: string; email: string; name: string; role: string; password: string; reason?: string } | null>(null);
   const [msg, setMsg] = useState("");
   const load = () =>
     backend
@@ -560,7 +566,7 @@ function UsersTab() {
           ))}
         </tbody>
       </table>
-      <p className="muted">Admins manage users and settings; planners edit projects, dashboards and reports; viewers read and receive reports.</p>
+      <p className="muted">Admins manage users and settings; planners edit projects, dashboards and reports; viewers read and receive reports. A new password or role signs the user out of their other sessions.</p>
       {!edit && <button onClick={() => setEdit({ id: uid("usr"), email: "", name: "", role: "planner", password: "" })}>+ Add user</button>}
       {edit && (
         <section className="stack form">
@@ -588,12 +594,16 @@ function UsersTab() {
               <input type="password" value={edit.password} onChange={(e) => setEdit({ ...edit, password: e.target.value })} autoComplete="new-password" />
             </label>
           </div>
+          <label>
+            Reason (kept in the audit log)
+            <input value={edit.reason ?? ""} onChange={(e) => setEdit({ ...edit, reason: e.target.value })} placeholder="New planner for the substation project" maxLength={500} />
+          </label>
           <div className="row">
             <button
               className="primary"
               onClick={async () => {
                 try {
-                  await backend.saveUser(edit.id, { email: edit.email, name: edit.name, role: edit.role, password: edit.password || undefined });
+                  await backend.saveUser(edit.id, { email: edit.email, name: edit.name, role: edit.role, password: edit.password || undefined, reason: edit.reason });
                   setEdit(null);
                   load();
                 } catch (e) {
@@ -608,6 +618,285 @@ function UsersTab() {
         </section>
       )}
       {msg && <p className="bad">{msg}</p>}
+    </div>
+  );
+}
+
+const ACTION_LABEL: Record<string, string> = {
+  "login.ok": "Signed in",
+  "login.failed": "Wrong password",
+  "login.locked": "Sign-in locked",
+  "setup.admin": "Server set up",
+  "user.create": "User added",
+  "user.update": "User changed",
+  "user.delete": "User removed",
+  "project.save": "Project saved",
+  "project.delete": "Project deleted",
+  "dashboard.save": "Dashboard saved",
+  "dashboard.delete": "Dashboard deleted",
+  "report.save": "Report saved",
+  "report.delete": "Report deleted",
+  "report.run": "Report sent",
+  "settings.smtp": "Email settings",
+  "settings.p6": "P6 connections",
+  "settings.general": "Setting changed",
+  "security.policy": "Security policy",
+  "p6.import": "Pulled from P6",
+  "p6.push": "Sent to P6",
+  "approval.request": "Approval asked",
+  "approval.approve": "Approved",
+  "approval.reject": "Rejected",
+  "approval.failed": "Approved, push failed",
+  "approval.tampered": "Request changed",
+  "audit.verify": "Log verified",
+  "audit.export": "Log exported",
+  "audit.retention": "Old entries removed",
+  "server.start": "Server started",
+};
+
+const short = (d: Record<string, unknown>) =>
+  Object.entries(d)
+    .filter(([k]) => k !== "sha256")
+    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
+    .join(" · ")
+    .slice(0, 160);
+
+function SecurityTab() {
+  const backend = useConfig((s) => s.backend) as ReturnType<typeof serverBackend>;
+  const me = backend.user?.email ?? "";
+  const [pol, setPol] = useState<SecurityPolicy | null>(null);
+  const [approvals, setApprovals] = useState<Approval[]>([]);
+  const [open, setOpen] = useState<Approval | null>(null);
+  const [reason, setReason] = useState("");
+  const [entries, setEntries] = useState<AuditEntry[]>([]);
+  const [filter, setFilter] = useState("");
+  const [verify, setVerify] = useState<AuditVerify | null>(null);
+  const [msg, setMsg] = useState("");
+  const fail = (e: unknown) => setMsg((e as Error).message);
+  const loadAudit = (before?: number) =>
+    backend
+      .listAudit({ action: filter || undefined, before, limit: 50 })
+      .then((l) => setEntries((cur) => (before ? [...cur, ...l] : l)))
+      .catch(fail);
+  const loadApprovals = () => backend.listApprovals().then(setApprovals).catch(fail);
+  useEffect(() => {
+    backend.getSecurity().then(setPol).catch(fail);
+    loadApprovals();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  useEffect(() => {
+    loadAudit();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filter]);
+  const save = async (p: Partial<SecurityPolicy>) => {
+    try {
+      setPol(await backend.setSecurity(p));
+      setMsg("Saved.");
+      loadAudit();
+    } catch (e) {
+      fail(e);
+    }
+  };
+  const decide = async (approve: boolean) => {
+    if (!open) return;
+    try {
+      const r = await backend.decideApproval(open.id, approve, reason);
+      const res = r.result as { updated?: number } | undefined;
+      setMsg(approve ? `Approved. Sent progress for ${res?.updated ?? 0} activities to P6.` : "Rejected.");
+      setOpen(null);
+      setReason("");
+      loadApprovals();
+      loadAudit();
+    } catch (e) {
+      fail(e);
+      setOpen(null);
+      loadApprovals();
+      loadAudit();
+    }
+  };
+  const pending = approvals.filter((a) => a.status === "pending");
+  return (
+    <div className="stack">
+      <section className="stack">
+        <h3>Changes that need approval</h3>
+        {pol && (
+          <label>
+            Sending progress to Primavera P6
+            <select value={pol.p6Approval} onChange={(e) => void save({ p6Approval: e.target.value as SecurityPolicy["p6Approval"] })}>
+              <option value="admin">Planners ask; an admin approves (admins send at once)</option>
+              <option value="two-person">Everyone asks; an admin other than the requester approves</option>
+              <option value="off">No approval: send at once</option>
+            </select>
+          </label>
+        )}
+        {pending.length === 0 && <p className="muted">No requests are waiting.</p>}
+        {pending.length > 0 && (
+          <table className="data">
+            <thead>
+              <tr>
+                <th>Request</th>
+                <th>Asked by</th>
+                <th>When</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {pending.map((a) => (
+                <tr key={a.id}>
+                  <td>{a.title}</td>
+                  <td>{a.requestedBy}</td>
+                  <td>{new Date(a.requestedAt).toLocaleString()}</td>
+                  <td>
+                    <button className="link" onClick={() => backend.getApproval(a.id).then(setOpen).catch(fail)}>
+                      review
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+        {open && (
+          <section className="stack form">
+            <b>{open.title}</b>
+            {open.summary && (
+              <p>
+                {open.summary.projectCode} {open.summary.projectName}: {open.summary.activities} activities, {open.summary.started} started, {open.summary.finished} finished
+                {open.summary.dataDate ? `, data date ${new Date(open.summary.dataDate).toISOString().slice(0, 10)}` : ""}.
+              </p>
+            )}
+            <p className="muted">
+              Asked by {open.requestedBy} on {new Date(open.requestedAt).toLocaleString()}
+              {open.reason ? `: "${open.reason}"` : ""}. Content fingerprint (SHA-256) <code>{open.payloadHash.slice(0, 16)}…</code>; the approval sends exactly this content.
+            </p>
+            {pol?.p6Approval === "two-person" && open.requestedBy.toLowerCase() === me.toLowerCase() && <p className="bad">You asked for this change: another admin must approve it.</p>}
+            <label>
+              Reason (required to reject)
+              <input value={reason} onChange={(e) => setReason(e.target.value)} maxLength={500} />
+            </label>
+            <div className="row">
+              <button className="primary" onClick={() => void decide(true)}>
+                Approve and send
+              </button>
+              <button onClick={() => void decide(false)} disabled={!reason.trim() && open.requestedBy.toLowerCase() !== me.toLowerCase()}>
+                Reject
+              </button>
+              <button onClick={() => setOpen(null)}>Close</button>
+            </div>
+          </section>
+        )}
+        {approvals.some((a) => a.status !== "pending") && (
+          <details>
+            <summary>Decided requests</summary>
+            <table className="data">
+              <tbody>
+                {approvals
+                  .filter((a) => a.status !== "pending")
+                  .slice(0, 30)
+                  .map((a) => (
+                    <tr key={a.id}>
+                      <td>{a.title}</td>
+                      <td>{a.status}</td>
+                      <td>{a.decidedBy}</td>
+                      <td>{a.reason}</td>
+                    </tr>
+                  ))}
+              </tbody>
+            </table>
+          </details>
+        )}
+      </section>
+
+      <section className="stack">
+        <h3>Audit log</h3>
+        <p className="muted">Every sign-in and every change on this server, in order. Each entry is chained to the one before it with a keyed hash, so a changed or removed entry shows when the log is verified.</p>
+        <div className="row">
+          <button
+            onClick={() =>
+              backend
+                .verifyAudit()
+                .then((v) => (setVerify(v), loadAudit()))
+                .catch(fail)
+            }
+          >
+            Verify the log
+          </button>
+          <button
+            onClick={async () => {
+              try {
+                const b = await backend.exportAudit();
+                const a = document.createElement("a");
+                a.href = URL.createObjectURL(b);
+                a.download = `stratum-audit-${new Date().toISOString().slice(0, 10)}.csv`;
+                a.click();
+                setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+              } catch (e) {
+                fail(e);
+              }
+            }}
+          >
+            Export CSV
+          </button>
+          <label style={{ marginLeft: "auto" }}>
+            Show{" "}
+            <select value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">Everything</option>
+              <option value="login">Sign-ins</option>
+              <option value="user">Users</option>
+              <option value="project">Projects</option>
+              <option value="p6">P6</option>
+              <option value="approval">Approvals</option>
+              <option value="settings">Settings</option>
+              <option value="security">Security policy</option>
+            </select>
+          </label>
+        </div>
+        {verify && (
+          <p className={verify.ok ? "good" : "bad"}>
+            {verify.ok
+              ? `Verified: ${verify.checked} entries are intact${verify.head ? ` (latest ${verify.head.seq}, ${verify.head.hash.slice(0, 12)}…)` : ""}.${verify.checkpoints.length ? ` ${verify.checkpoints[0].removed} older entries were removed by retention on ${verify.checkpoints[0].at.slice(0, 10)}.` : ""}`
+              : `Not intact: ${verify.reason}.`}
+          </p>
+        )}
+        <table className="data audit">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>When</th>
+              <th>Who</th>
+              <th>What</th>
+              <th>On</th>
+              <th>Details</th>
+            </tr>
+          </thead>
+          <tbody>
+            {entries.map((e) => (
+              <tr key={e.seq} className={/failed|locked|tampered|reject/.test(e.action) ? "warn" : ""}>
+                <td>{e.seq}</td>
+                <td>{new Date(e.at).toLocaleString()}</td>
+                <td>{e.actor}</td>
+                <td title={e.action}>{ACTION_LABEL[e.action] ?? e.action}</td>
+                <td>{e.target}</td>
+                <td title={JSON.stringify(e.detail)}>{short(e.detail)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {entries.length > 0 && entries.length % 50 === 0 && <button onClick={() => void loadAudit(entries[entries.length - 1].seq)}>Show older</button>}
+        {pol && (
+          <label>
+            Keep audit entries
+            <select value={pol.auditDays} onChange={(e) => void save({ auditDays: Number(e.target.value) })}>
+              <option value={0}>Always</option>
+              <option value={365}>1 year</option>
+              <option value={730}>2 years</option>
+              <option value={1825}>5 years</option>
+              <option value={90}>90 days</option>
+            </select>
+          </label>
+        )}
+      </section>
+      {msg && <p className={/fail|error|not|cannot|must|needs|already/i.test(msg) ? "bad" : "good"}>{msg}</p>}
     </div>
   );
 }
