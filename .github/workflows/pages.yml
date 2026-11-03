@@ -55,10 +55,14 @@ jobs:
           touch public_site/.nojekyll
       - name: Download links on our own domain (when the download bucket answers)
         run: |
-          if curl -sfI https://downloads.miqyaslabs.com/latest/latest.json >/dev/null; then
-            node scripts/cloudflare/links.cjs public_site/index.html
+          # Our own domain first; until it is connected, the bucket's public r2.dev address.
+          R2DEV=https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev
+          if curl -sf https://downloads.miqyaslabs.com/latest/latest.json >/dev/null; then
+            node scripts/cloudflare/links.cjs public_site/index.html https://downloads.miqyaslabs.com
+          elif curl -sf "$R2DEV/latest/latest.json" >/dev/null; then
+            node scripts/cloudflare/links.cjs public_site/index.html "$R2DEV"
           else
-            echo "downloads.miqyaslabs.com not ready: the links stay on GitHub."
+            echo "The download bucket is not ready: the links stay on GitHub."
           fi
       # Company firewalls often block GitHub, so the site is served by Cloudflare Pages.
       - name: Deploy to Cloudflare Pages

@@ -55,5 +55,6 @@ jobs:
       - name: Copy the latest release to the bucket
         run: |
           mkdir -p latest
-          gh release download --repo "$GITHUB_REPOSITORY" --dir latest
-          bash scripts/cloudflare/upload.sh latest "$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)"
+          TAG=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName -q .tagName)
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --pattern '*' --dir latest
+          bash scripts/cloudflare/upload.sh latest "$TAG"

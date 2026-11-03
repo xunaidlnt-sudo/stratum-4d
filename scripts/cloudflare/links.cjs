@@ -2,7 +2,7 @@
 // instead of GitHub Releases, one direct link per platform.
 const fs = require("fs");
 const file = process.argv[2];
-const base = "https://downloads.miqyaslabs.com/latest";
+const base = `${process.argv[3] || "https://downloads.miqyaslabs.com"}/latest`;
 const gh = "https://github.com/xunaidlnt-sudo/stratum-4d/releases/latest";
 const map = [
   ["Windows", `${base}/Stratum-4D-win-x64.exe`],
@@ -14,4 +14,4 @@ let html = fs.readFileSync(file, "utf8");
 for (const [label, url] of map) html = html.replace(`<a href="${gh}"><b>${label}</b>`, `<a href="${url}"><b>${label}</b>`);
 html = html.replace("Installers for each release are on GitHub.", `Installers for the latest release. Also: <a href="${base}/Stratum-4D-mac-x64.dmg">macOS Intel</a> · <a href="${base}/Stratum-4D-linux-amd64.deb">Linux .deb</a> · <a href="${base}/Stratum-4D-mcp.zip">AI assistant (MCP) server</a>.`);
 fs.writeFileSync(file, html);
-console.log(`Download links: ${(html.match(/downloads\.miqyaslabs\.com/g) || []).length} on ${base}`);
+console.log(`Download links on ${base}`);
