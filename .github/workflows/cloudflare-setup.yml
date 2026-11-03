@@ -33,6 +33,9 @@ jobs:
       - name: Build the site
         env:
           VITE_LOGIN_HASH: 47178b2cffdab4e520ea04dc0a2c8c0e0761b01558e2602c19b78f346dc83ef1
+          # Public demo account, shown on the sign-in page with copy buttons.
+          VITE_DEMO_USER: demo
+          VITE_DEMO_PASS: Stratum4D-Demo
           VITE_GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID }}
           VITE_MS_CLIENT_ID: ${{ vars.MS_CLIENT_ID }}
         run: |
