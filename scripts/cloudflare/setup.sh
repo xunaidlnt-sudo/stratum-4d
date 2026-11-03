@@ -16,8 +16,10 @@ ACC=$CLOUDFLARE_ACCOUNT_ID
 echo "== Token"
 # User tokens and account-owned tokens (cfat_...) are checked at different addresses.
 cf GET "/accounts/$ACC/tokens/verify" | ok || cf GET /user/tokens/verify | ok || { echo "The API token is not valid for account $ACC."; exit 1; }
-ZONE=$(cf GET "/zones?name=$DOMAIN" | field 'result[0].id')
-[ -n "$ZONE" ] || { echo "Zone $DOMAIN not found: the token needs Zone Read and DNS Edit on $DOMAIN."; exit 1; }
+zr=$(cf GET "/zones?name=$DOMAIN&account.id=$ACC")
+ZONE=$(echo "$zr" | field 'result[0].id')
+[ -n "$ZONE" ] || { zr=$(cf GET "/zones?name=$DOMAIN"); ZONE=$(echo "$zr" | field 'result[0].id'); }
+[ -n "$ZONE" ] || { echo "Zone $DOMAIN not found. Cloudflare said: $(echo "$zr" | errors)"; echo "The token needs Zone > Zone > Read and Zone > DNS > Edit for $DOMAIN."; exit 1; }
 echo "zone $ZONE"
 
 echo "== R2 bucket $BUCKET"

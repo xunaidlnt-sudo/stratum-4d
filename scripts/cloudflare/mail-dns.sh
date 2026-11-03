@@ -6,7 +6,7 @@ set -euo pipefail
 source "$(dirname "$0")/cf.sh"
 DOMAIN=miqyaslabs.com
 R=${ZOHO_REGION:-com}
-ZONE=$(cf GET "/zones?name=$DOMAIN" | field 'result[0].id')
+ZONE=$(cf GET "/zones?name=$DOMAIN&account.id=$CLOUDFLARE_ACCOUNT_ID" | field 'result[0].id')
 [ -n "$ZONE" ] || { echo "Zone $DOMAIN not found"; exit 1; }
 
 # Put one record, replacing an older record of the same type and name (and, for TXT, the same kind).

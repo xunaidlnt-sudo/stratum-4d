@@ -8,5 +8,5 @@ cf() { # cf METHOD PATH [JSON]
   curl "${args[@]}"
 }
 ok() { node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));process.exit(r.success?0:1)'; }
-field() { node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));const v=eval("r."+process.argv[1]);console.log(v??"")' "$1"; }
+field() { node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));let v;try{v=eval("r."+process.argv[1].replace(/\./g,"?.").replace(/\[/g,"?.["))}catch{v=""};console.log(v??"")' "$1"; }
 errors() { node -e 'const r=JSON.parse(require("fs").readFileSync(0,"utf8"));console.log(JSON.stringify(r.errors||r))'; }
