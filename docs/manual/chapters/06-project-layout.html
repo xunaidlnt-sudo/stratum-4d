@@ -1,0 +1,97 @@
+<section class="chapter" id="project-layout">
+<h1>The Project layout</h1>
+<p class="purpose">This chapter tells you how to use the Project layout. This layout has the same parts as Microsoft Project.</p>
+
+<h2>Parts of the Project layout</h2>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>File tab</td><td>Top left</td><td>Open, save, import, export and print (the Backstage view)</td></tr>
+<tr><td>Ribbon</td><td>Top</td><td>Task, Resource, Report, Project, View and Format tabs</td></tr>
+<tr><td>Timeline</td><td>Below the ribbon</td><td>A summary of the project dates</td></tr>
+<tr><td>Task sheet</td><td>Left</td><td>One row for each task</td></tr>
+<tr><td>Gantt chart</td><td>Right</td><td>One bar for each task</td></tr>
+<tr><td>Status bar</td><td>Bottom</td><td>The mode for new tasks, and the view buttons</td></tr>
+</table>
+<figure><img src="shots/layout-msp.png" alt="The Project layout with the ribbon, the task sheet and the Gantt chart"><figcaption><b>Figure 6-1.</b> The Project layout.</figcaption></figure>
+
+<h2>Make the tasks</h2>
+<h3>To add a task</h3>
+<ol class="steps">
+<li>Click the first empty row of the task sheet.</li>
+<li>Type the Task Name and push <kbd>Enter</kbd>.</li>
+<li>Type the Duration, for example <code>5d</code> or <code>2w</code>.</li>
+</ol>
+<p>To make a milestone, click <span class="ui">Task › Milestone</span>, or type a duration of <code>0d</code>.</p>
+<h3>To make a summary task</h3>
+<ol class="steps">
+<li>Select the tasks below the summary row.</li>
+<li>On the <span class="ui">Task</span> tab, click the indent button.<span class="result">The row above becomes a summary task. Its bar starts at the first task and ends at the last task.</span></li>
+</ol>
+<h3>To link tasks</h3>
+<ol class="steps">
+<li>Select the tasks in the sequence of the work.</li>
+<li>On the <span class="ui">Task</span> tab, click the link button.<span class="result">Each task becomes the predecessor of the next task (Finish-to-Start).</span></li>
+</ol>
+<p>You can also type the predecessors in the <span class="ui">Predecessors</span> column, for example <code>4FS+2d</code>.</p>
+
+<h2>Auto scheduled and manually scheduled tasks</h2>
+<p>An auto scheduled task gets its dates from the logic and the calendar. A manually scheduled task keeps the dates that you type. The scheduler does not move it.</p>
+<p>To change the mode, select the tasks and click <span class="ui">Task › Auto Schedule</span> or <span class="ui">Task › Manually Schedule</span>. The mode for new tasks shows on the status bar.</p>
+<div class="note">The P6 layout and the 4D layout show a manually scheduled task as an activity with fixed dates. If you export the project to XER, P6 schedules the task as usual.</div>
+
+<h2>Task information</h2>
+<p>Double-click a task to open the <span class="ui">Task Information</span> dialog. The dialog has these tabs: General, Predecessors, Resources, Advanced, Notes and Custom Fields.</p>
+<figure><img src="shots/msp-task-info.png" alt="The Task Information dialog"><figcaption><b>Figure 6-2.</b> The Task Information dialog.</figcaption></figure>
+<p>On the <span class="ui">Advanced</span> tab, you set the <span class="ui">Deadline</span>, the <span class="ui">Constraint type</span>, the <span class="ui">Task type</span> and <span class="ui">Effort driven</span>.</p>
+
+<h2>Work, duration and units</h2>
+<p>When you assign a resource to a task, the Project layout uses this rule: Work = Duration × Units. The task type tells which value stays the same when you change a different value. Figure 6-3 shows the three task types.</p>
+<figure><!--fig:work-units--><figcaption><b>Figure 6-3.</b> Work, duration and units for each task type.</figcaption></figure>
+<h3>To assign a resource</h3>
+<ol class="steps">
+<li>Select the task.</li>
+<li>Click <span class="ui">Resource › Assign Resources</span>.</li>
+<li>Select the resource and type the units, for example <code>200%</code> for two persons.</li>
+<li>Click <span class="ui">Assign</span>, then <span class="ui">Close</span>.</li>
+</ol>
+<p>To see the work of each resource for each day, click <span class="ui">View › Task Usage</span> or <span class="ui">View › Resource Usage</span>. To see the resources as rows with their tasks, click <span class="ui">View › Team Planner</span>.</p>
+<figure><img src="shots/msp-task-usage.png" alt="The Task Usage view"><figcaption><b>Figure 6-4.</b> The Task Usage view, with the work for each day.</figcaption></figure>
+<figure><img src="shots/msp-team-planner.png" alt="The Team Planner view"><figcaption><b>Figure 6-5.</b> The Team Planner view.</figcaption></figure>
+<p>A resource that has too much work shows in red. To find it, click <span class="ui">Resource › Next Overallocation</span>. To solve it, click <span class="ui">Resource › Level All</span>. To remove the result of the levelling, click <span class="ui">Resource › Clear Leveling</span>.</p>
+
+<h2>Calendars</h2>
+<h3>To change the work hours and the holidays</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Change Working Time</span>.</li>
+<li>Select the calendar.</li>
+<li>To add a holiday, type a <span class="ui">Name</span>, a <span class="ui">Start</span> and a <span class="ui">Finish</span> on the <span class="ui">Exceptions</span> tab.</li>
+<li>To change the work week, use the <span class="ui">Work Weeks</span> tab.</li>
+<li>Click <span class="ui">OK</span>.</li>
+</ol>
+<figure><img src="shots/msp-working-time.png" alt="The Change Working Time dialog"><figcaption><b>Figure 6-6.</b> The Change Working Time dialog.</figcaption></figure>
+
+<h2>Split tasks and repeated tasks</h2>
+<p>To stop a task and start it again later, click <span class="ui">Task › Split Task</span>. Then click in the bar at the point of the stop. The task gets a gap of one day at that point. Drag the second part of the bar to the new start date.</p>
+<p>To add a task that occurs at regular intervals, for example a weekly progress review, click <span class="ui">Task › Recurring Task</span>. Type the pattern and the number of occurrences.</p>
+
+<h2>Baseline and progress</h2>
+<h3>To set the baseline</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Set Baseline</span>.</li>
+<li>Select <span class="ui">Entire Project</span> or <span class="ui">Selected Tasks</span>.</li>
+<li>Click <span class="ui">OK</span>.</li>
+</ol>
+<h3>To update the project to a status date</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Update Project</span>.</li>
+<li>Select <span class="ui">Update work as complete through</span> and type the date.</li>
+<li>Click <span class="ui">OK</span>.<span class="result">The tasks before the date show as complete. The tasks that cross the date show as in progress.</span></li>
+</ol>
+<p>To record the progress of one task, select the task and click <span class="ui">Task › Mark on Track</span>, or type the % Complete in the task sheet.</p>
+
+<h2>Save for Microsoft Project</h2>
+<p>To make a file for Microsoft Project, click <span class="ui">File › Save As</span> and select <span class="ui">Save as MS Project XML</span>. Microsoft Project opens this file directly.</p>
+<figure><img src="shots/msp-save-as.png" alt="Save As in the File tab"><figcaption><b>Figure 6-7.</b> Save As in the File tab.</figcaption></figure>
+<div class="note">The XML file keeps the tasks, the summary tasks, the logic, the calendars, the resources, the assignments, the baseline and the custom fields.</div>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 5 (The P6 layout).</p>
+</section>

@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" role="img" aria-label="Work equals duration times units, by task type">
+  <style>.wu-h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.wu-s{font:12.5px Inter,sans-serif;fill:#1d2733}.wu-m{font:12px Inter,sans-serif;fill:#5d6b7a}.wu-b{font:700 22px Montserrat,sans-serif;fill:#0b2545}</style>
+  <rect width="960" height="280" rx="8" fill="#ebecef"/>
+  <text class="wu-b" x="480" y="44" text-anchor="middle">Work = Duration × Units</text>
+  <text class="wu-m" x="480" y="66" text-anchor="middle">The task type tells which value stays fixed when you change one of the others.</text>
+  <g transform="translate(24,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#355b7d"/>
+    <text class="wu-h" x="16" y="34">Fixed Units</text>
+    <text class="wu-s" x="16" y="62">Change Duration → Work changes</text>
+    <text class="wu-s" x="16" y="84">Change Units → Duration changes</text>
+    <text class="wu-s" x="16" y="106">Change Work → Duration changes</text>
+    <text class="wu-m" x="16" y="142">Default. The crew size stays the same.</text>
+  </g>
+  <g transform="translate(335,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#b8874f"/>
+    <text class="wu-h" x="16" y="34">Fixed Duration</text>
+    <text class="wu-s" x="16" y="62">Change Duration → Work changes</text>
+    <text class="wu-s" x="16" y="84">Change Units → Work changes</text>
+    <text class="wu-s" x="16" y="106">Change Work → Units change</text>
+    <text class="wu-m" x="16" y="142">For a curing time or a hire period.</text>
+  </g>
+  <g transform="translate(646,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#e10600"/>
+    <text class="wu-h" x="16" y="34">Fixed Work</text>
+    <text class="wu-s" x="16" y="62">Change Duration → Units change</text>
+    <text class="wu-s" x="16" y="84">Change Units → Duration changes</text>
+    <text class="wu-s" x="16" y="106">Change Work → Duration changes</text>
+    <text class="wu-m" x="16" y="134">With Effort driven: add a resource,</text><text class="wu-m" x="16" y="150">the same work ends sooner.</text>
+  </g>
+</svg>

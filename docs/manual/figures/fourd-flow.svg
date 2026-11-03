@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-label="How a 4D simulation is built">
+  <style>.fd-h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.fd-s{font:12px Inter,sans-serif;fill:#1d2733}.fd-n{font:700 20px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="250" rx="8" fill="#ebecef"/>
+  <g stroke="#d4a574" stroke-width="3"><path d="M120 70H840"/></g>
+  <g>
+    <circle cx="120" cy="70" r="26" fill="#0b2545"/><text class="fd-n" x="120" y="77" text-anchor="middle">1</text>
+    <circle cx="300" cy="70" r="26" fill="#183a63"/><text class="fd-n" x="300" y="77" text-anchor="middle">2</text>
+    <circle cx="480" cy="70" r="26" fill="#355b7d"/><text class="fd-n" x="480" y="77" text-anchor="middle">3</text>
+    <circle cx="660" cy="70" r="26" fill="#b8874f"/><text class="fd-n" x="660" y="77" text-anchor="middle">4</text>
+    <circle cx="840" cy="70" r="26" fill="#e10600"/><text class="fd-n" x="840" y="77" text-anchor="middle">5</text>
+  </g>
+  <g text-anchor="middle">
+    <text class="fd-h" x="120" y="128">Schedule + model</text><text class="fd-s" x="120" y="150">Import the XER or XML,</text><text class="fd-s" x="120" y="166">then Import IFC.</text>
+    <text class="fd-h" x="300" y="128">Link</text><text class="fd-s" x="300" y="150">Rules (Auto-detect) or</text><text class="fd-s" x="300" y="166">select in 3D › Link.</text>
+    <text class="fd-h" x="480" y="128">Profiles</text><text class="fd-s" x="480" y="150">Install, Remove, Temporary;</text><text class="fd-s" x="480" y="166">growth bottom up, west → east.</text>
+    <text class="fd-h" x="660" y="128">Play</text><text class="fd-s" x="660" y="150">Timeline, speed, current</text><text class="fd-s" x="660" y="166">or baseline dates.</text>
+    <text class="fd-h" x="840" y="128">Explain</text><text class="fd-s" x="840" y="150">Teardown, tour, video,</text><text class="fd-s" x="840" y="166">quantities, dashboards.</text>
+  </g>
+  <text x="480" y="216" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">Check tab: unlinked elements, activities with nothing linked and broken links, before you show the simulation.</text>
+</svg>

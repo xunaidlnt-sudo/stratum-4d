@@ -1,0 +1,120 @@
+<section class="chapter" id="p6-layout">
+<h1>The P6 layout</h1>
+<p class="purpose">This chapter tells you how to use the P6 layout to plan, schedule, update and check a project.</p>
+
+<h2>Parts of the P6 layout</h2>
+<p>The P6 layout has the same parts as Primavera P6 Professional. If you know P6, you can use this layout immediately.</p>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>Menu bar</td><td>Top</td><td>File, Edit, View, Project, Enterprise, Tools and Help menus</td></tr>
+<tr><td>Window tabs</td><td>Below the toolbar</td><td>Projects, WBS, Activities, Assignments, Resources, Tracking and more</td></tr>
+<tr><td>Activity table</td><td>Upper left</td><td>One row for each activity, with the columns of the layout</td></tr>
+<tr><td>Gantt chart</td><td>Upper right</td><td>One bar for each activity, on the timescale</td></tr>
+<tr><td>Bottom pane</td><td>Lower half</td><td>Activity Details tabs: General, Status, Resources, Predecessors, Successors, Codes, Steps, Notebook, UDFs</td></tr>
+</table>
+<figure><img src="shots/layout-p6.png" alt="The P6 layout with the activity table, the Gantt chart and the bottom pane"><figcaption><b>Figure 5-1.</b> The P6 layout.</figcaption></figure>
+
+<h2>Make the activities</h2>
+<h3>To add an activity</h3>
+<ol class="steps">
+<li>In the activity table, select a row in the applicable WBS.</li>
+<li>Push <kbd>Ins</kbd>, or click <span class="ui">Edit › Add</span>.<span class="result">A new activity row shows below the selected row.</span></li>
+<li>Type the Activity Name.</li>
+<li>Type the Original Duration in days.</li>
+</ol>
+<h3>To link activities</h3>
+<ol class="steps">
+<li>Select the activities in the sequence of the work. Hold <kbd>Ctrl</kbd> to select more than one.</li>
+<li>Push <kbd>Ctrl</kbd>+<kbd>L</kbd>, or click <span class="ui">Edit › Link Activities</span>.<span class="result">Each activity becomes the predecessor of the next activity, with a Finish to Start relationship.</span></li>
+</ol>
+<p>To set a different relationship type (FS, SS, FF or SF) or a lag, open the <span class="ui">Predecessors</span> tab in the bottom pane. Then change the type or the lag of the relationship.</p>
+<h3>To assign resources</h3>
+<ol class="steps">
+<li>Select the activity.</li>
+<li>Click <span class="ui">Edit › Assign Resources…</span>.</li>
+<li>In the row of the resource, click <span class="ui">Assign</span>.<span class="result">The resource is assigned to all the selected activities.</span></li>
+<li>Click <span class="ui">Close</span>.</li>
+<li>In the <span class="ui">Resources</span> tab, type the Budgeted Units for each resource.</li>
+</ol>
+
+<h2>Schedule the project</h2>
+<p>The scheduler calculates the early and late dates and the total float of each activity. It uses the logic, the durations, the calendars and the constraints. It starts at the data date.</p>
+<h3>To schedule the project</h3>
+<ol class="steps">
+<li>Push <kbd>F9</kbd>, or click <span class="ui">Project › Schedule…</span>.<span class="result">The <span class="ui">Schedule</span> dialog opens.</span></li>
+<li>Make sure that <span class="ui">Current Data Date</span> is correct.</li>
+<li>Click <span class="ui">Schedule</span>.<span class="result">The dates and the float change. The critical activities show in red.</span></li>
+<li>To see the result of the calculation, click <span class="ui">View Log</span>.</li>
+</ol>
+<figure><img src="shots/p6-schedule.png" alt="The Schedule dialog"><figcaption><b>Figure 5-2.</b> The Schedule dialog.</figcaption></figure>
+<p>To change the rules of the calculation, click <span class="ui">Options…</span> in the <span class="ui">Schedule</span> dialog. For example, you can set retained logic or progress override, and the definition of a critical activity.</p>
+<div class="note">Stratum 4D uses the same calculation rules as P6. If you import an XER file and schedule it with the same options, the dates are the same as in P6. If a date is different, look at the schedule log first.</div>
+
+<h2>Set and compare baselines</h2>
+<p>A baseline is a copy of the project at one time. You compare the current schedule with the baseline to see the slip.</p>
+<h3>To make a baseline</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Maintain Baselines…</span>.</li>
+<li>Click <span class="ui">Add</span>.<span class="result">A copy of the current project becomes a new baseline.</span></li>
+<li>Type a name for the baseline.</li>
+<li>To compare the project with this baseline, click <span class="ui">Assign as Project Baseline</span>.</li>
+<li>Click <span class="ui">Close</span>.</li>
+</ol>
+<figure><img src="shots/p6-baselines.png" alt="The Maintain Baselines dialog"><figcaption><b>Figure 5-3.</b> The Maintain Baselines dialog.</figcaption></figure>
+<p>To see the baseline bars on the Gantt chart, click <span class="ui">View › Show Baseline Bars</span>. To use a baseline from a different file, click <span class="ui">Assign from file…</span> and select the XER or XML file.</p>
+
+<h2>Update the progress</h2>
+<p>Each update period, you record the actual progress. Then you move the data date and schedule again. Figure 5-4 shows the cycle.</p>
+<figure><!--fig:update-cycle--><figcaption><b>Figure 5-4.</b> The update cycle.</figcaption></figure>
+<h3>To record the progress of an activity</h3>
+<ol class="steps">
+<li>Select the activity.</li>
+<li>In the bottom pane, click the <span class="ui">Status</span> tab.</li>
+<li>Set <span class="ui">Status</span> to <span class="ui">In progress</span> or <span class="ui">Complete</span>.</li>
+<li>Type the <span class="ui">Actual start</span> date. For a complete activity, also type the <span class="ui">Actual finish</span> date.</li>
+<li>For an activity in progress, type the <span class="ui">% complete</span> and the <span class="ui">Remaining (days)</span>.</li>
+</ol>
+<h3>To update all the activities as planned</h3>
+<p>Use this procedure if the work went as planned. It sets the actual dates and the progress from the planned dates.</p>
+<ol class="steps">
+<li>Click <span class="ui">Tools › Update Progress…</span>.</li>
+<li>Type the <span class="ui">New data date</span>.</li>
+<li>Select <span class="ui">All activities</span>, or <span class="ui">Selected activities only</span>.</li>
+<li>Click <span class="ui">Apply</span>.</li>
+<li>Push <kbd>F9</kbd> to schedule the project.</li>
+</ol>
+<figure><img src="shots/p6-update-progress.png" alt="The Update Progress dialog"><figcaption><b>Figure 5-5.</b> The Update Progress dialog.</figcaption></figure>
+<div class="caution">Update Progress changes the actual dates of many activities. Do a check of the result before you send the schedule to other persons. To go back, push <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</div>
+
+<h2>Check the schedule</h2>
+<h3>To do a quality check</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Check Schedule…</span>.<span class="result">The dialog shows each check with the number of activities that do not pass.</span></li>
+<li>Click a check to see its activities.</li>
+<li>Correct the activities. Then do the check again.</li>
+</ol>
+<p>The checks include missing predecessors and successors, hard constraints, negative float, high float, long durations, leads and lags.</p>
+<h3>To compare two schedules</h3>
+<ol class="steps">
+<li>Click <span class="ui">Tools › Claim Digger (compare schedules)…</span>.</li>
+<li>Open the project of this update. Stratum 4D uses it as the <span class="ui">Current</span> schedule.</li>
+<li>For the <span class="ui">Base</span> schedule, select a stored baseline. Or click <span class="ui">Choose…</span> and select the file of the last update.<span class="result">The report lists the changed, added and deleted activities, and the changed relationships.</span></li>
+<li>To keep the report, click the download button.</li>
+</ol>
+
+<h2>Change the view</h2>
+<table>
+<tr><th>To change</th><th>Click</th></tr>
+<tr><td>The columns</td><td><span class="ui">View › Columns…</span></td></tr>
+<tr><td>The visible activities</td><td><span class="ui">View › Filters…</span></td></tr>
+<tr><td>The bands and the order</td><td><span class="ui">View › Group and Sort…</span></td></tr>
+<tr><td>The bars</td><td><span class="ui">View › Bar Chart Options…</span></td></tr>
+<tr><td>The timescale</td><td><span class="ui">View › Timescale…</span></td></tr>
+<tr><td>All of the above, as a set</td><td><span class="ui">View › Layout › Save As…</span> and <span class="ui">Open…</span></td></tr>
+</table>
+<p>To change many activities at the same time, use <span class="ui">Tools › Global Change…</span>. Make a filter first, so that the change applies only to the correct activities.</p>
+
+<h2>Send the result</h2>
+<p>To send the schedule back to P6, click <span class="ui">File › Export… (XER)</span>. To send it to Microsoft Project, click <span class="ui">File › Export… (Microsoft Project XML)</span>. To print, push <kbd>Ctrl</kbd>+<kbd>P</kbd>. Chapter 4 gives the procedures.</p>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 6 (The Project layout), Chapter 7 (The 4D layout).</p>
+</section>

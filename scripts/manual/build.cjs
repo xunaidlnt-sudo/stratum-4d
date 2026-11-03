@@ -21,7 +21,13 @@ const files = fs.readdirSync(path.join(src, "chapters")).filter((f) => f.endsWit
 const chapters = files.map((f, i) => {
   let html = fs.readFileSync(path.join(src, "chapters", f), "utf8");
   // <!--fig:name--> pulls in figures/name.svg so the infographics stay sharp in print.
-  html = html.replace(/<!--fig:([\w-]+)-->/g, (_, n) => fs.readFileSync(path.join(src, "figures", `${n}.svg`), "utf8"));
+  // Each figure's CSS classes get the figure name as prefix: the print version puts all figures in one page, where a shared ".h" would restyle the others.
+  html = html.replace(/<!--fig:([\w-]+)-->/g, (_, n) =>
+    fs
+      .readFileSync(path.join(src, "figures", `${n}.svg`), "utf8")
+      .replace(/<style>([\s\S]*?)<\/style>/g, (_m, css) => `<style>${css.replace(/\.([a-zA-Z][\w-]*)(?=[\s,{.:])/g, `.${n}--$1`)}</style>`)
+      .replace(/class="([^"]+)"/g, (_m, c) => `class="${c.split(/\s+/).map((x) => `${n}--${x}`).join(" ")}"`),
+  );
   const title = (/<h1[^>]*>([\s\S]*?)<\/h1>/.exec(html)?.[1] ?? f).replace(/<[^>]+>/g, "").trim();
   const num = i + 1;
   html = html.replace(/<h1([^>]*)>/, `<h1$1><span class="num">${num}</span>`);

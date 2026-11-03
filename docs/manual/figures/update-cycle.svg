@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-label="The weekly update cycle in the P6 layout">
+  <style>.uc-h{font:700 14px Montserrat,sans-serif;fill:#fff}.uc-s{font:12px Inter,sans-serif;fill:#1d2733}.uc-k{font:600 11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="300" rx="8" fill="#ebecef"/>
+  <text x="24" y="32" style="font:700 17px Montserrat,sans-serif;fill:#0b2545">The update cycle (each week or month)</text>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M190 120h40M380 120h40M570 120h40M760 120h20"/><path d="M850 160v60H110v-60" stroke-dasharray="6 5"/></g>
+  <g fill="#d4a574"><path d="M230 114l10 6-10 6zM420 114l10 6-10 6zM610 114l10 6-10 6zM780 114l10 6-10 6zM104 162l6-10 6 10z"/></g>
+  <g>
+    <rect x="30" y="80" width="160" height="80" rx="8" fill="#0b2545"/><text class="uc-h" x="110" y="112" text-anchor="middle">1 Record actuals</text><text x="110" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">Activity Details › Status</text>
+    <rect x="240" y="80" width="140" height="80" rx="8" fill="#183a63"/><text class="uc-h" x="310" y="112" text-anchor="middle">2 Data date</text><text x="310" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">Update Progress</text>
+    <rect x="430" y="80" width="140" height="80" rx="8" fill="#355b7d"/><text class="uc-h" x="500" y="112" text-anchor="middle">3 Schedule</text><text x="500" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">F9</text>
+    <rect x="620" y="80" width="140" height="80" rx="8" fill="#b8874f"/><text class="uc-h" x="690" y="112" text-anchor="middle">4 Check</text><text x="690" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#fff3e3">Check Schedule</text>
+    <rect x="790" y="80" width="150" height="80" rx="8" fill="#e10600"/><text class="uc-h" x="865" y="112" text-anchor="middle">5 Report</text><text x="865" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#ffe1df">Dashboards, XER</text>
+  </g>
+  <text class="uc-s" x="480" y="246" text-anchor="middle">Compare each update with the baseline (Maintain Baselines) and with the last update (Claim Digger).</text>
+  <text class="uc-k" x="480" y="270" text-anchor="middle">Next period: start again at step 1.</text>
+</svg>
