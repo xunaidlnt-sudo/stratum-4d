@@ -1,0 +1,95 @@
+<section class="chapter" id="dashboards-reports">
+<h1>Dashboards and reports</h1>
+<p class="purpose">This chapter tells you how to make a dashboard, change it, and send it as a PDF, Excel or PowerPoint report.</p>
+
+<h2>Open the Reports view</h2>
+<p>Click <span class="ui">Reports</span> on the layout switch at the top of the window, or push <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd>. In the P6 layout, you can also click <span class="ui">Reports and Dashboards</span> in the menu.</p>
+<p>The left column shows your dashboards. Below them, under <span class="ui">New</span>, are the <span class="ui">Dashboard wizard…</span> and the templates.</p>
+<figure><img src="shots/dash-start.png" alt="The Reports view with the list of templates"><figcaption><b>Figure 8-1.</b> The Reports view before you make a dashboard.</figcaption></figure>
+<table>
+<tr><th>Template</th><th>Contents</th></tr>
+<tr><td>Project control – summary</td><td>Key dates, weighted %, durations and a table by discipline</td></tr>
+<tr><td>Project control – S-curve</td><td>Weight % curves with monthly bars, slicers and a date slider</td></tr>
+<tr><td>Planning dashboard</td><td>Gauges, milestones, look-ahead and curves for each phase</td></tr>
+<tr><td>Progress report (EPC style)</td><td>Key figures, weighted progress and S-curve</td></tr>
+<tr><td>Project status</td><td>KPIs, S-curve, critical work and late work</td></tr>
+<tr><td>Schedule health and execution</td><td>BEI, CPLI, SPI(t), PPC, starts and finishes on time, and the DCMA 14-point checks</td></tr>
+<tr><td>Blank dashboard</td><td>No widgets. You add them from the widget gallery.</td></tr>
+</table>
+
+<h2>Make a dashboard with the wizard</h2>
+<p>The wizard makes sure that the data is ready before it makes the dashboard. Figure 8-2 shows the steps.</p>
+<figure><!--fig:dashboard-flow--><figcaption><b>Figure 8-2.</b> From the wizard to the reports.</figcaption></figure>
+<ol class="steps">
+<li>Open the project that you want to report on.</li>
+<li>Click <span class="ui">Dashboard wizard…</span>.</li>
+<li>At <span class="ui">Project</span>, select the project. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Baseline</span>, select the baseline to compare with. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Template</span>, select a template, or <span class="ui">Blank dashboard</span>. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Check</span>, read the result of each check.<span class="result">Each check shows what to do if it does not pass.</span></li>
+<li>Click <span class="ui">Create dashboard</span>, or <span class="ui">Create anyway</span>.<span class="result">The dashboard opens, ready for changes.</span></li>
+</ol>
+<figure><img src="shots/dash-wizard.png" alt="The Template step of the dashboard wizard"><figcaption><b>Figure 8-3.</b> The Template step of the dashboard wizard.</figcaption></figure>
+<p>The wizard does a check of the baseline, the data date, the calculation, the progress, the costs and the logic. If a check does not pass, the button changes to <span class="ui">Create anyway</span>. Then the widgets that compare with the baseline show <span class="ui">Needs a baseline</span>, not incorrect numbers.</p>
+<div class="note">To make a dashboard without the wizard, click a template in the left column. To change the project or the baseline later, click <span class="ui">More › Setup: project and baseline…</span>.</div>
+
+<h2>Read a dashboard</h2>
+<figure><img src="shots/dash-view.png" alt="A Project status dashboard"><figcaption><b>Figure 8-4.</b> A dashboard made from the Project status template.</figcaption></figure>
+<ul>
+<li>The bar at the top of the dashboard shows the <span class="ui">Baseline</span> and the result of the checks.</li>
+<li>The list next to the name selects the project that the dashboard shows.</li>
+<li>If the dashboard has slicers, click a value to filter all the widgets. To remove all filters, click the button to clear every slicer selection.</li>
+<li>Put the pointer on a chart to see the values.</li>
+</ul>
+
+<h2>Change a dashboard</h2>
+<ol class="steps">
+<li>Click <span class="ui">Customise</span>.<span class="result">The panel on the right shows the <span class="ui">Add widget</span> and <span class="ui">Page &amp; theme</span> tabs.</span></li>
+<li>To add a widget, click it in the <span class="ui">Add widget</span> tab. If the panel shows a widget, click <span class="ui">Add / Page</span> first.</li>
+<li>To move a widget, drag its handle at the top left.</li>
+<li>To change the size of a widget, drag its bottom right corner.</li>
+<li>To change the data of a widget, click the widget. Then change its settings in the panel.</li>
+<li>To change the header, the logo and the colors, use the <span class="ui">Page &amp; theme</span> tab.</li>
+<li>Click <span class="ui">Done</span>.</li>
+</ol>
+<figure><img src="shots/dash-edit.png" alt="A dashboard in edit mode, with the widget gallery"><figcaption><b>Figure 8-5.</b> A dashboard in edit mode, with the widget gallery on the right.</figcaption></figure>
+<p>Stratum 4D saves each change immediately. To go back one step, push <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</p>
+<h3>To use a dashboard again</h3>
+<ul>
+<li><span class="ui">More › Duplicate dashboard</span> makes a copy.</li>
+<li><span class="ui">More › Save as template</span> adds the dashboard to <span class="ui">My templates</span>.</li>
+<li><span class="ui">More › Export dashboard file (.json)</span> makes a file for a different person. That person uses <span class="ui">Import…</span> to add it.</li>
+</ul>
+
+<h2>Make a report</h2>
+<table>
+<tr><th>Click</th><th>Result</th></tr>
+<tr><td><span class="ui">PDF</span></td><td>The print dialog. Select "Save as PDF" to make a PDF file.</td></tr>
+<tr><td><span class="ui">Excel</span></td><td>An Excel workbook with the data of each widget</td></tr>
+<tr><td><span class="ui">PowerPoint</span></td><td>A presentation with a title slide and one slide for each chart or table. The charts and tables are PowerPoint charts and tables, so you can change them.</td></tr>
+<tr><td><span class="ui">Email</span></td><td>The <span class="ui">Email reports</span> panel</td></tr>
+</table>
+
+<h2>Send reports by email on a schedule</h2>
+<p>The desktop application or Stratum Server can send a dashboard by email each day, week or month. The web application cannot do this. In the web application, make the PDF or the Excel file and send it yourself.</p>
+<div class="note">The desktop application sends the email only while it is open. If it was closed at the time of a send, it sends the email the next time you start it.</div>
+<h3>To set the mail server</h3>
+<ol class="steps">
+<li>Open <span class="ui">Settings</span>.</li>
+<li>Click the <span class="ui">Email</span> tab.</li>
+<li>Type the data of your mail server. Your IT department can give you this data.</li>
+</ol>
+<h3>To add an email schedule</h3>
+<ol class="steps">
+<li>Open the dashboard and click <span class="ui">Email</span>.</li>
+<li>Click <span class="ui">+ New email schedule</span>.</li>
+<li>Type the <span class="ui">Name</span> and select the <span class="ui">Project (reports need a saved project)</span>.</li>
+<li>In <span class="ui">To (separate with ; or ,)</span> and <span class="ui">Cc</span>, type the email addresses.</li>
+<li>Type the <span class="ui">Subject</span> and the <span class="ui">Message</span>. You can use <code>{project}</code>, <code>{date}</code> and <code>{datadate}</code> in the text.</li>
+<li>Select <span class="ui">Daily</span>, <span class="ui">Weekly</span> or <span class="ui">Monthly</span>, and the time.</li>
+<li>Select <span class="ui">PDF of the dashboard</span>, <span class="ui">Excel workbook</span> or the two.</li>
+<li>Make sure that <span class="ui">Enabled</span> is selected. Click <span class="ui">Save schedule</span>.</li>
+</ol>
+<p>Each schedule shows the time of the next send and the result of the last send. To send a report immediately, click <span class="ui">send now</span> on the schedule.</p>
+<p class="related">Related: Chapter 5 (baselines), Chapter 9 (AI assistants).</p>
+</section>

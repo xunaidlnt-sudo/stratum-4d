@@ -23,7 +23,7 @@ async function page(b, cfg) {
 const shot = (p, name, clip) => p.screenshot({ path: path.join(dir, `${name}.png`), ...(clip ? { clip } : {}) });
 
 (async () => {
-  if (process.argv.includes("--part2")) return;
+  if (process.argv.includes("--part2") || process.argv.includes("--part3")) return;
   const b = await chromium.launch();
 
   // First start: setup wizard.
@@ -133,4 +133,41 @@ const shot = (p, name, clip) => p.screenshot({ path: path.join(dir, `${name}.png
   await p.close();
   await b.close();
   console.log("Part 2 screenshots done");
+})();
+
+// Part 3: dashboards and reports, from the GIS sample.
+(async () => {
+  if (!process.argv.includes("--part3")) return;
+  const b = await chromium.launch();
+  const p = await page(b, config("4d"));
+  await p.click('summary[title="File"]');
+  await p.click("text=Sample: 220 kV GIS substation (UAE)");
+  await p.waitForTimeout(4000);
+  await p.click("button.mode-reports");
+  await p.waitForTimeout(800);
+  await p.waitForTimeout(800);
+  await shot(p, "dash-start");
+  await p.click('button:has-text("Dashboard wizard")');
+  await p.waitForTimeout(500);
+  const dlg = async (name) => {
+    const box = await p.locator('[role="dialog"]').last().boundingBox();
+    await p.screenshot({ path: path.join(dir, `${name}.png`), clip: { x: Math.max(0, box.x - 8), y: Math.max(0, box.y - 8), width: box.width + 16, height: box.height + 16 } });
+  };
+  const next = () => p.locator('[role="dialog"] button.primary').last().click();
+  await next();
+  await next();
+  await p.waitForTimeout(300);
+  await p.locator('[role="dialog"] :text("Project status")').first().click();
+  await dlg("dash-wizard");
+  await next();
+  await p.waitForTimeout(300);
+  await next();
+  await p.waitForTimeout(2500);
+  // A new dashboard opens in edit mode, with the widget gallery.
+  await shot(p, "dash-edit");
+  await p.click('button:has-text("Done")');
+  await p.waitForTimeout(700);
+  await shot(p, "dash-view");
+  await b.close();
+  console.log("Part 3 screenshots done");
 })();

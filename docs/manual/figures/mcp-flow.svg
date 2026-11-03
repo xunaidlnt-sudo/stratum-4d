@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" role="img" aria-label="How an AI assistant uses Stratum 4D through MCP">
+  <style>.h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.w{font:700 15px Montserrat,sans-serif;fill:#fff}.s{font:12px Inter,sans-serif;fill:#1d2733}.sw{font:12px Inter,sans-serif;fill:#dfe6ee}.m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="260" rx="8" fill="#ebecef"/>
+  <rect x="16" y="16" width="928" height="196" rx="10" fill="none" stroke="#9aa5b1" stroke-dasharray="6 5"/>
+  <text class="m" x="32" y="38">Your computer</text>
+  <g>
+    <rect x="40" y="60" width="230" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="h" x="155" y="92" text-anchor="middle">AI assistant app</text>
+    <text class="s" x="155" y="116" text-anchor="middle">Claude Desktop, Claude Code</text>
+    <text class="s" x="155" y="134" text-anchor="middle">or other MCP client</text>
+    <text class="m" x="155" y="160" text-anchor="middle">Shows each tool call to you</text>
+    <rect x="365" y="60" width="230" height="120" rx="10" fill="#0b2545"/>
+    <text class="w" x="480" y="92" text-anchor="middle">Stratum MCP server</text>
+    <text class="sw" x="480" y="116" text-anchor="middle">node stratum-mcp.cjs</text>
+    <text class="sw" x="480" y="134" text-anchor="middle">The Stratum 4D engine:</text>
+    <text class="sw" x="480" y="152" text-anchor="middle">schedule, KPIs, checks, compare</text>
+    <rect x="690" y="60" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="h" x="805" y="84" text-anchor="middle">Schedule files</text>
+    <text class="s" x="805" y="104" text-anchor="middle">.xer  .xml  .stratum.json</text>
+    <rect x="690" y="124" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="h" x="805" y="148" text-anchor="middle">Project database</text>
+    <text class="s" x="805" y="168" text-anchor="middle">stratum.db (desktop app)</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M272 110h88M360 130h-88M597 88h88M597 152h88"/></g>
+  <g fill="#d4a574"><path d="M360 104l10 6-10 6zM272 124l-10 6 10 6zM685 82l10 6-10 6zM685 146l10 6-10 6z"/></g>
+  <text class="m" x="316" y="102" text-anchor="middle">tool call</text>
+  <text class="m" x="316" y="150" text-anchor="middle">result</text>
+  <text class="m" x="480" y="240" text-anchor="middle">The server sends nothing to other computers. Your assistant app sends your question and the results to its AI service.</text>
+</svg>
