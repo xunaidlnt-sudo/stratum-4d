@@ -1,0 +1,1508 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body><section class="cover"><div><img class="lockup" src="stratum-lockup.png" alt="Stratum 4D by Miqyas Labs"><h1>User Manual</h1><p class="sub">Release 0.12.1 · Planning, 4D simulation, dashboards and reports</p></div><div class="meta">Written in ASD-STE100 Simplified Technical English.<br>Stratum 4D by Miqyas Labs · developed by Junaid Quamar · linkedin.com/in/junaidquamar<br>November 2026. The sample projects in this manual are fictional.</div></section><section class="toc"><h1>Contents</h1><ol><li><span class="num">1</span><span>Introduction</span></li><li><span class="num">2</span><span>Installation</span></li><li><span class="num">3</span><span>First start</span></li><li><span class="num">4</span><span>Projects and files</span></li><li><span class="num">5</span><span>The P6 layout</span></li><li><span class="num">6</span><span>The Project layout</span></li><li><span class="num">7</span><span>The 4D layout</span></li><li><span class="num">8</span><span>Dashboards and reports</span></li><li><span class="num">9</span><span>AI assistants (MCP)</span></li><li><span class="num">10</span><span>Stratum Server: users, security and AiSOC</span></li><li><span class="num">11</span><span>Troubleshooting, shortcuts and glossary</span></li></ol></section><section class="chapter" id="introduction">
+<h1><span class="num">1</span>Introduction</h1>
+<p class="purpose">This chapter tells you what Stratum 4D does, which layouts it has, and how to use this manual.</p>
+
+<h2>What Stratum 4D is</h2>
+<p>Stratum 4D is a planning and 4D simulation tool for construction projects. It reads a schedule from Primavera P6 or Microsoft Project. It can also read a 3D building model in the IFC format.</p>
+<p>You link the model elements to the activities of the schedule. Stratum then shows the construction sequence in 3D, day by day. You can calculate the schedule, record progress, compare against a baseline and make reports.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 230" role="img" aria-label="The six stages of work in Stratum 4D">
+  <style>.overview-flow--t{font:600 15px Montserrat,sans-serif;fill:#fff}.overview-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.overview-flow--n{font:700 13px Montserrat,sans-serif;fill:#d4a574}</style>
+  <rect width="960" height="230" fill="#ebecef" rx="8"/>
+  <text x="24" y="34" style="font:700 17px Montserrat,sans-serif;fill:#0b2545">How you work in Stratum 4D</text>
+  <g transform="translate(24,58)">
+    <path d="M0 0h135l18 32-18 32H0z" fill="#0b2545"/><text class="overview-flow--t" x="14" y="38">Import</text>
+    <path d="M150 0h135l18 32-18 32H150l18-32z" fill="#183a63"/><text class="overview-flow--t" x="176" y="38">Model</text>
+    <path d="M300 0h135l18 32-18 32H300l18-32z" fill="#355b7d"/><text class="overview-flow--t" x="326" y="38">Link</text>
+    <path d="M450 0h135l18 32-18 32H450l18-32z" fill="#4a6f93"/><text class="overview-flow--t" x="476" y="38">Schedule</text>
+    <path d="M600 0h135l18 32-18 32H600l18-32z" fill="#b8874f"/><text class="overview-flow--t" x="626" y="38">Simulate</text>
+    <path d="M750 0h155l18 32-18 32H750l18-32z" fill="#e10600"/><text class="overview-flow--t" x="776" y="38">Report</text>
+  </g>
+  <g class="overview-flow--s">
+    <text x="24" y="150"><tspan class="overview-flow--n">1 </tspan>Open a P6 XER or</text><text x="24" y="166">MS Project XML file.</text>
+    <text x="174" y="150"><tspan class="overview-flow--n">2 </tspan>Load the IFC model</text><text x="174" y="166">(4D layout).</text>
+    <text x="324" y="150"><tspan class="overview-flow--n">3 </tspan>Link model elements</text><text x="324" y="166">to activities.</text>
+    <text x="474" y="150"><tspan class="overview-flow--n">4 </tspan>Calculate dates (F9),</text><text x="474" y="166">update progress.</text>
+    <text x="624" y="150"><tspan class="overview-flow--n">5 </tspan>Play the construction</text><text x="624" y="166">sequence in 3D.</text>
+    <text x="774" y="150"><tspan class="overview-flow--n">6 </tspan>Dashboards, KPIs, XER,</text><text x="774" y="166">XML, PowerPoint, video.</text>
+  </g>
+  <text x="24" y="206" style="font:12px Inter,sans-serif;fill:#5d6b7a">Stages 2, 3 and 5 are in the 4D layout. You can do stages 1, 4 and 6 in all three layouts.</text>
+</svg>
+<figcaption><b>Figure 1-1.</b> The six stages of work in Stratum 4D.</figcaption></figure>
+
+<h2>The three layouts</h2>
+<p>Stratum 4D has three layouts. All three layouts use the same calculation engine and the same project data. When you change the layout, the open project stays open.</p>
+<ul>
+<li>The <span class="ui">P6</span> layout looks and works like Primavera P6 Professional.</li>
+<li>The <span class="ui">Project</span> layout looks and works like Microsoft Project.</li>
+<li>The <span class="ui">4D</span> layout shows the 3D model, the Gantt chart and the playback timeline together.</li>
+</ul>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-label="The three layouts of Stratum 4D">
+  <style>.layouts--h{font:700 16px Montserrat,sans-serif;fill:#0b2545}.layouts--s{font:12.5px Inter,sans-serif;fill:#1d2733}.layouts--m{font:11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="300" fill="#fff"/>
+  <g transform="translate(10,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="16" fill="#dfe5ec"/>
+    <rect x="16" y="32" width="40" height="88" fill="#eef2f6"/>
+    <g fill="#2e6fbf"><rect x="120" y="44" width="60" height="7"/><rect x="150" y="60" width="70" height="7"/></g>
+    <g fill="#3aa346"><rect x="180" y="44" width="40" height="7"/><rect x="220" y="60" width="40" height="7"/></g>
+    <rect x="200" y="76" width="50" height="7" fill="#e10600"/>
+    <text class="layouts--h" x="16" y="148">P6 layout</text>
+    <text class="layouts--s" x="16" y="172">Looks and works like</text><text class="layouts--s" x="16" y="189">Primavera P6 Professional.</text>
+    <text class="layouts--s" x="16" y="213">Use it for: EPS, WBS, activities,</text><text class="layouts--s" x="16" y="230">resources, baselines, F9 and F10.</text>
+    <text class="layouts--m" x="16" y="262">Switch: top bar › P6 · Ctrl+Alt+1</text>
+  </g>
+  <g transform="translate(330,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#fff" stroke="#c9d1db"/>
+    <rect x="16" y="16" width="268" height="22" fill="#31752f"/>
+    <rect x="16" y="38" width="268" height="12" fill="#f3f3f3"/>
+    <g fill="#6d9fd8"><rect x="130" y="62" width="70" height="8"/><rect x="170" y="78" width="60" height="8"/></g>
+    <path d="M120 96h120v5l-4 5-4-5H124l-4 5z" fill="#1e1e1e"/>
+    <text class="layouts--h" x="16" y="148">MS Project layout</text>
+    <text class="layouts--s" x="16" y="172">Looks and works like</text><text class="layouts--s" x="16" y="189">Microsoft Project, with the ribbon.</text>
+    <text class="layouts--s" x="16" y="213">Use it for: tasks, Task Usage,</text><text class="layouts--s" x="16" y="230">Team Planner, MS Project XML.</text>
+    <text class="layouts--m" x="16" y="262">Switch: top bar › Project · Ctrl+Alt+2</text>
+  </g>
+  <g transform="translate(650,10)">
+    <rect width="300" height="280" rx="8" fill="#ebecef"/>
+    <rect x="16" y="16" width="268" height="104" rx="4" fill="#1e2430"/>
+    <path d="M150 104l-50-22 50-22 50 22z" fill="#355b7d"/><path d="M100 82v18l50 22v-18z" fill="#24425f"/><path d="M200 82v18l-50 22v-18z" fill="#2c5070"/>
+    <path d="M128 70l22-10 22 10-22 10z" fill="#d4a574"/>
+    <rect x="16" y="110" width="268" height="10" fill="#2a3240"/><rect x="16" y="110" width="150" height="10" fill="#e10600"/>
+    <text class="layouts--h" x="16" y="148">4D layout</text>
+    <text class="layouts--s" x="16" y="172">3D model, Gantt chart and the</text><text class="layouts--s" x="16" y="189">playback timeline together.</text>
+    <text class="layouts--s" x="16" y="213">Use it for: IFC models, links,</text><text class="layouts--s" x="16" y="230">4D simulation, video, quantities.</text>
+    <text class="layouts--m" x="16" y="262">Switch: top bar › 4D · Ctrl+Alt+3</text>
+  </g>
+</svg>
+<figcaption><b>Figure 1-2.</b> The three layouts and what each layout is for.</figcaption></figure>
+
+<h3>To change the layout</h3>
+<ol class="steps">
+<li>On the top bar, click <span class="ui">P6</span>, <span class="ui">Project</span> or <span class="ui">4D</span>.<span class="result">The new layout opens with the same project.</span></li>
+<li>Alternatively, push <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd>, <kbd>2</kbd> or <kbd>3</kbd>.</li>
+</ol>
+<figure><img src="shots/layout-p6.png" alt="The P6 layout with the sample project"><figcaption><b>Figure 1-3.</b> The P6 layout with the 220 kV GIS substation sample project.</figcaption></figure>
+<figure><img src="shots/layout-msp.png" alt="The Project layout with the sample project"><figcaption><b>Figure 1-4.</b> The Project layout (Microsoft Project style) with the same project.</figcaption></figure>
+<figure><img src="shots/layout-4d.png" alt="The 4D layout with the sample project"><figcaption><b>Figure 1-5.</b> The 4D layout: Gantt chart on the left, 3D model in the middle, link tools on the right and the timeline at the bottom.</figcaption></figure>
+
+<h2>The sample projects</h2>
+<p>Stratum 4D has two sample projects. You can use them to learn the software without your own files. The two sample projects are fictional.</p>
+<table>
+<tr><th>Sample project</th><th>Contents</th></tr>
+<tr><td>220 kV GIS substation (UAE)</td><td>46 activities on a UAE 6-day calendar, costs in AED, resources, a baseline and a 3D model with 202 elements.</td></tr>
+<tr><td>Small RC building</td><td>A small concrete building with 14 activities and a 3D model. Use it for a fast first test.</td></tr>
+</table>
+<p>This manual uses the 220 kV GIS substation project for most examples.</p>
+
+<h2>How to use this manual</h2>
+<p>This manual is written in ASD-STE100 Simplified Technical English. Each chapter starts with its purpose. Then it gives a description and the procedures.</p>
+<ul>
+<li>A procedure is a numbered list of steps. Do the steps in the given order.</li>
+<li>A line that starts with "Result" tells you what you see after the step.</li>
+<li>Names of buttons, menus and fields are in <span class="ui">bold blue</span>.</li>
+<li>Keys are shown as <kbd>Ctrl</kbd>+<kbd>S</kbd>. Push the keys at the same time.</li>
+</ul>
+<div class="note">A NOTE gives information that helps you.</div>
+<div class="caution">A CAUTION tells you about a risk of loss of data.</div>
+
+<h2>The words in the layouts</h2>
+<p>Each layout uses the words of the software that it copies. The table gives the words for the same item in each layout.</p>
+<table>
+<tr><th>Item</th><th>P6 layout</th><th>Project layout</th><th>4D layout</th></tr>
+<tr><td>One item of work</td><td>Activity</td><td>Task</td><td>Task</td></tr>
+<tr><td>Its identifier</td><td>Activity ID</td><td>ID (row number)</td><td>Task ID</td></tr>
+<tr><td>Date of the last progress update</td><td>Data date</td><td>Status date</td><td>Data date</td></tr>
+<tr><td>Calculate the dates</td><td>Schedule (F9)</td><td>Calculate Project (F9)</td><td>Reschedule (F9)</td></tr>
+<tr><td>Time that work can slip</td><td>Total float</td><td>Total slack</td><td>TF</td></tr>
+<tr><td>Group of work</td><td>WBS</td><td>Summary task</td><td>WBS</td></tr>
+</table>
+
+<p class="related">Related chapters: 2 Installation, 3 First start, 4 Projects and files.</p>
+</section>
+<section class="chapter" id="installation">
+<h1><span class="num">2</span>Installation</h1>
+<p class="purpose">This chapter tells you how to install Stratum 4D on Windows, macOS, Linux and Android, and how to use it in a web browser.</p>
+
+<h2>Versions of Stratum 4D</h2>
+<p>Stratum 4D is available as a desktop application, an Android application and a web application. All versions have the same layouts and the same calculations.</p>
+<p>The desktop application can connect to Primavera P6 and can send reports by email. The web application and the Android application cannot connect to P6.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" role="img" aria-label="Which version of Stratum 4D to install">
+  <style>.install-choose--h{font:700 14px Montserrat,sans-serif;fill:#fff}.install-choose--f{font:600 12px Montserrat,sans-serif;fill:#0b2545}.install-choose--s{font:12px Inter,sans-serif;fill:#1d2733}.install-choose--m{font:11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="330" rx="8" fill="#ebecef"/>
+  <rect x="380" y="16" width="200" height="44" rx="22" fill="#0b2545"/><text class="install-choose--h" x="480" y="43" text-anchor="middle">Which device?</text>
+  <g stroke="#355b7d" stroke-width="2" fill="none"><path d="M480 60v20H94v24M480 80h0M286 80v24M480 80v24M674 80v24M866 80v24"/></g>
+  <g transform="translate(14,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="install-choose--h" x="80" y="23" text-anchor="middle">Windows</text>
+    <text class="install-choose--f" x="12" y="58">…-win-x64.exe</text><text class="install-choose--s" x="12" y="82">Installer. Select the</text><text class="install-choose--s" x="12" y="98">folder, then Install.</text>
+    <text class="install-choose--m" x="12" y="130">SmartScreen message:</text><text class="install-choose--m" x="12" y="146">More info › Run anyway.</text><text class="install-choose--m" x="12" y="178">Local SQLite database.</text><text class="install-choose--m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(206,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="install-choose--h" x="80" y="23" text-anchor="middle">macOS</text>
+    <text class="install-choose--f" x="12" y="58">…-mac-arm64.dmg</text><text class="install-choose--f" x="12" y="74">…-mac-x64.dmg</text><text class="install-choose--s" x="12" y="98">arm64: Apple silicon.</text><text class="install-choose--s" x="12" y="114">x64: Intel.</text>
+    <text class="install-choose--m" x="12" y="146">First start: right-click</text><text class="install-choose--m" x="12" y="162">the app › Open.</text><text class="install-choose--m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(400,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#355b7d"/><text class="install-choose--h" x="80" y="23" text-anchor="middle">Linux</text>
+    <text class="install-choose--f" x="12" y="58">….AppImage</text><text class="install-choose--f" x="12" y="74">….deb</text><text class="install-choose--s" x="12" y="98">AppImage: any distro.</text><text class="install-choose--s" x="12" y="114">.deb: Debian, Ubuntu.</text>
+    <text class="install-choose--m" x="12" y="146">AppImage: set it as</text><text class="install-choose--m" x="12" y="162">executable first.</text><text class="install-choose--m" x="12" y="194">P6 connections: yes.</text>
+  </g>
+  <g transform="translate(594,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#b8874f"/><text class="install-choose--h" x="80" y="23" text-anchor="middle">Android</text>
+    <text class="install-choose--f" x="12" y="58">…-android.apk</text><text class="install-choose--s" x="12" y="82">Phones and tablets.</text><text class="install-choose--s" x="12" y="98">Allow the install from</text><text class="install-choose--s" x="12" y="114">this source when asked.</text>
+    <text class="install-choose--m" x="12" y="146">Shared cloud folder:</text><text class="install-choose--m" x="12" y="162">use the web app instead.</text><text class="install-choose--m" x="12" y="194">P6 connections: no.</text>
+  </g>
+  <g transform="translate(786,104)">
+    <rect width="160" height="210" rx="6" fill="#fff" stroke="#c9d1db"/><rect width="160" height="34" rx="6" fill="#e10600"/><text class="install-choose--h" x="80" y="23" text-anchor="middle">Web browser</text>
+    <text class="install-choose--f" x="12" y="58">No installation</text><text class="install-choose--s" x="12" y="82">Chrome, Edge, Firefox</text><text class="install-choose--s" x="12" y="98">or Safari. Sign in.</text>
+    <text class="install-choose--m" x="12" y="130">Data stays in this</text><text class="install-choose--m" x="12" y="146">browser. Install it as</text><text class="install-choose--m" x="12" y="162">an app: Chrome › Install.</text><text class="install-choose--m" x="12" y="194">P6 connections: no.</text>
+  </g>
+</svg>
+<figcaption><b>Figure 2-1.</b> Select the correct file for your device.</figcaption></figure>
+
+<h2>Get the installation files</h2>
+<p>The installation files are on the releases page of Stratum 4D on GitHub. Each release has one file for each type of device.</p>
+<ol class="steps">
+<li>Open the releases page: <code>github.com/xunaidlnt-sudo/stratum-4d/releases</code>.</li>
+<li>Find the latest release at the top of the page.</li>
+<li>Under <span class="ui">Assets</span>, click the file for your device.<span class="result">The file goes into the Downloads folder.</span></li>
+</ol>
+
+<h2>Install on Windows</h2>
+<p>Use the file that ends with <code>-win-x64.exe</code>. Windows 10 and Windows 11 (64-bit) are supported.</p>
+<div class="note">The installer does not have a code signature yet. Thus Windows SmartScreen can show the message "Windows protected your PC".</div>
+<ol class="steps">
+<li>Double-click the file <code>Stratum-4D-&lt;version&gt;-win-x64.exe</code>.</li>
+<li>If SmartScreen shows a message, click <span class="ui">More info</span>.</li>
+<li>Click <span class="ui">Run anyway</span>.</li>
+<li>Select the folder for the installation, or keep the default folder.</li>
+<li>Click <span class="ui">Install</span>.<span class="result">The installer adds Stratum 4D to the Start menu and to the desktop.</span></li>
+<li>Click <span class="ui">Finish</span>.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<p>After the installation, Windows opens <code>.xer</code> and <code>.ifc</code> files in Stratum 4D when you double-click them.</p>
+
+<h2>Install on macOS</h2>
+<p>There are two files for macOS. Use <code>-mac-arm64.dmg</code> on a Mac with Apple silicon (M1 or later). Use <code>-mac-x64.dmg</code> on a Mac with an Intel processor.</p>
+<ol class="steps">
+<li>Double-click the <code>.dmg</code> file.<span class="result">A window opens with the Stratum 4D icon.</span></li>
+<li>Drag the Stratum 4D icon to the <span class="ui">Applications</span> folder.</li>
+<li>Open the <span class="ui">Applications</span> folder.</li>
+<li>Right-click <span class="ui">Stratum 4D</span> and click <span class="ui">Open</span>.</li>
+<li>In the message, click <span class="ui">Open</span> again.<span class="result">Stratum 4D starts. Next time, you can open it as usual.</span></li>
+</ol>
+
+<h2>Install on Linux</h2>
+<p>There are two files for Linux. The <code>.AppImage</code> file operates on most distributions. The <code>.deb</code> file is for Debian and Ubuntu.</p>
+<h3>To use the AppImage file</h3>
+<ol class="steps">
+<li>Open a terminal in the Downloads folder.</li>
+<li>Type <code>chmod +x Stratum-4D-*.AppImage</code> and push <kbd>Enter</kbd>.</li>
+<li>Double-click the AppImage file.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<h3>To install the .deb file</h3>
+<ol class="steps">
+<li>Open a terminal in the Downloads folder.</li>
+<li>Type <code>sudo apt install ./Stratum-4D-*.deb</code> and push <kbd>Enter</kbd>.</li>
+<li>Start Stratum 4D from the applications menu.</li>
+</ol>
+
+<h2>Install on Android</h2>
+<p>Use the file that ends with <code>-android.apk</code>. The application is for phones and tablets with Android 8 or later.</p>
+<ol class="steps">
+<li>On the phone or tablet, open the releases page and download the <code>.apk</code> file.</li>
+<li>Open the file from the download notification.</li>
+<li>If Android asks for permission to install from this source, give the permission.</li>
+<li>Tap <span class="ui">Install</span>.</li>
+<li>Tap <span class="ui">Open</span>.<span class="result">Stratum 4D starts.</span></li>
+</ol>
+<div class="note">To share a cloud folder (Google Drive or OneDrive) with a team on a tablet, use the web application. Chapter 4 tells you about shared folders.</div>
+
+<h2>Use the web application</h2>
+<p>The web application operates in Chrome, Edge, Firefox and Safari. It is not necessary to install it. The web application keeps your projects in the storage of the browser on that computer.</p>
+<ol class="steps">
+<li>Open the address of the web application that you got from Miqyas Labs.</li>
+<li>Type your user name and password.</li>
+<li>Click <span class="ui">Sign in</span>.<span class="result">Stratum 4D opens. At the first start, the setup steps of chapter 3 open.</span></li>
+</ol>
+<h3>To install the web application as an application</h3>
+<ol class="steps">
+<li>Open the web application in Chrome or Edge.</li>
+<li>In the address bar, click the install icon.</li>
+<li>Click <span class="ui">Install</span>.<span class="result">Stratum 4D opens in its own window, with an icon on the desktop.</span></li>
+</ol>
+<div class="caution">If you clear the data of the browser, the projects in the browser storage are deleted. Save a project file or use a shared folder to keep a copy (chapter 4).</div>
+
+<h2>Update to a new release</h2>
+<p>To update the desktop application, install the new release over the old release. Your projects and settings stay. The web application updates when you open it again.</p>
+
+<h2>Remove Stratum 4D</h2>
+<ul>
+<li>Windows: open <span class="ui">Settings › Apps</span>, select <span class="ui">Stratum 4D</span> and click <span class="ui">Uninstall</span>.</li>
+<li>macOS: drag <span class="ui">Stratum 4D</span> from the Applications folder to the Bin.</li>
+<li>Linux: delete the AppImage file, or type <code>sudo apt remove stratum-4d</code>.</li>
+<li>Android: touch and hold the icon, then tap <span class="ui">Uninstall</span>.</li>
+</ul>
+<div class="caution">The projects in the database stay on the computer after you remove the application. Delete them only if you have a copy.</div>
+
+<p class="related">Related chapters: 3 First start, 4 Projects and files.</p>
+</section>
+<section class="chapter" id="first-start">
+<h1><span class="num">3</span>First start</h1>
+<p class="purpose">This chapter tells you what to do when you start Stratum 4D for the first time.</p>
+
+<h2>The setup steps</h2>
+<p>At the first start, Stratum 4D asks two questions: which layout you want, and where to keep the projects. You can change both answers later in <span class="ui">Settings</span>.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 190" role="img" aria-label="The steps at the first start">
+  <style>.first-start--h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.first-start--s{font:12px Inter,sans-serif;fill:#1d2733}.first-start--n{font:700 18px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="190" rx="8" fill="#ebecef"/>
+  <g stroke="#d4a574" stroke-width="3"><path d="M90 60H870"/></g>
+  <g>
+    <circle cx="90" cy="60" r="24" fill="#0b2545"/><text class="first-start--n" x="90" y="66" text-anchor="middle">1</text>
+    <circle cx="285" cy="60" r="24" fill="#0b2545"/><text class="first-start--n" x="285" y="66" text-anchor="middle">2</text>
+    <circle cx="480" cy="60" r="24" fill="#0b2545"/><text class="first-start--n" x="480" y="66" text-anchor="middle">3</text>
+    <circle cx="675" cy="60" r="24" fill="#355b7d"/><text class="first-start--n" x="675" y="66" text-anchor="middle">4</text>
+    <circle cx="870" cy="60" r="24" fill="#e10600"/><text class="first-start--n" x="870" y="66" text-anchor="middle">✓</text>
+  </g>
+  <g text-anchor="middle">
+    <text class="first-start--h" x="90" y="112">Sign in</text><text class="first-start--s" x="90" y="132">Web version only.</text><text class="first-start--s" x="90" y="148">User name, password.</text>
+    <text class="first-start--h" x="285" y="112">Layout</text><text class="first-start--s" x="285" y="132">P6, MS Project or 4D.</text><text class="first-start--s" x="285" y="148">You can change it later.</text>
+    <text class="first-start--h" x="480" y="112">Storage</text><text class="first-start--s" x="480" y="132">This computer, or a</text><text class="first-start--s" x="480" y="148">Stratum Server.</text>
+    <text class="first-start--h" x="675" y="112">Options</text><text class="first-start--s" x="675" y="132">P6 connection, email.</text><text class="first-start--s" x="675" y="148">You can skip this step.</text>
+    <text class="first-start--h" x="870" y="112">Workspace</text><text class="first-start--s" x="870" y="132">Open a project or</text><text class="first-start--s" x="870" y="148">a sample project.</text>
+  </g>
+</svg>
+<figcaption><b>Figure 3-1.</b> The steps at the first start.</figcaption></figure>
+
+<h2>Select the layout</h2>
+<figure><img src="shots/setup-layout.png" alt="The layout step of the setup"><figcaption><b>Figure 3-2.</b> Select the layout that you know best.</figcaption></figure>
+<ol class="steps">
+<li>Click <span class="ui">P6 style</span>, <span class="ui">MS Project style</span> or <span class="ui">4D style</span>.</li>
+<li>Click <span class="ui">Next</span>.</li>
+</ol>
+<div class="note">If you work with Primavera P6 every day, select <span class="ui">P6 style</span>. If you make 4D simulations, select <span class="ui">4D style</span>.</div>
+
+<h2>Select the storage</h2>
+<figure><img src="shots/setup-storage.png" alt="The storage step of the setup"><figcaption><b>Figure 3-3.</b> Select where Stratum 4D keeps the projects.</figcaption></figure>
+<table>
+<tr><th>Storage</th><th>Use it when</th></tr>
+<tr><td>On this computer (desktop) or On this browser (web)</td><td>You work alone. The projects stay on this computer.</td></tr>
+<tr><td>Stratum Server (shared)</td><td>Your team has a Stratum Server. All users work on the same projects, with sign-in and roles.</td></tr>
+</table>
+<h3>To keep the projects on this computer</h3>
+<ol class="steps">
+<li>Click <span class="ui">On this computer</span> (or <span class="ui">On this browser</span>).</li>
+<li>Click <span class="ui">Next</span>.</li>
+</ol>
+<h3>To connect to a Stratum Server</h3>
+<ol class="steps">
+<li>Click <span class="ui">Stratum Server (shared)</span>.</li>
+<li>Type the address of the server that you got from your administrator.</li>
+<li>Click <span class="ui">Check</span>.<span class="result">Stratum 4D finds the server.</span></li>
+<li>If the server is new, type a name, an email address and a password for the first administrator. Then click <span class="ui">Create admin and connect</span>.</li>
+<li>If the server has users, type your email address and password. Then click <span class="ui">Sign in</span>.<span class="result">The step <span class="ui">Ready</span> opens.</span></li>
+</ol>
+
+<h2>Optional connections</h2>
+<p>The last step, <span class="ui">Ready</span>, lets you connect to Primavera P6 and set up email for reports. These two buttons show only in the desktop application and with a Stratum Server. You can skip this step. Chapter 4 and the chapter about P6 connections tell you how to do this later.</p>
+<ol class="steps">
+<li>To connect to P6 now, click <span class="ui">Connect to P6…</span>.</li>
+<li>To set up email now, click <span class="ui">Set up email…</span>.</li>
+<li>To skip, click <span class="ui">Start</span>.<span class="result">The workspace opens.</span></li>
+</ol>
+
+<h2>The empty workspace</h2>
+<p>When no project is open, the workspace shows a short message. From it, you can open a sample project or start the training.</p>
+<figure><img src="shots/empty-workspace.png" alt="The empty workspace in the P6 layout"><figcaption><b>Figure 3-4.</b> The empty workspace in the P6 layout.</figcaption></figure>
+<h3>To open a sample project</h3>
+<ol class="steps">
+<li>Click <span class="ui">220 kV GIS substation (UAE)</span>.<span class="result">The sample project opens in the layout that you selected.</span></li>
+</ol>
+<h3>To start the training</h3>
+<ol class="steps">
+<li>Click <span class="ui">Start training mode</span>, or click <span class="ui">Learn</span> on the top bar.</li>
+<li>Select a lesson or a course.<span class="result">The lesson shows you each step in the software.</span></li>
+</ol>
+
+<h2>Change the settings later</h2>
+<ol class="steps">
+<li>On the top bar, click the gear icon (<span class="ui">Settings</span>).</li>
+<li>Select a tab: <span class="ui">Interface</span>, <span class="ui">Data &amp; sign-in</span>, <span class="ui">Primavera P6</span>, <span class="ui">Email</span> or <span class="ui">Users</span>.</li>
+<li>Make the changes. If the tab has a <span class="ui">Save</span> button, click it.</li>
+<li>Click the X at the top right to close <span class="ui">Settings</span>.</li>
+</ol>
+<p>Use the moon icon on the top bar to change between the light theme and the dark theme.</p>
+
+<p class="related">Related chapters: 2 Installation, 4 Projects and files.</p>
+</section>
+<section class="chapter" id="projects-files">
+<h1><span class="num">4</span>Projects and files</h1>
+<p class="purpose">This chapter tells you how to open, import, save and export projects, and where Stratum 4D keeps them.</p>
+
+<h2>Projects and files</h2>
+<p>In this manual, a <b>project</b> is a schedule that Stratum 4D keeps in its database. A <b>file</b> is a file on the disk, for example an XER file from P6.</p>
+<p>You import a file to make a project. You export a project to make a file. The project database keeps each saved version of a project.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 330" role="img" aria-label="Files into and out of Stratum 4D, and where projects are kept">
+  <style>.data-flow--h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.data-flow--w{font:700 14px Montserrat,sans-serif;fill:#fff}.data-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.data-flow--m{font:11px Inter,sans-serif;fill:#dfe6ee}</style>
+  <rect width="960" height="330" rx="8" fill="#ebecef"/>
+  <text class="data-flow--h" x="24" y="32">Into Stratum</text><text class="data-flow--h" x="740" y="32">Out of Stratum</text>
+  <g class="data-flow--s">
+    <rect x="24" y="46" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="71">P6 XER (.xer)</text>
+    <rect x="24" y="94" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="119">MS Project XML (.xml)</text>
+    <rect x="24" y="142" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="167">IFC model (.ifc)</text>
+    <rect x="24" y="190" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="215">Excel (.xlsx)</text>
+    <rect x="24" y="238" width="200" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="36" y="263">P6 EPPM / P6 database</text>
+    <rect x="740" y="46" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="71">P6 XER (.xer)</text>
+    <rect x="740" y="94" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="119">MS Project XML (.xml)</text>
+    <rect x="740" y="142" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="167">Excel (.xlsx), CSV</text>
+    <rect x="740" y="190" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="215">PowerPoint, PDF</text>
+    <rect x="740" y="238" width="196" height="40" rx="5" fill="#fff" stroke="#c9d1db"/><text x="752" y="263">PNG picture, WebM video</text>
+  </g>
+  <g stroke="#355b7d" stroke-width="2" fill="none"><path d="M224 66h40M224 114h40M224 162h40M224 210h40M224 258h40M264 66v192M264 162h30"/><path d="M666 162h30M696 66v192M696 66h44M696 114h44M696 162h44M696 210h44M696 258h44"/></g>
+  <rect x="294" y="46" width="372" height="232" rx="10" fill="#0b2545"/>
+  <text class="data-flow--w" x="480" y="76" text-anchor="middle">Stratum 4D project database</text>
+  <g>
+    <rect x="312" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="data-flow--w" x="324" y="116" style="font-size:12.5px">Desktop app</text><text class="data-flow--m" x="324" y="136">SQLite file in your</text><text class="data-flow--m" x="324" y="152">user folder.</text>
+    <rect x="482" y="92" width="166" height="76" rx="6" fill="#183a63"/><text class="data-flow--w" x="494" y="116" style="font-size:12.5px">Web browser</text><text class="data-flow--m" x="494" y="136">Storage of this browser</text><text class="data-flow--m" x="494" y="152">on this computer.</text>
+    <rect x="312" y="178" width="166" height="80" rx="6" fill="#355b7d"/><text class="data-flow--w" x="324" y="202" style="font-size:12.5px">Cloud folder</text><text class="data-flow--m" x="324" y="222">Google Drive or OneDrive,</text><text class="data-flow--m" x="324" y="238">shared by a team.</text>
+    <rect x="482" y="178" width="166" height="80" rx="6" fill="#b8874f"/><text class="data-flow--w" x="494" y="202" style="font-size:12.5px">Stratum Server</text><text class="data-flow--m" x="494" y="222">PostgreSQL, sign-in,</text><text class="data-flow--m" x="494" y="238">roles, emailed reports.</text>
+  </g>
+  <text x="480" y="306" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">A Stratum project file (.stratum.json) holds a project with its model links. Use it to move a project between computers.</text>
+</svg>
+<figcaption><b>Figure 4-1.</b> Files into and out of Stratum 4D, and the four places for the project database.</figcaption></figure>
+
+<h2>Where Stratum 4D keeps the projects</h2>
+<table>
+<tr><th>Storage</th><th>Where</th><th>Who can open the projects</th></tr>
+<tr><td>Desktop application</td><td>A SQLite file in your user folder</td><td>You, on this computer</td></tr>
+<tr><td>Web application</td><td>The storage of the browser</td><td>You, in this browser on this computer</td></tr>
+<tr><td>Cloud folder</td><td>A Google Drive or OneDrive folder</td><td>All persons with edit access to the folder</td></tr>
+<tr><td>Stratum Server</td><td>A PostgreSQL database</td><td>All users of the server, by their role</td></tr>
+</table>
+<p>Each save gets a version number. If a different person saved the project after you opened it, Stratum 4D does not save over that version. It gives you the option <span class="ui">Save as new</span>.</p>
+
+<h2>Import a schedule file</h2>
+<p>Stratum 4D can import these schedule files:</p>
+<ul>
+<li>Primavera P6 XER files (<code>.xer</code>), with activities, WBS, logic, codes, user fields, calendars, resources, costs and baselines.</li>
+<li>Microsoft Project XML files (<code>.xml</code>). In Microsoft Project, use <span class="ui">File › Save As › XML Format</span> to make this file.</li>
+<li>Microsoft Excel files (<code>.xlsx</code>) that you exported from Stratum 4D and changed.</li>
+</ul>
+<div class="note">Stratum 4D cannot open Microsoft Project <code>.mpp</code> files. Save the file as XML in Microsoft Project first.</div>
+<h3>To import a schedule in the P6 layout</h3>
+<ol class="steps">
+<li>Click <span class="ui">File › Import…</span>.</li>
+<li>Select the <code>.xer</code> or <code>.xml</code> file.</li>
+<li>Click <span class="ui">Open</span>.<span class="result">The schedule opens as a new project.</span></li>
+</ol>
+<figure><img src="shots/p6-file-menu.png" alt="The File menu of the P6 layout"><figcaption><b>Figure 4-2.</b> The File menu of the P6 layout, with Import and Export.</figcaption></figure>
+<h3>To import a schedule in the Project layout</h3>
+<ol class="steps">
+<li>Click <span class="ui">File</span>.</li>
+<li>Click <span class="ui">Open</span>.</li>
+<li>Click <span class="ui">Import XER / Microsoft Project XML</span>.</li>
+<li>Select the file and click <span class="ui">Open</span>.</li>
+</ol>
+<h3>To import a new version of the same schedule</h3>
+<p>Each week, you can import the new XER over the open project. Stratum 4D keeps the model links because it finds each activity by its Activity ID. If you click <span class="ui">Cancel</span> at step 3, the file opens as a new project.</p>
+<ol class="steps">
+<li>Open the project.</li>
+<li>Import the new XER file as usual.</li>
+<li>Stratum 4D asks "Update the open schedule with this file?". Click <span class="ui">OK</span>.<span class="result">The <span class="ui">Check</span> tab lists the changes: finish slip, new and deleted activities, and changes of status.</span></li>
+</ol>
+
+<h2>Open and save a project</h2>
+<h3>To open a project from the database</h3>
+<ol class="steps">
+<li>Click <span class="ui">Projects</span> (P6 and 4D layouts), or <span class="ui">File › Open › Projects</span> (Project layout).</li>
+<li>Select the project.</li>
+<li>Click <span class="ui">Open</span>.</li>
+</ol>
+<h3>To save a project</h3>
+<ol class="steps">
+<li>Push <kbd>Ctrl</kbd>+<kbd>S</kbd>, or click <span class="ui">Save</span>.<span class="result">Stratum 4D saves a new version of the project in the database.</span></li>
+</ol>
+<p>Stratum 4D also saves your work in the background every few seconds. If the application closes without a save, it asks you to restore the work at the next start.</p>
+
+<h2>Export a project</h2>
+<table>
+<tr><th>Export</th><th>Use it for</th></tr>
+<tr><td>P6 XER</td><td>Import into Primavera P6. Use <span class="ui">Update Existing Project</span> in P6 to bring the dates back.</td></tr>
+<tr><td>Microsoft Project XML</td><td>Open in Microsoft Project 2010 or later.</td></tr>
+<tr><td>Excel (.xlsx) or CSV</td><td>Change data in Excel, or make your own reports.</td></tr>
+<tr><td>Stratum project file (.stratum.json)</td><td>Move a project, with its model links, to a different computer.</td></tr>
+</table>
+<figure><img src="shots/msp-save-as.png" alt="The Save As page of the Project layout"><figcaption><b>Figure 4-3.</b> File › Save As in the Project layout.</figcaption></figure>
+<h3>To export a project</h3>
+<ol class="steps">
+<li>In the P6 layout, click <span class="ui">File › Export…</span>. In the Project layout, click <span class="ui">File › Save As</span>.</li>
+<li>Click the type of file.<span class="result">The file goes into the Downloads folder.</span></li>
+</ol>
+<div class="caution">Before you import an exported XER into P6, make a backup of the P6 project. An import with <span class="ui">Update Existing Project</span> changes the project in P6.</div>
+
+<h2>Share projects with a cloud folder</h2>
+<p>A team can use one Google Drive or OneDrive folder as a shared database. All persons with edit access to the folder work on the same projects. Stratum 4D does a check before each save, so no person saves over newer work.</p>
+<ol class="steps">
+<li>Click the gear icon (<span class="ui">Settings</span>).</li>
+<li>Click the <span class="ui">Data &amp; sign-in</span> tab.</li>
+<li>Under <span class="ui">Cloud folder</span>, click <span class="ui">Google Drive</span> or <span class="ui">OneDrive</span>.</li>
+<li>Sign in to the account.<span class="result">A list of your folders opens.</span></li>
+<li>Open the folder that your team shares.</li>
+<li>Click <span class="ui">Use "&lt;folder&gt;" as the Stratum folder</span>.<span class="result">The projects in the folder show in <span class="ui">Projects</span>.</span></li>
+</ol>
+<div class="note">Your administrator must first register Stratum 4D with Google or Microsoft. The file <code>docs/CLOUD_STORAGE.md</code> tells the administrator how to do this.</div>
+
+<p class="related">Related chapters: 3 First start. Later chapters: the P6 layout, the Project layout and the 4D layout.</p>
+</section>
+<section class="chapter" id="p6-layout">
+<h1><span class="num">5</span>The P6 layout</h1>
+<p class="purpose">This chapter tells you how to use the P6 layout to plan, schedule, update and check a project.</p>
+
+<h2>Parts of the P6 layout</h2>
+<p>The P6 layout has the same parts as Primavera P6 Professional. If you know P6, you can use this layout immediately.</p>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>Menu bar</td><td>Top</td><td>File, Edit, View, Project, Enterprise, Tools and Help menus</td></tr>
+<tr><td>Window tabs</td><td>Below the toolbar</td><td>Projects, WBS, Activities, Assignments, Resources, Tracking and more</td></tr>
+<tr><td>Activity table</td><td>Upper left</td><td>One row for each activity, with the columns of the layout</td></tr>
+<tr><td>Gantt chart</td><td>Upper right</td><td>One bar for each activity, on the timescale</td></tr>
+<tr><td>Bottom pane</td><td>Lower half</td><td>Activity Details tabs: General, Status, Resources, Predecessors, Successors, Codes, Steps, Notebook, UDFs</td></tr>
+</table>
+<figure><img src="shots/layout-p6.png" alt="The P6 layout with the activity table, the Gantt chart and the bottom pane"><figcaption><b>Figure 5-1.</b> The P6 layout.</figcaption></figure>
+
+<h2>Make the activities</h2>
+<h3>To add an activity</h3>
+<ol class="steps">
+<li>In the activity table, select a row in the applicable WBS.</li>
+<li>Push <kbd>Ins</kbd>, or click <span class="ui">Edit › Add</span>.<span class="result">A new activity row shows below the selected row.</span></li>
+<li>Type the Activity Name.</li>
+<li>Type the Original Duration in days.</li>
+</ol>
+<h3>To link activities</h3>
+<ol class="steps">
+<li>Select the activities in the sequence of the work. Hold <kbd>Ctrl</kbd> to select more than one.</li>
+<li>Push <kbd>Ctrl</kbd>+<kbd>L</kbd>, or click <span class="ui">Edit › Link Activities</span>.<span class="result">Each activity becomes the predecessor of the next activity, with a Finish to Start relationship.</span></li>
+</ol>
+<p>To set a different relationship type (FS, SS, FF or SF) or a lag, open the <span class="ui">Predecessors</span> tab in the bottom pane. Then change the type or the lag of the relationship.</p>
+<h3>To assign resources</h3>
+<ol class="steps">
+<li>Select the activity.</li>
+<li>Click <span class="ui">Edit › Assign Resources…</span>.</li>
+<li>In the row of the resource, click <span class="ui">Assign</span>.<span class="result">The resource is assigned to all the selected activities.</span></li>
+<li>Click <span class="ui">Close</span>.</li>
+<li>In the <span class="ui">Resources</span> tab, type the Budgeted Units for each resource.</li>
+</ol>
+
+<h2>Schedule the project</h2>
+<p>The scheduler calculates the early and late dates and the total float of each activity. It uses the logic, the durations, the calendars and the constraints. It starts at the data date.</p>
+<h3>To schedule the project</h3>
+<ol class="steps">
+<li>Push <kbd>F9</kbd>, or click <span class="ui">Project › Schedule…</span>.<span class="result">The <span class="ui">Schedule</span> dialog opens.</span></li>
+<li>Make sure that <span class="ui">Current Data Date</span> is correct.</li>
+<li>Click <span class="ui">Schedule</span>.<span class="result">The dates and the float change. The critical activities show in red.</span></li>
+<li>To see the result of the calculation, click <span class="ui">View Log</span>.</li>
+</ol>
+<figure><img src="shots/p6-schedule.png" alt="The Schedule dialog"><figcaption><b>Figure 5-2.</b> The Schedule dialog.</figcaption></figure>
+<p>To change the rules of the calculation, click <span class="ui">Options…</span> in the <span class="ui">Schedule</span> dialog. For example, you can set retained logic or progress override, and the definition of a critical activity.</p>
+<div class="note">Stratum 4D uses the same calculation rules as P6. If you import an XER file and schedule it with the same options, the dates are the same as in P6. If a date is different, look at the schedule log first.</div>
+
+<h2>Set and compare baselines</h2>
+<p>A baseline is a copy of the project at one time. You compare the current schedule with the baseline to see the slip.</p>
+<h3>To make a baseline</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Maintain Baselines…</span>.</li>
+<li>Click <span class="ui">Add</span>.<span class="result">A copy of the current project becomes a new baseline.</span></li>
+<li>Type a name for the baseline.</li>
+<li>To compare the project with this baseline, click <span class="ui">Assign as Project Baseline</span>.</li>
+<li>Click <span class="ui">Close</span>.</li>
+</ol>
+<figure><img src="shots/p6-baselines.png" alt="The Maintain Baselines dialog"><figcaption><b>Figure 5-3.</b> The Maintain Baselines dialog.</figcaption></figure>
+<p>To see the baseline bars on the Gantt chart, click <span class="ui">View › Show Baseline Bars</span>. To use a baseline from a different file, click <span class="ui">Assign from file…</span> and select the XER or XML file.</p>
+
+<h2>Update the progress</h2>
+<p>Each update period, you record the actual progress. Then you move the data date and schedule again. Figure 5-4 shows the cycle.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 300" role="img" aria-label="The weekly update cycle in the P6 layout">
+  <style>.update-cycle--uc-h{font:700 14px Montserrat,sans-serif;fill:#fff}.update-cycle--uc-s{font:12px Inter,sans-serif;fill:#1d2733}.update-cycle--uc-k{font:600 11px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="300" rx="8" fill="#ebecef"/>
+  <text x="24" y="32" style="font:700 17px Montserrat,sans-serif;fill:#0b2545">The update cycle (each week or month)</text>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M190 120h40M380 120h40M570 120h40M760 120h20"/><path d="M850 160v60H110v-60" stroke-dasharray="6 5"/></g>
+  <g fill="#d4a574"><path d="M230 114l10 6-10 6zM420 114l10 6-10 6zM610 114l10 6-10 6zM780 114l10 6-10 6zM104 162l6-10 6 10z"/></g>
+  <g>
+    <rect x="30" y="80" width="160" height="80" rx="8" fill="#0b2545"/><text class="update-cycle--uc-h" x="110" y="112" text-anchor="middle">1 Record actuals</text><text x="110" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">Activity Details › Status</text>
+    <rect x="240" y="80" width="140" height="80" rx="8" fill="#183a63"/><text class="update-cycle--uc-h" x="310" y="112" text-anchor="middle">2 Data date</text><text x="310" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">Update Progress</text>
+    <rect x="430" y="80" width="140" height="80" rx="8" fill="#355b7d"/><text class="update-cycle--uc-h" x="500" y="112" text-anchor="middle">3 Schedule</text><text x="500" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#dfe6ee">F9</text>
+    <rect x="620" y="80" width="140" height="80" rx="8" fill="#b8874f"/><text class="update-cycle--uc-h" x="690" y="112" text-anchor="middle">4 Check</text><text x="690" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#fff3e3">Check Schedule</text>
+    <rect x="790" y="80" width="150" height="80" rx="8" fill="#e10600"/><text class="update-cycle--uc-h" x="865" y="112" text-anchor="middle">5 Report</text><text x="865" y="134" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#ffe1df">Dashboards, XER</text>
+  </g>
+  <text class="update-cycle--uc-s" x="480" y="246" text-anchor="middle">Compare each update with the baseline (Maintain Baselines) and with the last update (Claim Digger).</text>
+  <text class="update-cycle--uc-k" x="480" y="270" text-anchor="middle">Next period: start again at step 1.</text>
+</svg>
+<figcaption><b>Figure 5-4.</b> The update cycle.</figcaption></figure>
+<h3>To record the progress of an activity</h3>
+<ol class="steps">
+<li>Select the activity.</li>
+<li>In the bottom pane, click the <span class="ui">Status</span> tab.</li>
+<li>Set <span class="ui">Status</span> to <span class="ui">In progress</span> or <span class="ui">Complete</span>.</li>
+<li>Type the <span class="ui">Actual start</span> date. For a complete activity, also type the <span class="ui">Actual finish</span> date.</li>
+<li>For an activity in progress, type the <span class="ui">% complete</span> and the <span class="ui">Remaining (days)</span>.</li>
+</ol>
+<h3>To update all the activities as planned</h3>
+<p>Use this procedure if the work went as planned. It sets the actual dates and the progress from the planned dates.</p>
+<ol class="steps">
+<li>Click <span class="ui">Tools › Update Progress…</span>.</li>
+<li>Type the <span class="ui">New data date</span>.</li>
+<li>Select <span class="ui">All activities</span>, or <span class="ui">Selected activities only</span>.</li>
+<li>Click <span class="ui">Apply</span>.</li>
+<li>Push <kbd>F9</kbd> to schedule the project.</li>
+</ol>
+<figure><img src="shots/p6-update-progress.png" alt="The Update Progress dialog"><figcaption><b>Figure 5-5.</b> The Update Progress dialog.</figcaption></figure>
+<div class="caution">Update Progress changes the actual dates of many activities. Do a check of the result before you send the schedule to other persons. To go back, push <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</div>
+
+<h2>Check the schedule</h2>
+<h3>To do a quality check</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Check Schedule…</span>.<span class="result">The dialog shows each check with the number of activities that do not pass.</span></li>
+<li>Click a check to see its activities.</li>
+<li>Correct the activities. Then do the check again.</li>
+</ol>
+<p>The checks include missing predecessors and successors, hard constraints, negative float, high float, long durations, leads and lags.</p>
+<h3>To compare two schedules</h3>
+<ol class="steps">
+<li>Click <span class="ui">Tools › Claim Digger (compare schedules)…</span>.</li>
+<li>Open the project of this update. Stratum 4D uses it as the <span class="ui">Current</span> schedule.</li>
+<li>For the <span class="ui">Base</span> schedule, select a stored baseline. Or click <span class="ui">Choose…</span> and select the file of the last update.<span class="result">The report lists the changed, added and deleted activities, and the changed relationships.</span></li>
+<li>To keep the report, click the download button.</li>
+</ol>
+
+<h2>Change the view</h2>
+<table>
+<tr><th>To change</th><th>Click</th></tr>
+<tr><td>The columns</td><td><span class="ui">View › Columns…</span></td></tr>
+<tr><td>The visible activities</td><td><span class="ui">View › Filters…</span></td></tr>
+<tr><td>The bands and the order</td><td><span class="ui">View › Group and Sort…</span></td></tr>
+<tr><td>The bars</td><td><span class="ui">View › Bar Chart Options…</span></td></tr>
+<tr><td>The timescale</td><td><span class="ui">View › Timescale…</span></td></tr>
+<tr><td>All of the above, as a set</td><td><span class="ui">View › Layout › Save As…</span> and <span class="ui">Open…</span></td></tr>
+</table>
+<p>To change many activities at the same time, use <span class="ui">Tools › Global Change…</span>. Make a filter first, so that the change applies only to the correct activities.</p>
+
+<h2>Send the result</h2>
+<p>If you imported the project from a P6 connection, click <span class="ui">Project › Send Progress to P6</span> to send the progress directly. On a Stratum Server, an administrator can approve this update first (Chapter 10).</p>
+<p>To send the schedule back to P6 as a file, click <span class="ui">File › Export… (XER)</span>. To send it to Microsoft Project, click <span class="ui">File › Export… (Microsoft Project XML)</span>. To print, push <kbd>Ctrl</kbd>+<kbd>P</kbd>. Chapter 4 gives the procedures.</p>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 6 (The Project layout), Chapter 7 (The 4D layout), Chapter 10 (approval of updates to P6).</p>
+</section>
+<section class="chapter" id="project-layout">
+<h1><span class="num">6</span>The Project layout</h1>
+<p class="purpose">This chapter tells you how to use the Project layout. This layout has the same parts as Microsoft Project.</p>
+
+<h2>Parts of the Project layout</h2>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>File tab</td><td>Top left</td><td>Open, save, import, export and print (the Backstage view)</td></tr>
+<tr><td>Ribbon</td><td>Top</td><td>Task, Resource, Report, Project, View and Format tabs</td></tr>
+<tr><td>Timeline</td><td>Below the ribbon</td><td>A summary of the project dates</td></tr>
+<tr><td>Task sheet</td><td>Left</td><td>One row for each task</td></tr>
+<tr><td>Gantt chart</td><td>Right</td><td>One bar for each task</td></tr>
+<tr><td>Status bar</td><td>Bottom</td><td>The mode for new tasks, and the view buttons</td></tr>
+</table>
+<figure><img src="shots/layout-msp.png" alt="The Project layout with the ribbon, the task sheet and the Gantt chart"><figcaption><b>Figure 6-1.</b> The Project layout.</figcaption></figure>
+
+<h2>Make the tasks</h2>
+<h3>To add a task</h3>
+<ol class="steps">
+<li>Click the first empty row of the task sheet.</li>
+<li>Type the Task Name and push <kbd>Enter</kbd>.</li>
+<li>Type the Duration, for example <code>5d</code> or <code>2w</code>.</li>
+</ol>
+<p>To make a milestone, click <span class="ui">Task › Milestone</span>, or type a duration of <code>0d</code>.</p>
+<h3>To make a summary task</h3>
+<ol class="steps">
+<li>Select the tasks below the summary row.</li>
+<li>Push <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd>, or click the indent button on the <span class="ui">Task</span> tab.<span class="result">The row above becomes a summary task. Its bar starts at the first task and ends at the last task.</span></li>
+</ol>
+<h3>To link tasks</h3>
+<ol class="steps">
+<li>Select the tasks in the sequence of the work.</li>
+<li>Push <kbd>Ctrl</kbd>+<kbd>F2</kbd>, or click the link button on the <span class="ui">Task</span> tab.<span class="result">Each task becomes the predecessor of the next task (Finish-to-Start).</span></li>
+</ol>
+<p>You can also type the predecessors in the <span class="ui">Predecessors</span> column, for example <code>4FS+2d</code>.</p>
+
+<h2>Auto scheduled and manually scheduled tasks</h2>
+<p>An auto scheduled task gets its dates from the logic and the calendar. A manually scheduled task keeps the dates that you type. The scheduler does not move it.</p>
+<p>To change the mode, select the tasks and click <span class="ui">Task › Auto Schedule</span> or <span class="ui">Task › Manually Schedule</span>. The mode for new tasks shows on the status bar.</p>
+<div class="note">The P6 layout and the 4D layout show a manually scheduled task as an activity with fixed dates. If you export the project to XER, P6 schedules the task as usual.</div>
+
+<h2>Task information</h2>
+<p>Double-click a task, or push <kbd>Shift</kbd>+<kbd>F2</kbd>, to open the <span class="ui">Task Information</span> dialog. The dialog has these tabs: General, Predecessors, Resources, Advanced, Notes and Custom Fields.</p>
+<figure><img src="shots/msp-task-info.png" alt="The Task Information dialog"><figcaption><b>Figure 6-2.</b> The Task Information dialog.</figcaption></figure>
+<p>On the <span class="ui">Advanced</span> tab, you set the <span class="ui">Deadline</span>, the <span class="ui">Constraint type</span>, the <span class="ui">Task type</span> and <span class="ui">Effort driven</span>.</p>
+
+<h2>Work, duration and units</h2>
+<p>When you assign a resource to a task, the Project layout uses this rule: Work = Duration × Units. The task type tells which value stays the same when you change a different value. Figure 6-3 shows the three task types.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 280" role="img" aria-label="Work equals duration times units, by task type">
+  <style>.work-units--wu-h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.work-units--wu-s{font:12.5px Inter,sans-serif;fill:#1d2733}.work-units--wu-m{font:12px Inter,sans-serif;fill:#5d6b7a}.work-units--wu-b{font:700 22px Montserrat,sans-serif;fill:#0b2545}</style>
+  <rect width="960" height="280" rx="8" fill="#ebecef"/>
+  <text class="work-units--wu-b" x="480" y="44" text-anchor="middle">Work = Duration × Units</text>
+  <text class="work-units--wu-m" x="480" y="66" text-anchor="middle">The task type tells which value stays fixed when you change one of the others.</text>
+  <g transform="translate(24,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#355b7d"/>
+    <text class="work-units--wu-h" x="16" y="34">Fixed Units</text>
+    <text class="work-units--wu-s" x="16" y="62">Change Duration → Work changes</text>
+    <text class="work-units--wu-s" x="16" y="84">Change Units → Duration changes</text>
+    <text class="work-units--wu-s" x="16" y="106">Change Work → Duration changes</text>
+    <text class="work-units--wu-m" x="16" y="142">Default. The crew size stays the same.</text>
+  </g>
+  <g transform="translate(335,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#b8874f"/>
+    <text class="work-units--wu-h" x="16" y="34">Fixed Duration</text>
+    <text class="work-units--wu-s" x="16" y="62">Change Duration → Work changes</text>
+    <text class="work-units--wu-s" x="16" y="84">Change Units → Work changes</text>
+    <text class="work-units--wu-s" x="16" y="106">Change Work → Units change</text>
+    <text class="work-units--wu-m" x="16" y="142">For a curing time or a hire period.</text>
+  </g>
+  <g transform="translate(646,88)">
+    <rect width="290" height="168" rx="8" fill="#fff" stroke="#c9d1db"/><rect width="290" height="6" rx="3" fill="#e10600"/>
+    <text class="work-units--wu-h" x="16" y="34">Fixed Work</text>
+    <text class="work-units--wu-s" x="16" y="62">Change Duration → Units change</text>
+    <text class="work-units--wu-s" x="16" y="84">Change Units → Duration changes</text>
+    <text class="work-units--wu-s" x="16" y="106">Change Work → Duration changes</text>
+    <text class="work-units--wu-m" x="16" y="134">With Effort driven: add a resource,</text><text class="work-units--wu-m" x="16" y="150">the same work ends sooner.</text>
+  </g>
+</svg>
+<figcaption><b>Figure 6-3.</b> Work, duration and units for each task type.</figcaption></figure>
+<h3>To assign a resource</h3>
+<ol class="steps">
+<li>Select the task.</li>
+<li>Click <span class="ui">Resource › Assign Resources</span>.</li>
+<li>Select the resource and type the units, for example <code>200%</code> for two persons.</li>
+<li>Click <span class="ui">Assign</span>, then <span class="ui">Close</span>.</li>
+</ol>
+<p>To see the work of each resource for each day, click <span class="ui">View › Task Usage</span> or <span class="ui">View › Resource Usage</span>. To see the resources as rows with their tasks, click <span class="ui">View › Team Planner</span>.</p>
+<figure><img src="shots/msp-task-usage.png" alt="The Task Usage view"><figcaption><b>Figure 6-4.</b> The Task Usage view, with the work for each day.</figcaption></figure>
+<figure><img src="shots/msp-team-planner.png" alt="The Team Planner view"><figcaption><b>Figure 6-5.</b> The Team Planner view.</figcaption></figure>
+<p>A resource that has too much work shows in red. To find it, click <span class="ui">Resource › Next Overallocation</span>. To solve it, click <span class="ui">Resource › Level All</span>. To remove the result of the levelling, click <span class="ui">Resource › Clear Leveling</span>.</p>
+
+<h2>Calendars</h2>
+<h3>To change the work hours and the holidays</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Change Working Time</span>.</li>
+<li>Select the calendar.</li>
+<li>To add a holiday, type a <span class="ui">Name</span>, a <span class="ui">Start</span> and a <span class="ui">Finish</span> on the <span class="ui">Exceptions</span> tab.</li>
+<li>To change the work week, use the <span class="ui">Work Weeks</span> tab.</li>
+<li>Click <span class="ui">OK</span>.</li>
+</ol>
+<figure><img src="shots/msp-working-time.png" alt="The Change Working Time dialog"><figcaption><b>Figure 6-6.</b> The Change Working Time dialog.</figcaption></figure>
+
+<h2>Split tasks and repeated tasks</h2>
+<p>To stop a task and start it again later, click <span class="ui">Task › Split Task</span>. Then click in the bar at the point of the stop. The task gets a gap of one day at that point. Drag the second part of the bar to the new start date.</p>
+<p>To add a task that occurs at regular intervals, for example a weekly progress review, click <span class="ui">Task › Recurring Task</span>. Type the pattern and the number of occurrences.</p>
+
+<h2>Baseline and progress</h2>
+<h3>To set the baseline</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Set Baseline</span>.</li>
+<li>Select <span class="ui">Entire Project</span> or <span class="ui">Selected Tasks</span>.</li>
+<li>Click <span class="ui">OK</span>.</li>
+</ol>
+<h3>To update the project to a status date</h3>
+<ol class="steps">
+<li>Click <span class="ui">Project › Update Project</span>.</li>
+<li>Select <span class="ui">Update work as complete through</span> and type the date.</li>
+<li>Click <span class="ui">OK</span>.<span class="result">The tasks before the date show as complete. The tasks that cross the date show as in progress.</span></li>
+</ol>
+<p>To record the progress of one task, select the task and click <span class="ui">Task › Mark on Track</span>, or type the % Complete in the task sheet.</p>
+
+<h2>Save for Microsoft Project</h2>
+<p>To make a file for Microsoft Project, click <span class="ui">File › Save As</span> and select <span class="ui">Save as MS Project XML</span>. Microsoft Project opens this file directly.</p>
+<figure><img src="shots/msp-save-as.png" alt="Save As in the File tab"><figcaption><b>Figure 6-7.</b> Save As in the File tab.</figcaption></figure>
+<div class="note">The XML file keeps the tasks, the summary tasks, the logic, the calendars, the resources, the assignments, the baseline and the custom fields.</div>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 5 (The P6 layout).</p>
+</section>
+<section class="chapter" id="fourd-layout">
+<h1><span class="num">7</span>The 4D layout</h1>
+<p class="purpose">This chapter tells you how to link a 3D model to a schedule, and how to play, check and show the 4D simulation.</p>
+
+<h2>What a 4D simulation is</h2>
+<p>A 4D simulation shows the 3D model on the dates of the schedule. Each element of the model shows when its activity starts, and becomes complete when its activity finishes. You can see the sequence of the work before the work starts on site.</p>
+<p>Figure 7-1 shows the five steps to make a 4D simulation.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-label="How a 4D simulation is built">
+  <style>.fourd-flow--fd-h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.fourd-flow--fd-s{font:12px Inter,sans-serif;fill:#1d2733}.fourd-flow--fd-n{font:700 20px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="250" rx="8" fill="#ebecef"/>
+  <g stroke="#d4a574" stroke-width="3"><path d="M120 70H840"/></g>
+  <g>
+    <circle cx="120" cy="70" r="26" fill="#0b2545"/><text class="fourd-flow--fd-n" x="120" y="77" text-anchor="middle">1</text>
+    <circle cx="300" cy="70" r="26" fill="#183a63"/><text class="fourd-flow--fd-n" x="300" y="77" text-anchor="middle">2</text>
+    <circle cx="480" cy="70" r="26" fill="#355b7d"/><text class="fourd-flow--fd-n" x="480" y="77" text-anchor="middle">3</text>
+    <circle cx="660" cy="70" r="26" fill="#b8874f"/><text class="fourd-flow--fd-n" x="660" y="77" text-anchor="middle">4</text>
+    <circle cx="840" cy="70" r="26" fill="#e10600"/><text class="fourd-flow--fd-n" x="840" y="77" text-anchor="middle">5</text>
+  </g>
+  <g text-anchor="middle">
+    <text class="fourd-flow--fd-h" x="120" y="128">Schedule + model</text><text class="fourd-flow--fd-s" x="120" y="150">Import the XER or XML,</text><text class="fourd-flow--fd-s" x="120" y="166">then the 3D model.</text>
+    <text class="fourd-flow--fd-h" x="300" y="128">Link</text><text class="fourd-flow--fd-s" x="300" y="150">Rules (Auto-detect) or</text><text class="fourd-flow--fd-s" x="300" y="166">select in 3D › Link.</text>
+    <text class="fourd-flow--fd-h" x="480" y="128">Profiles</text><text class="fourd-flow--fd-s" x="480" y="150">Install, Remove, Temporary;</text><text class="fourd-flow--fd-s" x="480" y="166">growth bottom up, west → east.</text>
+    <text class="fourd-flow--fd-h" x="660" y="128">Play</text><text class="fourd-flow--fd-s" x="660" y="150">Timeline, speed, current</text><text class="fourd-flow--fd-s" x="660" y="166">or baseline dates.</text>
+    <text class="fourd-flow--fd-h" x="840" y="128">Explain</text><text class="fourd-flow--fd-s" x="840" y="150">Teardown, tour, video,</text><text class="fourd-flow--fd-s" x="840" y="166">quantities, dashboards.</text>
+  </g>
+  <text x="480" y="216" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">Check tab: unlinked elements, activities with nothing linked and broken links, before you show the simulation.</text>
+</svg>
+<figcaption><b>Figure 7-1.</b> The steps to make a 4D simulation.</figcaption></figure>
+
+<h2>Parts of the 4D layout</h2>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>3D view</td><td>Center</td><td>The model on the playback date</td></tr>
+<tr><td>Side panel</td><td>Right</td><td>Selection, Rules, Tools, Profiles, Display and Check tabs</td></tr>
+<tr><td>Gantt chart</td><td>Bottom</td><td>The activities, with a line on the playback date</td></tr>
+<tr><td>Playback bar</td><td>Below the 3D view</td><td>Play, pause, speed, and the buttons to go back or forward</td></tr>
+</table>
+<figure><img src="shots/layout-4d.png" alt="The 4D layout with the 3D view, the side panel and the Gantt chart"><figcaption><b>Figure 7-2.</b> The 4D layout.</figcaption></figure>
+
+<h2>Load the schedule and the model</h2>
+<ol class="steps">
+<li>Import the schedule (XER or XML). Chapter 4 gives the procedure.</li>
+<li>Click <span class="ui">Import model</span> on the toolbar, or <span class="ui">Import 3D model…</span> in the side panel.</li>
+<li>Select the model file and click <span class="ui">Open</span>.<span class="result">The model shows in the 3D view. Large models can take some minutes.</span></li>
+</ol>
+<table>
+<tr><th>Format</th><th>What Stratum 4D reads</th></tr>
+<tr><td>IFC (<code>.ifc</code>, IFC2x3 and IFC4)</td><td>Each building element, with its properties, quantities and storey</td></tr>
+<tr><td>glTF (<code>.glb</code>, <code>.gltf</code>)</td><td>Each mesh, with its name, its parent node and its custom properties ("extras")</td></tr>
+<tr><td>OBJ, STL, FBX</td><td>Each mesh, with its name. FBX also gives its custom properties.</td></tr>
+</table>
+<p>If the custom properties of a mesh have an identifier (for example <code>GlobalId</code>), Stratum 4D uses it. Then the links stay when you export the model again. A <code>.gltf</code> file must hold its data in the file. If it does not, export a <code>.glb</code> file.</p>
+<div class="note">If a model is very large, Stratum 4D thinks that it is in millimeters or centimeters. It then changes the scale to meters and tells you in the status bar.</div>
+<div class="note">To try the 4D layout without your own files, open <span class="ui">File</span> and select <span class="ui">Sample: 220 kV GIS substation (UAE)</span>.</div>
+
+<h2>Link the model to the schedule</h2>
+<p>Each link connects one element of the model to one activity. There are two methods: rules and manual links.</p>
+<h3>To link with rules</h3>
+<p>A rule compares a property of the element with a field of the activity. For example, the rule can link each element where the property <code>Zone</code> is the same as the activity code <code>Zone</code>.</p>
+<ol class="steps">
+<li>In the side panel, click the <span class="ui">Rules</span> tab.</li>
+<li>Click <span class="ui">Auto-detect</span>. Stratum 4D finds the properties that agree with the activity data and proposes rules.</li>
+<li>Examine the proposed rules. To make a different rule, click <span class="ui">New rule</span>.</li>
+<li>Click <span class="ui">Run all rules</span>.<span class="result">Stratum 4D makes the links and shows the number of linked elements.</span></li>
+</ol>
+<h3>To link the selected elements to an activity</h3>
+<ol class="steps">
+<li>In the side panel, click the <span class="ui">Selection</span> tab.</li>
+<li>Select the elements in the 3D view, or use <span class="ui">Select by property</span>.</li>
+<li>Select the activity in the Gantt chart.</li>
+<li>Under <span class="ui">Link selection to activity</span>, click <span class="ui">Link</span>.</li>
+</ol>
+<h3>To link with the keyboard</h3>
+<ol class="steps">
+<li>Select the elements in the 3D view.</li>
+<li>Select the activity in the Gantt chart.</li>
+<li>Push <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>.<span class="result">Stratum 4D links the elements to the activity. It uses the profile that you selected last on the <span class="ui">Selection</span> tab.</span></li>
+</ol>
+<div class="note">Stratum 4D keeps the links when you import a new update of the schedule. It finds each activity by its Activity ID.</div>
+
+<h2>Split an element into parts</h2>
+<p>A model element can be larger than one unit of work. For example, one slab can have three pours, and one wall can have bays and lifts. You can split the element in Stratum 4D. You do not have to change the model. Each part then links to its own activity.</p>
+<ol class="steps">
+<li>Select the element in the 3D view.</li>
+<li>In the side panel, click the <span class="ui">Tools</span> tab.</li>
+<li>Under <span class="ui">Split into pours / bays</span>, select the <span class="ui">Split type</span>:
+<ul>
+<li><span class="ui">Equal parts along one axis</span>: select the axis and type the number of parts.</li>
+<li><span class="ui">At positions along one axis (uneven)</span>: select the axis and type the cut positions in percent, for example <code>30, 60</code>.</li>
+<li><span class="ui">Grid: columns × rows × layers</span>: type the number of columns (X), rows (Z) and layers (height).</li>
+</ul></li>
+<li>Type a name for the parts, for example <code>Pour</code>.</li>
+<li>Click <span class="ui">Split selection</span>.<span class="result">The parts replace the element. The links of the element go to each part.</span></li>
+</ol>
+<p>To put the element back as one part, select a part and click <span class="ui">Unsplit</span>. A growth profile, for example <span class="ui">Bottom up</span>, grows each part in its own space.</p>
+
+<h2>Appearance profiles</h2>
+<p>An appearance profile tells how an element looks before, during and after its activity. Stratum 4D has these standard profiles:</p>
+<table>
+<tr><th>Profile</th><th>Before the activity</th><th>During the activity</th><th>After the activity</th></tr>
+<tr><td>Install</td><td>Not visible</td><td>Shows in the color of the work, and grows</td><td>Shows in its own color</td></tr>
+<tr><td>Remove</td><td>Shows in its own color</td><td>Shows in the color of the work</td><td>Not visible</td></tr>
+<tr><td>Temporary</td><td>Not visible</td><td>Visible, for example scaffolding</td><td>Not visible</td></tr>
+</table>
+<p>To change a profile, or to make a new profile, click the <span class="ui">Profiles</span> tab. Under <span class="ui">Appearance profiles</span>, you can set the colour, the transparency and the growth direction for each phase. For example, set the growth to <span class="ui">Bottom up</span> for a wall, or <span class="ui">West → east</span> for a slab.</p>
+
+<h2>Play the simulation</h2>
+<ol class="steps">
+<li>In the playback bar, click the play button, or push <kbd>Space</kbd>.<span class="result">The playback date moves forward. The model, the Gantt chart and the date change together.</span></li>
+<li>To change the speed, use <span class="ui">Speed</span>.</li>
+<li>To go to one date, drag the line in the Gantt chart, or use the back and forward buttons.</li>
+</ol>
+<p>On the <span class="ui">Display</span> tab, under <span class="ui">Dates to simulate</span>, select <span class="ui">Current schedule (actuals + forecast)</span> or <span class="ui">Baseline (P6 target dates)</span>. Play the two to compare the plan with the forecast. Under <span class="ui">Colour by</span>, select one of these modes:</p>
+<table>
+<tr><th>Mode</th><th>Colors</th></tr>
+<tr><td><span class="ui">Appearance profile</span></td><td>The colors of the profiles</td></tr>
+<tr><td><span class="ui">Activity status vs baseline</span></td><td>Not started, in progress, critical, late and complete</td></tr>
+<tr><td><span class="ui">Planned vs actual (ahead / behind)</span></td><td>Green if the work is ahead of the baseline, blue if it is on plan, red if it is behind. An element that the baseline has built, but the current schedule has not, shows in red.</td></tr>
+</table>
+
+<h2>Check the links</h2>
+<p>Do a check of the links before you show the simulation to other persons.</p>
+<ul>
+<li>On the <span class="ui">Display</span> tab, <span class="ui">Unlinked elements</span> shows the elements that have no activity.</li>
+<li>On the <span class="ui">Check</span> tab, you see the activities that have no elements, and <span class="ui">Broken links</span>. A broken link is a link to an activity or an element that is not in the project now.</li>
+</ul>
+<p>To remove all the links and start again, click <span class="ui">Clear all links</span> on the <span class="ui">Check</span> tab.</p>
+<div class="caution"><span class="ui">Clear all links</span> removes the manual links too. Rules can make the rule links again, but not the manual links.</div>
+
+<h2>Look at the model</h2>
+<p>The toolbar at the top right of the 3D view has these buttons:</p>
+<table>
+<tr><th>Button</th><th>Use</th></tr>
+<tr><td><span class="ui">Zoom All</span></td><td>Show the full model from the current direction</td></tr>
+<tr><td><span class="ui">View…</span></td><td>Look from a standard direction: isometric, top, front, back, left or right</td></tr>
+<tr><td><span class="ui">Sections</span></td><td>Cut the model with section planes or a section box</td></tr>
+<tr><td><span class="ui">Viewpoints</span></td><td>Save and show viewpoints</td></tr>
+<tr><td><span class="ui">Animation</span></td><td>Open the animation editor</td></tr>
+</table>
+<p>If the 3D view is narrow, the buttons show only their icons. Put the pointer on a button to see its name.</p>
+
+<h2>Section planes and the section box</h2>
+<p>A section plane cuts the model and removes one side. Use it to see inside a building, or under the ground. The section box keeps only the part of the model that is inside the box.</p>
+<h3>To add a section plane</h3>
+<ol class="steps">
+<li>Click <span class="ui">Sections</span>.</li>
+<li>Click <span class="ui">+ X</span>, <span class="ui">+ Height</span> or <span class="ui">+ Z</span>.<span class="result">A plane cuts the model across that direction.</span></li>
+<li>Move the slider to set the position of the plane.</li>
+<li>To keep the other side, click <span class="ui">⇄</span>.</li>
+</ol>
+<p>You can add more than one plane. To stop a plane for a short time, clear its check box. To remove it, click <span class="ui">×</span>.</p>
+<figure><img src="shots/4d-sections.png" alt="The Sections panel with a height plane and the legend"><figcaption><b>Figure 7-3.</b> A height plane cuts the roof off the GIS hall. The legend shows at the bottom left.</figcaption></figure>
+<h3>To use the section box</h3>
+<ol class="steps">
+<li>Click <span class="ui">Sections</span>.</li>
+<li>Select <span class="ui">Section box</span>.<span class="result">Two sliders show for each direction, for the two sides of the box. A red line shows the box.</span></li>
+<li>To put the box around the selected elements, click <span class="ui">Fit to selection</span>.</li>
+<li>Move the sliders to change the box.</li>
+</ol>
+<p>Select <span class="ui">Show the legend and date</span> to show the colors of the current mode and the playback date over the 3D view. To remove all planes and the box, click <span class="ui">Clear</span>.</p>
+
+<h2>Viewpoints</h2>
+<p>A viewpoint keeps the playback date, the camera, the section planes and box, the color mode and the dates to simulate. Use viewpoints to go back to the same picture after a schedule update, or to show important areas in a review with other persons.</p>
+<h3>To save a viewpoint</h3>
+<ol class="steps">
+<li>Set the date, the camera and the sections.</li>
+<li>Click <span class="ui">Viewpoints</span>.</li>
+<li>Click <span class="ui">Save viewpoint</span>.</li>
+<li>Type a name and click <span class="ui">OK</span>.</li>
+</ol>
+<figure><img src="shots/4d-viewpoints.png" alt="The Viewpoints panel with one viewpoint"><figcaption><b>Figure 7-4.</b> The Viewpoints panel.</figcaption></figure>
+<table>
+<tr><th>To</th><th>Do this</th></tr>
+<tr><td>Show a viewpoint</td><td>Click its name. The camera moves to the viewpoint.</td></tr>
+<tr><td>Replace a viewpoint with the current view</td><td>Click <span class="ui">Update</span>.</td></tr>
+<tr><td>Change the name</td><td>Click <span class="ui">Rename</span>.</td></tr>
+<tr><td>Save a picture</td><td>Click the image button. Stratum 4D saves a 1920 × 1080 PNG file with the name, the date and the legend.</td></tr>
+<tr><td>Remove a viewpoint</td><td>Click the delete button.</td></tr>
+</table>
+<p>Stratum 4D saves the viewpoints with the project.</p>
+
+<h2>Animations</h2>
+<p>An animation is a video of the 4D model that you make yourself. It has three channels of keys:</p>
+<ul>
+<li><b>Camera</b>: where the camera is, and what it looks at.</li>
+<li><b>Date</b>: the playback date at that time of the video.</li>
+<li><b>View</b>: the section planes, the section box, the color mode and the legend.</li>
+</ul>
+<p>Between two camera keys, the camera moves smoothly. Between two date keys, the date moves at a constant speed. A view key stays until the next view key.</p>
+<figure><img src="shots/4d-animation.png" alt="The animation editor with camera, date and view channels"><figcaption><b>Figure 7-5.</b> The animation editor. The red line shows the current time of the video.</figcaption></figure>
+<h3>To make an animation</h3>
+<ol class="steps">
+<li>Set the camera for the start of the video.</li>
+<li>Click <span class="ui">Animation</span>, then <span class="ui">New</span>.<span class="result">The new animation shows the full schedule in 30 seconds. It has one camera key and four date keys.</span></li>
+<li>To change the length, type the number of seconds in <span class="ui">Length</span>. The keys move with the length.</li>
+<li>Click the time scale to move the red line to a time of the video.</li>
+<li>Move the camera. Then click the <span class="ui">Camera</span> channel at the same time, or click <span class="ui">Key camera</span>.<span class="result">A blue key shows on the channel.</span></li>
+<li>Do steps 4 and 5 again for each camera position.</li>
+<li>To see the result, click <span class="ui">Preview</span>.</li>
+</ol>
+<h3>To change a key</h3>
+<ul>
+<li>To move a key to a different time, drag it.</li>
+<li>To remove a key, click it and click <span class="ui">Remove key</span>, or push <kbd>Del</kbd>.</li>
+<li>For a camera key, select how the camera moves to the next key: <span class="ui">Smooth</span>, <span class="ui">Linear</span> or <span class="ui">Jump</span>.</li>
+<li>To add a date key, set the playback date with the Gantt chart or the playback bar. Then click the <span class="ui">Date</span> channel.</li>
+<li>To add a view key, set the sections and the color mode. Then click the <span class="ui">View</span> channel.</li>
+</ul>
+<h3>To export an animation</h3>
+<ol class="steps">
+<li>Click <span class="ui">Export…</span>.</li>
+<li>Select the <span class="ui">Resolution</span> and the <span class="ui">Frame rate</span>.</li>
+<li>At <span class="ui">Output</span>, select <span class="ui">Video (WebM)</span>, or <span class="ui">Series of images (PNG, in a zip file)</span>.</li>
+<li>Select the options for the date, the legend and the ground grid.</li>
+<li>Click <span class="ui">Export</span>.<span class="result">A bar shows the progress. When the export is complete, Stratum 4D saves the file.</span></li>
+</ol>
+<figure><img src="shots/4d-export.png" alt="The export dialog of the animation editor"><figcaption><b>Figure 7-6.</b> The export dialog.</figcaption></figure>
+<div class="note">A video export takes about the length of the animation. Keep the window open until it is complete. On a slow computer, use the series of images. A video editor can join the images into a video.</div>
+<p>Stratum 4D saves the animations with the project.</p>
+
+<h2>Teardown</h2>
+<p>Teardown helps you explain the model to other persons. It moves the parts of the model apart, cuts the model, and shows the work under way. The playback date controls all of these at the same time.</p>
+<figure><img src="shots/4d-teardown.png" alt="The Teardown panel with the cut and the work under way"><figcaption><b>Figure 7-7.</b> Teardown, with a cut and the work under way.</figcaption></figure>
+<h3>To explode the model</h3>
+<ol class="steps">
+<li>Click the Teardown button in the 3D view.<span class="result">The Teardown panel opens.</span></li>
+<li>Under <span class="ui">Explode</span>, select <span class="ui">By storey</span> or <span class="ui">From centre</span>.</li>
+<li>Move the slider to the right.<span class="result">The parts of the model move apart.</span></li>
+</ol>
+<figure><img src="shots/4d-explode.png" alt="The model exploded by storey"><figcaption><b>Figure 7-8.</b> The model, exploded by storey.</figcaption></figure>
+<h3>To cut the model</h3>
+<ol class="steps">
+<li>Under <span class="ui">Cut</span>, select the axis: <span class="ui">X</span>, <span class="ui">Plan</span> or <span class="ui">Z</span>.</li>
+<li>Move the slider to set the position of the cut.</li>
+<li>To show the other side, click <span class="ui">⇄</span>.</li>
+</ol>
+<h3>To show the work under way</h3>
+<p>Select <span class="ui">Work under way</span>. The elements of the activities in progress keep their colors. All other elements become gray. Activities that are longer than 40% of the project do not get this accent, because they would cover the full model.</p>
+<h3>To run a tour</h3>
+<ol class="steps">
+<li>Click <span class="ui">Start tour</span>.<span class="result">The camera moves from one part of the work to the next, and the playback date moves forward.</span></li>
+<li>To take control, move the mouse or push a key. The tour stops.<span class="result">The tour starts again after 25 seconds with no input.</span></li>
+<li>To stop the tour, click <span class="ui">Stop tour</span>.</li>
+</ol>
+<h3>To record a video</h3>
+<ol class="steps">
+<li>Click <span class="ui">Record tour</span>.<span class="result">Stratum 4D records the 3D view and the live panel.</span></li>
+<li>Click <span class="ui">Stop</span>.<span class="result">Stratum 4D saves the video file.</span></li>
+</ol>
+<p>To record the playback without the tour, click the record button on the toolbar.</p>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 5 (The P6 layout).</p>
+</section>
+<section class="chapter" id="dashboards-reports">
+<h1><span class="num">8</span>Dashboards and reports</h1>
+<p class="purpose">This chapter tells you how to make a dashboard, change it, and send it as a PDF, Excel or PowerPoint report.</p>
+
+<h2>Open the Reports view</h2>
+<p>Click <span class="ui">Reports</span> on the layout switch at the top of the window, or push <kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd>. In the P6 layout, you can also click <span class="ui">Reports and Dashboards</span> in the menu.</p>
+<p>The left column shows your dashboards. Below them, under <span class="ui">New</span>, are the <span class="ui">Dashboard wizard…</span> and the templates.</p>
+<figure><img src="shots/dash-start.png" alt="The Reports view with the list of templates"><figcaption><b>Figure 8-1.</b> The Reports view before you make a dashboard.</figcaption></figure>
+<table>
+<tr><th>Template</th><th>Contents</th></tr>
+<tr><td>Project control – summary</td><td>Key dates, weighted %, durations and a table by discipline</td></tr>
+<tr><td>Project control – S-curve</td><td>Weight % curves with monthly bars, slicers and a date slider</td></tr>
+<tr><td>Planning dashboard</td><td>Gauges, milestones, look-ahead and curves for each phase</td></tr>
+<tr><td>Progress report (EPC style)</td><td>Key figures, weighted progress and S-curve</td></tr>
+<tr><td>Project status</td><td>KPIs, S-curve, critical work and late work</td></tr>
+<tr><td>Schedule health and execution</td><td>BEI, CPLI, SPI(t), PPC, starts and finishes on time, and the DCMA 14-point checks</td></tr>
+<tr><td>Blank dashboard</td><td>No widgets. You add them from the widget gallery.</td></tr>
+</table>
+
+<h2>Make a dashboard with the wizard</h2>
+<p>The wizard makes sure that the data is ready before it makes the dashboard. Figure 8-2 shows the steps.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 270" role="img" aria-label="From a schedule to a dashboard and its reports">
+  <style>.dashboard-flow--t{font:700 17px Montserrat,sans-serif;fill:#0b2545}.dashboard-flow--h{font:700 13.5px Montserrat,sans-serif;fill:#fff}.dashboard-flow--s{font:11.5px Inter,sans-serif;fill:#dfe6ee}.dashboard-flow--o{font:600 12.5px Inter,sans-serif;fill:#0b2545}.dashboard-flow--m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="270" rx="8" fill="#ebecef"/>
+  <text class="dashboard-flow--t" x="24" y="34">Dashboard wizard, then the outputs</text>
+  <g>
+    <rect x="24" y="58" width="132" height="66" rx="8" fill="#0b2545"/><text class="dashboard-flow--h" x="90" y="86" text-anchor="middle">1 Project</text><text class="dashboard-flow--s" x="90" y="106" text-anchor="middle">open or saved</text>
+    <rect x="170" y="58" width="132" height="66" rx="8" fill="#183a63"/><text class="dashboard-flow--h" x="236" y="86" text-anchor="middle">2 Baseline</text><text class="dashboard-flow--s" x="236" y="106" text-anchor="middle">to compare with</text>
+    <rect x="316" y="58" width="132" height="66" rx="8" fill="#355b7d"/><text class="dashboard-flow--h" x="382" y="86" text-anchor="middle">3 Template</text><text class="dashboard-flow--s" x="382" y="106" text-anchor="middle">or blank</text>
+    <rect x="462" y="58" width="132" height="66" rx="8" fill="#b8874f"/><text class="dashboard-flow--h" x="528" y="86" text-anchor="middle">4 Check</text><text class="dashboard-flow--s" x="528" y="106" text-anchor="middle">prerequisites</text>
+    <rect x="628" y="50" width="308" height="82" rx="10" fill="#fff" stroke="#e10600" stroke-width="2"/>
+    <text x="782" y="84" text-anchor="middle" style="font:700 16px Montserrat,sans-serif;fill:#e10600">Dashboard</text>
+    <text class="dashboard-flow--m" x="782" y="106" text-anchor="middle">Customise: widgets, slicers, page and theme</text>
+  </g>
+  <g fill="#d4a574"><path d="M157 88l10 3-10 3zM303 88l10 3-10 3zM449 88l10 3-10 3zM596 88l26 3-26 3z"/></g>
+  <g stroke="#d4a574" stroke-width="2.5" fill="none"><path d="M690 132v40M760 132v40M830 132v40M900 132v40"/></g>
+  <g>
+    <rect x="652" y="172" width="76" height="34" rx="6" fill="#fff" stroke="#c9d1db"/><text class="dashboard-flow--o" x="690" y="194" text-anchor="middle">PDF</text>
+    <rect x="722" y="214" width="76" height="34" rx="6" fill="#fff" stroke="#c9d1db"/><text class="dashboard-flow--o" x="760" y="236" text-anchor="middle">Excel</text>
+    <rect x="782" y="172" width="96" height="34" rx="6" fill="#fff" stroke="#c9d1db"/><text class="dashboard-flow--o" x="830" y="194" text-anchor="middle">PowerPoint</text>
+    <rect x="862" y="214" width="76" height="34" rx="6" fill="#fff" stroke="#c9d1db"/><text class="dashboard-flow--o" x="900" y="236" text-anchor="middle">Email</text>
+  </g>
+  <text class="dashboard-flow--m" x="24" y="166">A widget that compares with a baseline shows</text>
+  <text class="dashboard-flow--m" x="24" y="184">"Needs a baseline" until step 4 passes.</text>
+  <text class="dashboard-flow--m" x="24" y="220">Email on a schedule needs the desktop application</text>
+  <text class="dashboard-flow--m" x="24" y="238">or Stratum Server.</text>
+</svg>
+<figcaption><b>Figure 8-2.</b> From the wizard to the reports.</figcaption></figure>
+<ol class="steps">
+<li>Open the project that you want to report on.</li>
+<li>Click <span class="ui">Dashboard wizard…</span>.</li>
+<li>At <span class="ui">Project</span>, select the project. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Baseline</span>, select the baseline to compare with. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Template</span>, select a template, or <span class="ui">Blank dashboard</span>. Click <span class="ui">Next</span>.</li>
+<li>At <span class="ui">Check</span>, read the result of each check.<span class="result">Each check shows what to do if it does not pass.</span></li>
+<li>Click <span class="ui">Create dashboard</span>, or <span class="ui">Create anyway</span>.<span class="result">The dashboard opens, ready for changes.</span></li>
+</ol>
+<figure><img src="shots/dash-wizard.png" alt="The Template step of the dashboard wizard"><figcaption><b>Figure 8-3.</b> The Template step of the dashboard wizard.</figcaption></figure>
+<p>The wizard does a check of the baseline, the data date, the calculation, the progress, the costs and the logic. If a check does not pass, the button changes to <span class="ui">Create anyway</span>. Then the widgets that compare with the baseline show <span class="ui">Needs a baseline</span>, not incorrect numbers.</p>
+<div class="note">To make a dashboard without the wizard, click a template in the left column. To change the project or the baseline later, click <span class="ui">More › Setup: project and baseline…</span>.</div>
+
+<h2>Read a dashboard</h2>
+<figure><img src="shots/dash-view.png" alt="A Project status dashboard"><figcaption><b>Figure 8-4.</b> A dashboard made from the Project status template.</figcaption></figure>
+<ul>
+<li>The bar at the top of the dashboard shows the <span class="ui">Baseline</span> and the result of the checks.</li>
+<li>The list next to the name selects the project that the dashboard shows.</li>
+<li>If the dashboard has slicers, click a value to filter all the widgets. To remove all filters, click the button to clear every slicer selection.</li>
+<li>Put the pointer on a chart to see the values.</li>
+</ul>
+
+<h2>Change a dashboard</h2>
+<ol class="steps">
+<li>Click <span class="ui">Customise</span>.<span class="result">The panel on the right shows the <span class="ui">Add widget</span> and <span class="ui">Page &amp; theme</span> tabs.</span></li>
+<li>To add a widget, click it in the <span class="ui">Add widget</span> tab. If the panel shows a widget, click <span class="ui">Add / Page</span> first.</li>
+<li>To move a widget, drag its handle at the top left.</li>
+<li>To change the size of a widget, drag its bottom right corner.</li>
+<li>To change the data of a widget, click the widget. Then change its settings in the panel.</li>
+<li>To change the header, the logo and the colors, use the <span class="ui">Page &amp; theme</span> tab.</li>
+<li>Click <span class="ui">Done</span>.</li>
+</ol>
+<figure><img src="shots/dash-edit.png" alt="A dashboard in edit mode, with the widget gallery"><figcaption><b>Figure 8-5.</b> A dashboard in edit mode, with the widget gallery on the right.</figcaption></figure>
+<p>Stratum 4D saves each change immediately. To go back one step, push <kbd>Ctrl</kbd>+<kbd>Z</kbd>.</p>
+<h3>To use a dashboard again</h3>
+<ul>
+<li><span class="ui">More › Duplicate dashboard</span> makes a copy.</li>
+<li><span class="ui">More › Save as template</span> adds the dashboard to <span class="ui">My templates</span>.</li>
+<li><span class="ui">More › Export dashboard file (.json)</span> makes a file for a different person. That person uses <span class="ui">Import…</span> to add it.</li>
+</ul>
+
+<h2>Make a report</h2>
+<table>
+<tr><th>Click</th><th>Result</th></tr>
+<tr><td><span class="ui">PDF</span></td><td>The print dialog. Select "Save as PDF" to make a PDF file.</td></tr>
+<tr><td><span class="ui">Excel</span></td><td>An Excel workbook with the data of each widget</td></tr>
+<tr><td><span class="ui">PowerPoint</span></td><td>A presentation with a title slide and one slide for each chart or table. The charts and tables are PowerPoint charts and tables, so you can change them.</td></tr>
+<tr><td><span class="ui">Email</span></td><td>The <span class="ui">Email reports</span> panel</td></tr>
+</table>
+
+<h2>Send reports by email on a schedule</h2>
+<p>The desktop application or Stratum Server can send a dashboard by email each day, week or month. The web application cannot do this. In the web application, make the PDF or the Excel file and send it yourself.</p>
+<div class="note">The desktop application sends the email only while it is open. If it was closed at the time of a send, it sends the email the next time you start it.</div>
+<h3>To set the mail server</h3>
+<ol class="steps">
+<li>Open <span class="ui">Settings</span>.</li>
+<li>Click the <span class="ui">Email</span> tab.</li>
+<li>Type the data of your mail server. Your IT department can give you this data.</li>
+</ol>
+<h3>To add an email schedule</h3>
+<ol class="steps">
+<li>Open the dashboard and click <span class="ui">Email</span>.</li>
+<li>Click <span class="ui">+ New email schedule</span>.</li>
+<li>Type the <span class="ui">Name</span> and select the <span class="ui">Project (reports need a saved project)</span>.</li>
+<li>In <span class="ui">To (separate with ; or ,)</span> and <span class="ui">Cc</span>, type the email addresses.</li>
+<li>Type the <span class="ui">Subject</span> and the <span class="ui">Message</span>. You can use <code>{project}</code>, <code>{date}</code> and <code>{datadate}</code> in the text.</li>
+<li>Select <span class="ui">Daily</span>, <span class="ui">Weekly</span> or <span class="ui">Monthly</span>, and the time.</li>
+<li>Select <span class="ui">PDF of the dashboard</span>, <span class="ui">Excel workbook</span> or the two.</li>
+<li>Make sure that <span class="ui">Enabled</span> is selected. Click <span class="ui">Save schedule</span>.</li>
+</ol>
+<p>Each schedule shows the time of the next send and the result of the last send. To send a report immediately, click <span class="ui">send now</span> on the schedule.</p>
+<p class="related">Related: Chapter 5 (baselines), Chapter 9 (AI assistants).</p>
+</section>
+<section class="chapter" id="ai-assistants">
+<h1><span class="num">9</span>AI assistants (MCP)</h1>
+<p class="purpose">This chapter tells you how to connect an AI assistant to Stratum 4D, and what the assistant can do with your schedules.</p>
+
+<h2>What the MCP server does</h2>
+<p>MCP (Model Context Protocol) is a standard that lets an AI assistant use tools on your computer. The Stratum MCP server gives the assistant the Stratum 4D engine. You ask a question in usual words, for example "Open the last XER and tell me what slipped". The assistant then uses the Stratum tools to find the answer.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" role="img" aria-label="How an AI assistant uses Stratum 4D through MCP">
+  <style>.mcp-flow--h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.mcp-flow--w{font:700 15px Montserrat,sans-serif;fill:#fff}.mcp-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.mcp-flow--sw{font:12px Inter,sans-serif;fill:#dfe6ee}.mcp-flow--m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="260" rx="8" fill="#ebecef"/>
+  <rect x="16" y="16" width="928" height="196" rx="10" fill="none" stroke="#9aa5b1" stroke-dasharray="6 5"/>
+  <text class="mcp-flow--m" x="32" y="38">Your computer</text>
+  <g>
+    <rect x="40" y="60" width="230" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="155" y="92" text-anchor="middle">AI assistant app</text>
+    <text class="mcp-flow--s" x="155" y="116" text-anchor="middle">Claude Desktop, Claude Code</text>
+    <text class="mcp-flow--s" x="155" y="134" text-anchor="middle">or other MCP client</text>
+    <text class="mcp-flow--m" x="155" y="160" text-anchor="middle">Shows each tool call to you</text>
+    <rect x="365" y="60" width="230" height="120" rx="10" fill="#0b2545"/>
+    <text class="mcp-flow--w" x="480" y="92" text-anchor="middle">Stratum MCP server</text>
+    <text class="mcp-flow--sw" x="480" y="116" text-anchor="middle">node stratum-mcp.cjs</text>
+    <text class="mcp-flow--sw" x="480" y="134" text-anchor="middle">The Stratum 4D engine:</text>
+    <text class="mcp-flow--sw" x="480" y="152" text-anchor="middle">schedule, KPIs, checks, compare</text>
+    <rect x="690" y="60" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="805" y="84" text-anchor="middle">Schedule files</text>
+    <text class="mcp-flow--s" x="805" y="104" text-anchor="middle">.xer  .xml  .stratum.json</text>
+    <rect x="690" y="124" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="805" y="148" text-anchor="middle">Project database</text>
+    <text class="mcp-flow--s" x="805" y="168" text-anchor="middle">stratum.db (desktop app)</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M272 110h88M360 130h-88M597 88h88M597 152h88"/></g>
+  <g fill="#d4a574"><path d="M360 104l10 6-10 6zM272 124l-10 6 10 6zM685 82l10 6-10 6zM685 146l10 6-10 6z"/></g>
+  <text class="mcp-flow--m" x="316" y="102" text-anchor="middle">tool call</text>
+  <text class="mcp-flow--m" x="316" y="150" text-anchor="middle">result</text>
+  <text class="mcp-flow--m" x="480" y="240" text-anchor="middle">The server sends nothing to other computers. Your assistant app sends your question and the results to its AI service.</text>
+</svg>
+<figcaption><b>Figure 9-1.</b> The assistant, the Stratum MCP server and your data.</figcaption></figure>
+<div class="caution">The Stratum MCP server sends no data to other computers. But the assistant application sends your questions and the tool results to its AI service. Obey the data rules of your company before you use an assistant with project data.</div>
+
+<h2>What the assistant can do</h2>
+<table>
+<tr><th>Tool</th><th>Use</th></tr>
+<tr><td><code>open_file</code></td><td>Open a P6 <code>.xer</code>, a Microsoft Project <code>.xml</code> or a <code>.stratum.json</code> file</td></tr>
+<tr><td><code>list_projects</code>, <code>open_project</code></td><td>List and open the projects in the database of the desktop application</td></tr>
+<tr><td><code>summary</code>, <code>list_open</code></td><td>Dates, counts, status and critical activities of an open schedule</td></tr>
+<tr><td><code>list_activities</code>, <code>get_activity</code></td><td>Find activities by text, status, dates or float, and show all data of one activity</td></tr>
+<tr><td><code>schedule</code></td><td>Calculate the schedule (F9), with a new data date if necessary</td></tr>
+<tr><td><code>critical_path</code>, <code>lookahead</code></td><td>The critical path, and the work that starts or finishes in the next days</td></tr>
+<tr><td><code>kpis</code>, <code>kpi_activities</code></td><td>SPI, CPI, BEI, finish variance and the DCMA checks, with the activities of each count</td></tr>
+<tr><td><code>check_schedule</code></td><td>The quality check of Chapter 5</td></tr>
+<tr><td><code>compare</code></td><td>The changes between two schedules</td></tr>
+<tr><td><code>update_activity</code>, <code>update_progress</code></td><td>Record the progress of one activity, or update all activities as planned to a new data date</td></tr>
+<tr><td><code>export</code></td><td>Make a P6 XER, a Microsoft Project XML, a CSV or a Stratum file</td></tr>
+<tr><td><code>save_project</code></td><td>Save the project in the database as a new version</td></tr>
+</table>
+
+<h2>Install the MCP server</h2>
+<p>You must have Node.js 20 or a newer version. You can get it from nodejs.org.</p>
+<ol class="steps">
+<li>On the release page of Stratum 4D, download the file <code>Stratum-4D-&lt;version&gt;-mcp.zip</code>.</li>
+<li>Extract the file to a folder that you keep, for example <code>C:\Stratum\mcp</code>.</li>
+<li>Make sure that <code>stratum-mcp.cjs</code> and <code>sql-wasm.wasm</code> are in the same folder.</li>
+</ol>
+<h3>To connect Claude Desktop</h3>
+<ol class="steps">
+<li>In Claude Desktop, click <span class="ui">Settings › Developer › Edit Config</span>.<span class="result">The file <code>claude_desktop_config.json</code> opens.</span></li>
+<li>Add the lines that follow. Use your folder. On Windows, write each <code>\</code> two times.
+<pre><code>{
+  "mcpServers": {
+    "stratum-4d": {
+      "command": "node",
+      "args": ["C:\\Stratum\\mcp\\stratum-mcp.cjs"]
+    }
+  }
+}</code></pre></li>
+<li>Save the file and start Claude Desktop again.<span class="result">The tools list of the chat shows the Stratum tools.</span></li>
+</ol>
+<h3>To connect Claude Code</h3>
+<p>Type this command. Use your folder.</p>
+<pre><code>claude mcp add stratum-4d -- node /path/to/stratum-mcp.cjs</code></pre>
+<p>Add <code>--scope user</code> to use the server in all your projects. For a different MCP client, start <code>node stratum-mcp.cjs</code> as a stdio server.</p>
+
+<h2>The project database</h2>
+<p>The MCP server finds the database of the desktop application at these locations:</p>
+<table>
+<tr><th>System</th><th>File</th></tr>
+<tr><td>Windows</td><td><code>%APPDATA%\Stratum 4D\stratum.db</code></td></tr>
+<tr><td>macOS</td><td><code>~/Library/Application Support/Stratum 4D/stratum.db</code></td></tr>
+<tr><td>Linux</td><td><code>~/.config/Stratum 4D/stratum.db</code></td></tr>
+</table>
+<p>To use a different file, set the environment variable <code>STRATUM_DB</code> in the configuration of the server.</p>
+<div class="caution">Close the desktop application before you tell the assistant to save a project. If the two save at the same time, one of the saves can fail. Reading is safe while the desktop application is open.</div>
+
+<h2>Safety settings of the MCP server</h2>
+<p>The text in a schedule file comes from other persons. A person can write an instruction to an assistant in an activity name or a note. The Stratum MCP server tells the assistant that this text is data, not an instruction. If a result contains text that looks like an instruction, the server adds a note to the result.</p>
+<p>The server also writes each tool call to a log file on your computer: <code>~/.stratum/mcp-ledger.jsonl</code>. Each line contains a fingerprint of the line before it. Thus a changed line or a removed line shows when you check the file.</p>
+<table>
+<tr><th>Setting (environment variable)</th><th>Effect</th></tr>
+<tr><td><code>STRATUM_MCP_READONLY=1</code></td><td>The server does not write files or the database. <code>export</code> and <code>save_project</code> stop with a message.</td></tr>
+<tr><td><code>STRATUM_MCP_ROOTS</code></td><td>The server reads and writes files only in these folders. On Windows, put <code>;</code> between the folders.</td></tr>
+<tr><td><code>STRATUM_MCP_LEDGER</code></td><td>A different file for the log of tool calls, or <code>off</code> to stop the log</td></tr>
+</table>
+<h3>To set the safety settings for Claude Desktop</h3>
+<ol class="steps">
+<li>Open <code>claude_desktop_config.json</code> as in the procedure above.</li>
+<li>Add an <code>env</code> part to the <code>stratum-4d</code> server. Use your folders.
+<pre><code>"stratum-4d": {
+  "command": "node",
+  "args": ["C:\\Stratum\\mcp\\stratum-mcp.cjs"],
+  "env": {
+    "STRATUM_MCP_ROOTS": "C:\\Projects\\Schedules",
+    "STRATUM_MCP_READONLY": "1"
+  }
+}</code></pre></li>
+<li>Save the file and start Claude Desktop again.</li>
+</ol>
+<h3>To check the log of tool calls</h3>
+<ol class="steps">
+<li>Open a terminal in the folder of the MCP server.</li>
+<li>Type <code>node stratum-mcp.cjs --verify-ledger</code>.<span class="result">The result shows the number of entries, and <code>intact</code> or the first entry that is not correct.</span></li>
+</ol>
+<div class="caution">These settings make a hidden instruction easy to see. They cannot stop all of them. Do not let <code>export</code> and <code>save_project</code> run without a question.</div>
+
+<h2>Examples of questions</h2>
+<ul>
+<li>"Open <code>C:\Schedules\Update 12.xer</code>. What is the finish date? Which activities are on the critical path?"</li>
+<li>"Compare update 11 and update 12. Which activities slipped more than 5 days?"</li>
+<li>"Do a schedule check and list the open activities that have no successor."</li>
+<li>"Give me a three-week look-ahead for the civil works."</li>
+<li>"Set C-4010 to 60% complete with an actual start of 3 November. Update the progress to 10 November, schedule, and export an XER."</li>
+</ul>
+<p>The assistant application shows each tool call before it runs, unless you let the tool run without a question. Do a check of each change before you let it run.</p>
+<p class="related">Related: Chapter 4 (where the database is), Chapter 5 (schedule check and compare), Chapter 10 (security of Stratum Server).</p>
+</section>
+<section class="chapter" id="server-security">
+<h1><span class="num">10</span>Stratum Server: users, security and AiSOC</h1>
+<p class="purpose">This chapter is for the administrator of a Stratum Server. It tells you how to manage users, approve updates to P6, read the audit log, and connect the server to AiSOC.</p>
+
+<h2>Users and roles</h2>
+<p>Each person signs in to Stratum Server with an email address and a password. The role of the user sets what the user can do.</p>
+<table>
+<tr><th>Role</th><th>What the user can do</th></tr>
+<tr><td>Admin</td><td>All work. Manage users, settings, security, approvals and the AiSOC connection.</td></tr>
+<tr><td>Planner</td><td>Change projects, dashboards and reports. Ask for an update to P6.</td></tr>
+<tr><td>Viewer</td><td>Read projects and dashboards. Get reports by email.</td></tr>
+</table>
+<h3>To add or change a user</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">Users</span> tab.</li>
+<li>Click <span class="ui">+ Add user</span>, or click <span class="ui">edit</span> on the line of the user.</li>
+<li>Type the name and the email address. Select the role.</li>
+<li>For a new user, type a password of 8 characters or more.</li>
+<li>In <span class="ui">Reason</span>, type why you make the change.<span class="result">The audit log keeps the reason.</span></li>
+<li>Click <span class="ui">Save</span>.</li>
+</ol>
+<div class="note">A new password or a new role stops the other sessions of the user at once. The user must sign in again.</div>
+<div class="caution">The server must have one admin at all times. You cannot remove the only admin, or change the role of the only admin. First, make a different user an admin.</div>
+
+<h2>Sign-in protection</h2>
+<p>After 5 incorrect passwords from one computer, Stratum Server locks the sign-in of that account from that computer for 15 minutes. After 10 incorrect passwords from all computers, it locks the account for 15 minutes. The sign-in page shows the time to wait. Each incorrect password and each lock goes into the audit log.</p>
+<div class="note">If the server is behind a reverse proxy, set <code>STRATUM_TRUST_PROXY=1</code> on the server. Then the server sees the address of each user, not the address of the proxy.</div>
+
+<h2>Approve updates to P6</h2>
+<p>An update to P6 changes data in a different system. Thus Stratum Server can keep each update until an administrator approves it. The administrator sees what the update contains, and approves only that content.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-label="How an update to P6 is approved on Stratum Server">
+  <style>.approval-flow--h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.approval-flow--w{font:700 15px Montserrat,sans-serif;fill:#fff}.approval-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.approval-flow--sw{font:12px Inter,sans-serif;fill:#dfe6ee}.approval-flow--m{font:12px Inter,sans-serif;fill:#5d6b7a}.approval-flow--n{font:700 13px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="250" rx="8" fill="#ebecef"/>
+  <g>
+    <rect x="24" y="40" width="190" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="48" cy="64" r="13" fill="#d4a574"/><text class="approval-flow--n" x="48" y="69" text-anchor="middle">1</text>
+    <text class="approval-flow--h" x="119" y="98" text-anchor="middle">Planner</text>
+    <text class="approval-flow--s" x="119" y="120" text-anchor="middle">Clicks Update P6</text>
+    <text class="approval-flow--m" x="119" y="140" text-anchor="middle">"Sent for approval"</text>
+    <rect x="262" y="40" width="200" height="120" rx="10" fill="#0b2545"/>
+    <circle cx="286" cy="64" r="13" fill="#d4a574"/><text class="approval-flow--n" x="286" y="69" text-anchor="middle">2</text>
+    <text class="approval-flow--w" x="362" y="98" text-anchor="middle">Stratum Server</text>
+    <text class="approval-flow--sw" x="362" y="120" text-anchor="middle">Keeps the exact update</text>
+    <text class="approval-flow--sw" x="362" y="138" text-anchor="middle">and its SHA-256 fingerprint</text>
+    <rect x="510" y="40" width="200" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="534" cy="64" r="13" fill="#d4a574"/><text class="approval-flow--n" x="534" y="69" text-anchor="middle">3</text>
+    <text class="approval-flow--h" x="610" y="98" text-anchor="middle">Administrator</text>
+    <text class="approval-flow--s" x="610" y="120" text-anchor="middle">Settings › Security</text>
+    <text class="approval-flow--m" x="610" y="140" text-anchor="middle">Review, approve or reject</text>
+    <rect x="758" y="40" width="178" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <circle cx="782" cy="64" r="13" fill="#d4a574"/><text class="approval-flow--n" x="782" y="69" text-anchor="middle">4</text>
+    <text class="approval-flow--h" x="847" y="98" text-anchor="middle">Primavera P6</text>
+    <text class="approval-flow--s" x="847" y="120" text-anchor="middle">Gets the progress</text>
+    <text class="approval-flow--m" x="847" y="140" text-anchor="middle">only after approval</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M216 100h40M464 100h40M712 100h40"/></g>
+  <g fill="#d4a574"><path d="M256 94l10 6-10 6zM504 94l10 6-10 6zM752 94l10 6-10 6z"/></g>
+  <rect x="262" y="186" width="448" height="40" rx="8" fill="#fff" stroke="#c9d1db" stroke-dasharray="5 4"/>
+  <text class="approval-flow--s" x="486" y="211" text-anchor="middle">Audit log: request, decision, reason and the push, each in one entry</text>
+  <g stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-dasharray="4 4"><path d="M362 160v24M610 160v24"/></g>
+</svg>
+<figcaption><b>Figure 10-1.</b> How an update to P6 is approved.</figcaption></figure>
+<table>
+<tr><th>Rule (Settings › Security)</th><th>Planner</th><th>Admin</th></tr>
+<tr><td>Planners ask; an admin approves</td><td>The update waits for approval.</td><td>The update goes to P6 at once.</td></tr>
+<tr><td>Everyone asks; an admin other than the requester approves</td><td>The update waits for approval.</td><td>The update waits. A different admin must approve it.</td></tr>
+<tr><td>No approval</td><td>The update goes to P6 at once.</td><td>The update goes to P6 at once.</td></tr>
+</table>
+<p>The first rule is the default.</p>
+<h3>To set the rule</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">Security</span> tab.</li>
+<li>In <span class="ui">Sending progress to Primavera P6</span>, select the rule.<span class="result">The server saves the rule at once. The audit log keeps the old rule and the new rule.</span></li>
+</ol>
+<h3>To ask for an update (planner)</h3>
+<ol class="steps">
+<li>Open the project that you imported from P6.</li>
+<li>In the P6 layout, click <span class="ui">Project › Send Progress to P6</span>. In the other layouts, click <span class="ui">Update P6</span>.</li>
+<li>Click <span class="ui">OK</span>.<span class="result">The status bar shows <span class="ui">Sent for approval</span>. Nothing goes to P6 yet.</span></li>
+</ol>
+<h3>To approve or reject an update (admin)</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">Security</span> tab.<span class="result">The table shows the requests that wait.</span></li>
+<li>Click <span class="ui">review</span> on the line of the request.</li>
+<li>Read the summary: the project, the number of activities, the started and finished activities, and the data date.</li>
+<li>To send the update, click <span class="ui">Approve and send</span>.<span class="result">Stratum Server sends the progress to P6 and shows the number of activities.</span></li>
+<li>To stop the update, type a reason. Then click <span class="ui">Reject</span>.</li>
+</ol>
+<figure><img src="shots/server-approval.png" alt="The Security tab with a request for an update to P6"><figcaption><b>Figure 10-2.</b> A request for an update to P6, ready for review.</figcaption></figure>
+<div class="note">The request keeps a fingerprint (SHA-256) of the update. If a person changes the stored update after the request, the server does not approve it. The requester can cancel their own request.</div>
+
+<h2>The audit log</h2>
+<p>The audit log is a list of all sign-ins and all changes on the server. Each entry has the time, the user, the computer address, the action and the details. Passwords are not in the log. The log records only that a password changed.</p>
+<p>Each entry contains a fingerprint of the entry before it. Thus a changed entry or a removed entry breaks the chain, and a check of the log finds it. The database also refuses to change the entries.</p>
+<figure><img src="shots/server-audit.png" alt="The audit log on the Security tab"><figcaption><b>Figure 10-3.</b> The audit log after a check.</figcaption></figure>
+<h3>To read and check the audit log</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">Security</span> tab.</li>
+<li>In <span class="ui">Show</span>, select the type of entries, for example <span class="ui">Sign-ins</span>.</li>
+<li>Click <span class="ui">Verify the log</span>.<span class="result">A green line shows that all entries are correct. A red line shows the first entry that is not correct.</span></li>
+<li>To give the log to an auditor, click <span class="ui">Export CSV</span>.</li>
+</ol>
+<div class="caution">If the check shows a red line, do not change the database. Tell your security team. Keep a copy of the database and of the server log for the investigation.</div>
+<p>Stratum Server also checks the log when it starts and one time each day. It writes the result and the last entry to its own log, outside the database. A chain cannot show that entries were cut from its end. Compare the last entry in the server log with the last entry that <span class="ui">Verify the log</span> shows.</p>
+<h3>To keep the log for a limited time</h3>
+<ol class="steps">
+<li>On the <span class="ui">Security</span> tab, go to <span class="ui">Keep audit entries</span>.</li>
+<li>Select the period, for example <span class="ui">2 years</span>.<span class="result">Each day, the server removes the entries that are older than the period.</span></li>
+</ol>
+<p>Before it removes entries, the server writes a checkpoint. The checkpoint records how many entries went and the fingerprint of the last one. Thus the check of the log continues to work after the removal.</p>
+
+<h2>Connect to AiSOC</h2>
+<p>AiSOC is an open-source security operations center that you install on your own server. Stratum Server can send its audit events to AiSOC. Then your security team sees Stratum with the other systems of the company. AiSOC is a separate project, and Miqyas Labs is not related to it.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 270" role="img" aria-label="Stratum Server sends its audit events to AiSOC">
+  <style>.aisoc-flow--h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.aisoc-flow--w{font:700 15px Montserrat,sans-serif;fill:#fff}.aisoc-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.aisoc-flow--sw{font:12px Inter,sans-serif;fill:#dfe6ee}.aisoc-flow--m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="270" rx="8" fill="#ebecef"/>
+  <rect x="16" y="16" width="928" height="200" rx="10" fill="none" stroke="#9aa5b1" stroke-dasharray="6 5"/>
+  <text class="aisoc-flow--m" x="32" y="38">Your company network</text>
+  <g>
+    <rect x="40" y="56" width="240" height="140" rx="10" fill="#0b2545"/>
+    <text class="aisoc-flow--w" x="160" y="86" text-anchor="middle">Stratum Server</text>
+    <text class="aisoc-flow--sw" x="160" y="110" text-anchor="middle">Audit log (hash chain)</text>
+    <text class="aisoc-flow--sw" x="160" y="128" text-anchor="middle">sign-ins, lockouts, users,</text>
+    <text class="aisoc-flow--sw" x="160" y="146" text-anchor="middle">approvals, P6, settings</text>
+    <text class="aisoc-flow--sw" x="160" y="174" text-anchor="middle">Settings › AiSOC</text>
+    <rect x="380" y="56" width="250" height="140" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="aisoc-flow--h" x="505" y="86" text-anchor="middle">AiSOC</text>
+    <text class="aisoc-flow--s" x="505" y="110" text-anchor="middle">Ingest (port 8081)</text>
+    <text class="aisoc-flow--s" x="505" y="128" text-anchor="middle">Detections and correlation</text>
+    <text class="aisoc-flow--s" x="505" y="146" text-anchor="middle">AI triage, human approval</text>
+    <text class="aisoc-flow--m" x="505" y="174" text-anchor="middle">Console (port 3000)</text>
+    <rect x="730" y="56" width="190" height="140" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="aisoc-flow--h" x="825" y="96" text-anchor="middle">Security team</text>
+    <text class="aisoc-flow--s" x="825" y="120" text-anchor="middle">Alerts and cases</text>
+    <text class="aisoc-flow--s" x="825" y="138" text-anchor="middle">with the other systems</text>
+    <text class="aisoc-flow--m" x="825" y="166" text-anchor="middle">of the company</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M282 112h92M632 126h92"/></g>
+  <g fill="#d4a574"><path d="M374 106l10 6-10 6zM724 120l10 6-10 6z"/></g>
+  <text class="aisoc-flow--m" x="328" y="102" text-anchor="middle">events</text>
+  <text class="aisoc-flow--m" x="678" y="116" text-anchor="middle">alerts</text>
+  <g stroke="#9aa5b1" stroke-width="1.5" fill="none" stroke-dasharray="4 4"><path d="M160 198v8h345v-8"/></g>
+  <text class="aisoc-flow--m" x="332" y="226" text-anchor="middle">Open AiSOC console (new tab)</text>
+  <text class="aisoc-flow--m" x="480" y="252" text-anchor="middle">AiSOC is a separate open-source project (MIT licence). You install it on your own server.</text>
+</svg>
+<figcaption><b>Figure 10-4.</b> Stratum Server sends its audit events to AiSOC.</figcaption></figure>
+<p>By default, Stratum sends only the security events. These are sign-ins, locks, changes to users and settings, approvals, updates to P6, and the checks of the audit log. Each event has a severity. For example, a locked sign-in is high, and a broken audit log is critical.</p>
+<h3>To install AiSOC</h3>
+<p>It is necessary to have a server with Docker, 8 GB of memory and 20 GB of free disk. Your IT team can do these steps.</p>
+<ol class="steps">
+<li>On the server, type <code>git clone https://github.com/beenuar/AiSOC</code>.</li>
+<li>Type <code>cd AiSOC</code>, then <code>make up</code>.<span class="result">AiSOC starts. It shows the address of the console and the administrator password.</span></li>
+<li>In the AiSOC console, add a connector for Stratum. Click <span class="ui">Reveal push URL</span>.<span class="result">AiSOC shows the push token.</span></li>
+</ol>
+<h3>To connect Stratum Server to AiSOC</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">AiSOC</span> tab.</li>
+<li>Type the address of the AiSOC console, for example <code>https://aisoc.company.local:3000</code>.</li>
+<li>Type the ingest address, for example <code>https://aisoc.company.local:8081</code>.</li>
+<li>Type the push token and the tenant ID from AiSOC.</li>
+<li>Select <span class="ui">Send Stratum audit events to AiSOC</span>.</li>
+<li>Click <span class="ui">Save</span>.</li>
+<li>Click <span class="ui">Send a test event</span>.<span class="result">A green line shows that AiSOC accepted the event.</span></li>
+</ol>
+<figure><img src="shots/server-aisoc.png" alt="The AiSOC tab of the settings"><figcaption><b>Figure 10-5.</b> The AiSOC tab.</figcaption></figure>
+<h3>To open the AiSOC console</h3>
+<ol class="steps">
+<li>Click <span class="ui">Settings</span>, then the <span class="ui">AiSOC</span> tab.</li>
+<li>Click <span class="ui">Open AiSOC console</span>.<span class="result">The AiSOC console opens in a new tab.</span></li>
+<li>Sign in with your AiSOC account.</li>
+</ol>
+<div class="note">If AiSOC is not available, Stratum keeps the events and sends them again later. The <span class="ui">AiSOC</span> tab shows the number of events that wait and the last error. To send them at once, click <span class="ui">Send waiting events now</span>.</div>
+<div class="caution">Keep the push token secret. Stratum Server keeps it encrypted and does not show it again. If you think that a different person has the token, make a new token in AiSOC and type it here.</div>
+<p class="related">Related: Chapter 3 (connect to a Stratum Server), Chapter 5 (update the progress), Chapter 9 (AI assistants), Chapter 11 (problems and solutions).</p>
+</section>
+<section class="chapter" id="reference">
+<h1><span class="num">11</span>Troubleshooting, shortcuts and glossary</h1>
+<p class="purpose">This chapter gives solutions to frequent problems, the keyboard shortcuts, and the definitions of the terms in this manual.</p>
+
+<h2>Troubleshooting</h2>
+<table>
+<tr><th>Problem</th><th>Possible cause</th><th>Solution</th></tr>
+<tr><td>Stratum 4D cannot open a Microsoft Project file.</td><td>The file is an <code>.mpp</code> file.</td><td>In Microsoft Project, save the file as XML. Then import the XML file.</td></tr>
+<tr><td>The dates are different from the dates in P6.</td><td>The schedule options are different.</td><td>Click <span class="ui">Project › Schedule…</span>, then <span class="ui">Options…</span>. Set the same options as in P6. Read the log with <span class="ui">View Log</span>.</td></tr>
+<tr><td>Stratum 4D does not save, and shows <span class="ui">Save as new</span>.</td><td>A different person saved the project after you opened it.</td><td>Click <span class="ui">Save as new</span>. Then compare the two versions.</td></tr>
+<tr><td>A widget shows <span class="ui">Needs a baseline</span>.</td><td>A prerequisite of the dashboard is not complete.</td><td>Read the bar at the top of the dashboard. Do the step that it shows, for example assign a baseline.</td></tr>
+<tr><td>A scheduled email was not sent.</td><td>The desktop application was closed, or the mail server is not set.</td><td>Start the desktop application. Set the mail server in <span class="ui">Settings › Email</span>. Look at the result of the last send on the schedule.</td></tr>
+<tr><td>Elements of the model do not show during the simulation.</td><td>The elements have no link to an activity.</td><td>On the <span class="ui">Display</span> tab, look at <span class="ui">Unlinked elements</span>. Link them with a rule or by hand.</td></tr>
+<tr><td><span class="ui">Explode</span> <span class="ui">By storey</span> does not move the model.</td><td>The elements have no <code>Storey</code> property.</td><td>Select <span class="ui">From centre</span>, or add the <code>Storey</code> property to the IFC model.</td></tr>
+<tr><td><span class="ui">Split Task</span> does not split the task.</td><td>You clicked near an end of the bar, or in its completed part.</td><td>Click inside the bar, away from its ends and after its progress.</td></tr>
+<tr><td>A section plane removes almost all of the model.</td><td>The position is a fraction of the full height, and the model has deep foundations.</td><td>Move the slider, or click <span class="ui">⇄</span> to keep the other side.</td></tr>
+<tr><td>The exported video is slower or shorter than the animation.</td><td>The computer cannot draw the frames at the frame rate.</td><td>Use a lower resolution or frame rate. Or export a series of images and join them with a video editor.</td></tr>
+<tr><td>The assistant does not show the Stratum tools.</td><td>The configuration is incorrect, or the assistant application did not start again.</td><td>Do a check of the path in the configuration. Make sure that Node.js 20 or newer is installed. Start the assistant application again.</td></tr>
+<tr><td>The MCP server cannot open the database.</td><td><code>sql-wasm.wasm</code> is not in the folder of <code>stratum-mcp.cjs</code>, or the path is incorrect.</td><td>Put the two files in the same folder. To use a different database file, set <code>STRATUM_DB</code>.</td></tr>
+<tr><td>The sign-in page shows <span class="ui">Too many wrong passwords</span>.</td><td>Stratum Server locked the sign-in after incorrect passwords.</td><td>Wait for the time on the page. Then sign in with the correct password. If you do not know the password, ask the administrator for a new one.</td></tr>
+<tr><td>Stratum 4D shows <span class="ui">Your session ended</span>.</td><td>An administrator changed your password or your role.</td><td>Sign in again.</td></tr>
+<tr><td>The status bar shows <span class="ui">Sent for approval</span>, and P6 does not change.</td><td>The server keeps updates to P6 until an administrator approves them.</td><td>Ask an administrator to approve the request in <span class="ui">Settings › Security</span>.</td></tr>
+<tr><td><span class="ui">Verify the log</span> shows a red line.</td><td>A person changed or removed audit entries in the database.</td><td>Do not change the database. Tell your security team. Keep a copy of the database and of the server log.</td></tr>
+<tr><td>The <span class="ui">AiSOC</span> tab shows <span class="ui">Cannot reach AiSOC</span>.</td><td>The ingest address is incorrect, or AiSOC is stopped.</td><td>Do a check of the address and the port (8081). Start AiSOC. Click <span class="ui">Send waiting events now</span>.</td></tr>
+<tr><td>AiSOC refuses the events (HTTP 401).</td><td>The push token is incorrect or old.</td><td>Make a new token in AiSOC. Type it on the <span class="ui">AiSOC</span> tab and click <span class="ui">Save</span>.</td></tr>
+<tr><td>The assistant says that a file is outside the folders.</td><td><code>STRATUM_MCP_ROOTS</code> does not include the folder of the file.</td><td>Move the file into a permitted folder, or add the folder to <code>STRATUM_MCP_ROOTS</code>.</td></tr>
+</table>
+
+<h2>Keyboard shortcuts</h2>
+<h3>All layouts</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd></td><td>P6 layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd></td><td>Project layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd></td><td>4D layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd></td><td>Reports view</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save the project</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
+</table>
+<h3>P6 layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
+<tr><td><kbd>Ins</kbd> / <kbd>Del</kbd></td><td>Add / delete an activity</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Link the selected activities</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Fill down</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
+<tr><td><kbd>F9</kbd></td><td>Schedule</td></tr>
+<tr><td><kbd>F10</kbd></td><td>Level resources</td></tr>
+</table>
+<h3>Project layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F2</kbd></td><td>Task Information</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F2</kbd></td><td>Link the selected tasks</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F2</kbd></td><td>Unlink the selected tasks</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd></td><td>Indent</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>←</kbd></td><td>Outdent</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>F10</kbd></td><td>Assign Resources</td></tr>
+<tr><td><kbd>F2</kbd>, <kbd>Enter</kbd>, <kbd>Tab</kbd></td><td>Change a cell, then go to the next cell</td></tr>
+</table>
+<h3>4D layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Space</kbd></td><td>Play or pause the simulation</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Link the selected elements to the selected activity</td></tr>
+<tr><td><kbd>Del</kbd></td><td>In the animation editor: remove the selected key</td></tr>
+</table>
+
+<h2>Glossary</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Activity</td><td>One item of work in the schedule. Microsoft Project calls it a task.</td></tr>
+<tr><td>AiSOC</td><td>An open-source security operations center. Stratum Server can send its audit events to it.</td></tr>
+<tr><td>Approval</td><td>The decision of an administrator to let an update go to P6</td></tr>
+<tr><td>Audit log</td><td>The list of all sign-ins and changes on a Stratum Server. Each entry contains a fingerprint of the entry before it.</td></tr>
+<tr><td>Appearance profile</td><td>The colors and visibility of an element before, during and after its activity</td></tr>
+<tr><td>Baseline</td><td>A copy of the schedule at one time. You compare the current schedule with it.</td></tr>
+<tr><td>BEI</td><td>Baseline Execution Index. The number of activities that finished, divided by the number that had to finish by the data date.</td></tr>
+<tr><td>Critical activity</td><td>An activity that has no total float, or less float than the limit in the schedule options. A delay to it delays the project finish.</td></tr>
+<tr><td>Data date</td><td>The date of the progress. Work before it is actual, and work after it is forecast.</td></tr>
+<tr><td>DCMA 14-point check</td><td>A set of 14 checks of the quality of a schedule, from the US Defense Contract Management Agency</td></tr>
+<tr><td>Element</td><td>One object of the 3D model, for example a wall or a transformer</td></tr>
+<tr><td>Fingerprint (SHA-256)</td><td>A short code that a calculation makes from data. A change to the data gives a different code.</td></tr>
+<tr><td>Key (animation)</td><td>A record of the camera, the date or the view at one time of an animation</td></tr>
+<tr><td>IFC</td><td>Industry Foundation Classes. An open file format for building models.</td></tr>
+<tr><td>Link (4D)</td><td>A connection between an element and an activity</td></tr>
+<tr><td>MCP</td><td>Model Context Protocol. A standard that lets an AI assistant use tools.</td></tr>
+<tr><td>MSPDI</td><td>The XML file format of Microsoft Project</td></tr>
+<tr><td>Relationship</td><td>The logic between two activities: Finish to Start (FS), Start to Start (SS), Finish to Finish (FF) or Start to Finish (SF), with a lag</td></tr>
+<tr><td>Planned vs actual</td><td>A color mode that compares the progress on the current dates with the progress on the baseline dates</td></tr>
+<tr><td>Push token</td><td>The secret code that lets Stratum Server send events to AiSOC</td></tr>
+<tr><td>Rule (4D)</td><td>An instruction that links each element to the activity that has the same value</td></tr>
+<tr><td>S-curve</td><td>A chart of the cumulative cost, hours or progress against time</td></tr>
+<tr><td>Section plane</td><td>A plane that cuts the model and removes one side of it</td></tr>
+<tr><td>Slicer</td><td>A filter on a dashboard. It applies to all the widgets.</td></tr>
+<tr><td>SPI / CPI</td><td>Schedule and Cost Performance Index. Earned value divided by planned value, and earned value divided by actual cost.</td></tr>
+<tr><td>Total float</td><td>The time that an activity can slip before it delays the project finish</td></tr>
+<tr><td>Viewpoint</td><td>A saved view: the date, the camera, the sections and the color mode</td></tr>
+<tr><td>Widget</td><td>One chart, table or number on a dashboard</td></tr>
+<tr><td>XER</td><td>The export file format of Primavera P6</td></tr>
+</table>
+<p class="related">Related: all chapters.</p>
+</section>
+</body></html>

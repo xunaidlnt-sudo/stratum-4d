@@ -1,0 +1,253 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>7. The 4D layout – Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body class="web"><nav><a href="index.html"><img src="stratum-lockup-dark.png" alt="Stratum 4D by Miqyas Labs"></a><a href="ch01.html" class=""><span class="num">1</span>Introduction</a><a href="ch02.html" class=""><span class="num">2</span>Installation</a><a href="ch03.html" class=""><span class="num">3</span>First start</a><a href="ch04.html" class=""><span class="num">4</span>Projects and files</a><a href="ch05.html" class=""><span class="num">5</span>The P6 layout</a><a href="ch06.html" class=""><span class="num">6</span>The Project layout</a><a href="ch07.html" class="on"><span class="num">7</span>The 4D layout</a><a href="ch08.html" class=""><span class="num">8</span>Dashboards and reports</a><a href="ch09.html" class=""><span class="num">9</span>AI assistants (MCP)</a><a href="ch10.html" class=""><span class="num">10</span>Stratum Server: users, security and AiSOC</a><a href="ch11.html" class=""><span class="num">11</span>Troubleshooting, shortcuts and glossary</a><a class="pdf" href="Stratum-4D-Manual.pdf">Download the PDF</a></nav><main><section class="chapter" id="fourd-layout">
+<h1><span class="num">7</span>The 4D layout</h1>
+<p class="purpose">This chapter tells you how to link a 3D model to a schedule, and how to play, check and show the 4D simulation.</p>
+
+<h2>What a 4D simulation is</h2>
+<p>A 4D simulation shows the 3D model on the dates of the schedule. Each element of the model shows when its activity starts, and becomes complete when its activity finishes. You can see the sequence of the work before the work starts on site.</p>
+<p>Figure 7-1 shows the five steps to make a 4D simulation.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 250" role="img" aria-label="How a 4D simulation is built">
+  <style>.fourd-flow--fd-h{font:700 14px Montserrat,sans-serif;fill:#0b2545}.fourd-flow--fd-s{font:12px Inter,sans-serif;fill:#1d2733}.fourd-flow--fd-n{font:700 20px Montserrat,sans-serif;fill:#fff}</style>
+  <rect width="960" height="250" rx="8" fill="#ebecef"/>
+  <g stroke="#d4a574" stroke-width="3"><path d="M120 70H840"/></g>
+  <g>
+    <circle cx="120" cy="70" r="26" fill="#0b2545"/><text class="fourd-flow--fd-n" x="120" y="77" text-anchor="middle">1</text>
+    <circle cx="300" cy="70" r="26" fill="#183a63"/><text class="fourd-flow--fd-n" x="300" y="77" text-anchor="middle">2</text>
+    <circle cx="480" cy="70" r="26" fill="#355b7d"/><text class="fourd-flow--fd-n" x="480" y="77" text-anchor="middle">3</text>
+    <circle cx="660" cy="70" r="26" fill="#b8874f"/><text class="fourd-flow--fd-n" x="660" y="77" text-anchor="middle">4</text>
+    <circle cx="840" cy="70" r="26" fill="#e10600"/><text class="fourd-flow--fd-n" x="840" y="77" text-anchor="middle">5</text>
+  </g>
+  <g text-anchor="middle">
+    <text class="fourd-flow--fd-h" x="120" y="128">Schedule + model</text><text class="fourd-flow--fd-s" x="120" y="150">Import the XER or XML,</text><text class="fourd-flow--fd-s" x="120" y="166">then the 3D model.</text>
+    <text class="fourd-flow--fd-h" x="300" y="128">Link</text><text class="fourd-flow--fd-s" x="300" y="150">Rules (Auto-detect) or</text><text class="fourd-flow--fd-s" x="300" y="166">select in 3D › Link.</text>
+    <text class="fourd-flow--fd-h" x="480" y="128">Profiles</text><text class="fourd-flow--fd-s" x="480" y="150">Install, Remove, Temporary;</text><text class="fourd-flow--fd-s" x="480" y="166">growth bottom up, west → east.</text>
+    <text class="fourd-flow--fd-h" x="660" y="128">Play</text><text class="fourd-flow--fd-s" x="660" y="150">Timeline, speed, current</text><text class="fourd-flow--fd-s" x="660" y="166">or baseline dates.</text>
+    <text class="fourd-flow--fd-h" x="840" y="128">Explain</text><text class="fourd-flow--fd-s" x="840" y="150">Teardown, tour, video,</text><text class="fourd-flow--fd-s" x="840" y="166">quantities, dashboards.</text>
+  </g>
+  <text x="480" y="216" text-anchor="middle" style="font:12px Inter,sans-serif;fill:#5d6b7a">Check tab: unlinked elements, activities with nothing linked and broken links, before you show the simulation.</text>
+</svg>
+<figcaption><b>Figure 7-1.</b> The steps to make a 4D simulation.</figcaption></figure>
+
+<h2>Parts of the 4D layout</h2>
+<table>
+<tr><th>Part</th><th>Where</th><th>Use</th></tr>
+<tr><td>3D view</td><td>Center</td><td>The model on the playback date</td></tr>
+<tr><td>Side panel</td><td>Right</td><td>Selection, Rules, Tools, Profiles, Display and Check tabs</td></tr>
+<tr><td>Gantt chart</td><td>Bottom</td><td>The activities, with a line on the playback date</td></tr>
+<tr><td>Playback bar</td><td>Below the 3D view</td><td>Play, pause, speed, and the buttons to go back or forward</td></tr>
+</table>
+<figure><img src="shots/layout-4d.png" alt="The 4D layout with the 3D view, the side panel and the Gantt chart"><figcaption><b>Figure 7-2.</b> The 4D layout.</figcaption></figure>
+
+<h2>Load the schedule and the model</h2>
+<ol class="steps">
+<li>Import the schedule (XER or XML). Chapter 4 gives the procedure.</li>
+<li>Click <span class="ui">Import model</span> on the toolbar, or <span class="ui">Import 3D model…</span> in the side panel.</li>
+<li>Select the model file and click <span class="ui">Open</span>.<span class="result">The model shows in the 3D view. Large models can take some minutes.</span></li>
+</ol>
+<table>
+<tr><th>Format</th><th>What Stratum 4D reads</th></tr>
+<tr><td>IFC (<code>.ifc</code>, IFC2x3 and IFC4)</td><td>Each building element, with its properties, quantities and storey</td></tr>
+<tr><td>glTF (<code>.glb</code>, <code>.gltf</code>)</td><td>Each mesh, with its name, its parent node and its custom properties ("extras")</td></tr>
+<tr><td>OBJ, STL, FBX</td><td>Each mesh, with its name. FBX also gives its custom properties.</td></tr>
+</table>
+<p>If the custom properties of a mesh have an identifier (for example <code>GlobalId</code>), Stratum 4D uses it. Then the links stay when you export the model again. A <code>.gltf</code> file must hold its data in the file. If it does not, export a <code>.glb</code> file.</p>
+<div class="note">If a model is very large, Stratum 4D thinks that it is in millimeters or centimeters. It then changes the scale to meters and tells you in the status bar.</div>
+<div class="note">To try the 4D layout without your own files, open <span class="ui">File</span> and select <span class="ui">Sample: 220 kV GIS substation (UAE)</span>.</div>
+
+<h2>Link the model to the schedule</h2>
+<p>Each link connects one element of the model to one activity. There are two methods: rules and manual links.</p>
+<h3>To link with rules</h3>
+<p>A rule compares a property of the element with a field of the activity. For example, the rule can link each element where the property <code>Zone</code> is the same as the activity code <code>Zone</code>.</p>
+<ol class="steps">
+<li>In the side panel, click the <span class="ui">Rules</span> tab.</li>
+<li>Click <span class="ui">Auto-detect</span>. Stratum 4D finds the properties that agree with the activity data and proposes rules.</li>
+<li>Examine the proposed rules. To make a different rule, click <span class="ui">New rule</span>.</li>
+<li>Click <span class="ui">Run all rules</span>.<span class="result">Stratum 4D makes the links and shows the number of linked elements.</span></li>
+</ol>
+<h3>To link the selected elements to an activity</h3>
+<ol class="steps">
+<li>In the side panel, click the <span class="ui">Selection</span> tab.</li>
+<li>Select the elements in the 3D view, or use <span class="ui">Select by property</span>.</li>
+<li>Select the activity in the Gantt chart.</li>
+<li>Under <span class="ui">Link selection to activity</span>, click <span class="ui">Link</span>.</li>
+</ol>
+<h3>To link with the keyboard</h3>
+<ol class="steps">
+<li>Select the elements in the 3D view.</li>
+<li>Select the activity in the Gantt chart.</li>
+<li>Push <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd>.<span class="result">Stratum 4D links the elements to the activity. It uses the profile that you selected last on the <span class="ui">Selection</span> tab.</span></li>
+</ol>
+<div class="note">Stratum 4D keeps the links when you import a new update of the schedule. It finds each activity by its Activity ID.</div>
+
+<h2>Split an element into parts</h2>
+<p>A model element can be larger than one unit of work. For example, one slab can have three pours, and one wall can have bays and lifts. You can split the element in Stratum 4D. You do not have to change the model. Each part then links to its own activity.</p>
+<ol class="steps">
+<li>Select the element in the 3D view.</li>
+<li>In the side panel, click the <span class="ui">Tools</span> tab.</li>
+<li>Under <span class="ui">Split into pours / bays</span>, select the <span class="ui">Split type</span>:
+<ul>
+<li><span class="ui">Equal parts along one axis</span>: select the axis and type the number of parts.</li>
+<li><span class="ui">At positions along one axis (uneven)</span>: select the axis and type the cut positions in percent, for example <code>30, 60</code>.</li>
+<li><span class="ui">Grid: columns × rows × layers</span>: type the number of columns (X), rows (Z) and layers (height).</li>
+</ul></li>
+<li>Type a name for the parts, for example <code>Pour</code>.</li>
+<li>Click <span class="ui">Split selection</span>.<span class="result">The parts replace the element. The links of the element go to each part.</span></li>
+</ol>
+<p>To put the element back as one part, select a part and click <span class="ui">Unsplit</span>. A growth profile, for example <span class="ui">Bottom up</span>, grows each part in its own space.</p>
+
+<h2>Appearance profiles</h2>
+<p>An appearance profile tells how an element looks before, during and after its activity. Stratum 4D has these standard profiles:</p>
+<table>
+<tr><th>Profile</th><th>Before the activity</th><th>During the activity</th><th>After the activity</th></tr>
+<tr><td>Install</td><td>Not visible</td><td>Shows in the color of the work, and grows</td><td>Shows in its own color</td></tr>
+<tr><td>Remove</td><td>Shows in its own color</td><td>Shows in the color of the work</td><td>Not visible</td></tr>
+<tr><td>Temporary</td><td>Not visible</td><td>Visible, for example scaffolding</td><td>Not visible</td></tr>
+</table>
+<p>To change a profile, or to make a new profile, click the <span class="ui">Profiles</span> tab. Under <span class="ui">Appearance profiles</span>, you can set the colour, the transparency and the growth direction for each phase. For example, set the growth to <span class="ui">Bottom up</span> for a wall, or <span class="ui">West → east</span> for a slab.</p>
+
+<h2>Play the simulation</h2>
+<ol class="steps">
+<li>In the playback bar, click the play button, or push <kbd>Space</kbd>.<span class="result">The playback date moves forward. The model, the Gantt chart and the date change together.</span></li>
+<li>To change the speed, use <span class="ui">Speed</span>.</li>
+<li>To go to one date, drag the line in the Gantt chart, or use the back and forward buttons.</li>
+</ol>
+<p>On the <span class="ui">Display</span> tab, under <span class="ui">Dates to simulate</span>, select <span class="ui">Current schedule (actuals + forecast)</span> or <span class="ui">Baseline (P6 target dates)</span>. Play the two to compare the plan with the forecast. Under <span class="ui">Colour by</span>, select one of these modes:</p>
+<table>
+<tr><th>Mode</th><th>Colors</th></tr>
+<tr><td><span class="ui">Appearance profile</span></td><td>The colors of the profiles</td></tr>
+<tr><td><span class="ui">Activity status vs baseline</span></td><td>Not started, in progress, critical, late and complete</td></tr>
+<tr><td><span class="ui">Planned vs actual (ahead / behind)</span></td><td>Green if the work is ahead of the baseline, blue if it is on plan, red if it is behind. An element that the baseline has built, but the current schedule has not, shows in red.</td></tr>
+</table>
+
+<h2>Check the links</h2>
+<p>Do a check of the links before you show the simulation to other persons.</p>
+<ul>
+<li>On the <span class="ui">Display</span> tab, <span class="ui">Unlinked elements</span> shows the elements that have no activity.</li>
+<li>On the <span class="ui">Check</span> tab, you see the activities that have no elements, and <span class="ui">Broken links</span>. A broken link is a link to an activity or an element that is not in the project now.</li>
+</ul>
+<p>To remove all the links and start again, click <span class="ui">Clear all links</span> on the <span class="ui">Check</span> tab.</p>
+<div class="caution"><span class="ui">Clear all links</span> removes the manual links too. Rules can make the rule links again, but not the manual links.</div>
+
+<h2>Look at the model</h2>
+<p>The toolbar at the top right of the 3D view has these buttons:</p>
+<table>
+<tr><th>Button</th><th>Use</th></tr>
+<tr><td><span class="ui">Zoom All</span></td><td>Show the full model from the current direction</td></tr>
+<tr><td><span class="ui">View…</span></td><td>Look from a standard direction: isometric, top, front, back, left or right</td></tr>
+<tr><td><span class="ui">Sections</span></td><td>Cut the model with section planes or a section box</td></tr>
+<tr><td><span class="ui">Viewpoints</span></td><td>Save and show viewpoints</td></tr>
+<tr><td><span class="ui">Animation</span></td><td>Open the animation editor</td></tr>
+</table>
+<p>If the 3D view is narrow, the buttons show only their icons. Put the pointer on a button to see its name.</p>
+
+<h2>Section planes and the section box</h2>
+<p>A section plane cuts the model and removes one side. Use it to see inside a building, or under the ground. The section box keeps only the part of the model that is inside the box.</p>
+<h3>To add a section plane</h3>
+<ol class="steps">
+<li>Click <span class="ui">Sections</span>.</li>
+<li>Click <span class="ui">+ X</span>, <span class="ui">+ Height</span> or <span class="ui">+ Z</span>.<span class="result">A plane cuts the model across that direction.</span></li>
+<li>Move the slider to set the position of the plane.</li>
+<li>To keep the other side, click <span class="ui">⇄</span>.</li>
+</ol>
+<p>You can add more than one plane. To stop a plane for a short time, clear its check box. To remove it, click <span class="ui">×</span>.</p>
+<figure><img src="shots/4d-sections.png" alt="The Sections panel with a height plane and the legend"><figcaption><b>Figure 7-3.</b> A height plane cuts the roof off the GIS hall. The legend shows at the bottom left.</figcaption></figure>
+<h3>To use the section box</h3>
+<ol class="steps">
+<li>Click <span class="ui">Sections</span>.</li>
+<li>Select <span class="ui">Section box</span>.<span class="result">Two sliders show for each direction, for the two sides of the box. A red line shows the box.</span></li>
+<li>To put the box around the selected elements, click <span class="ui">Fit to selection</span>.</li>
+<li>Move the sliders to change the box.</li>
+</ol>
+<p>Select <span class="ui">Show the legend and date</span> to show the colors of the current mode and the playback date over the 3D view. To remove all planes and the box, click <span class="ui">Clear</span>.</p>
+
+<h2>Viewpoints</h2>
+<p>A viewpoint keeps the playback date, the camera, the section planes and box, the color mode and the dates to simulate. Use viewpoints to go back to the same picture after a schedule update, or to show important areas in a review with other persons.</p>
+<h3>To save a viewpoint</h3>
+<ol class="steps">
+<li>Set the date, the camera and the sections.</li>
+<li>Click <span class="ui">Viewpoints</span>.</li>
+<li>Click <span class="ui">Save viewpoint</span>.</li>
+<li>Type a name and click <span class="ui">OK</span>.</li>
+</ol>
+<figure><img src="shots/4d-viewpoints.png" alt="The Viewpoints panel with one viewpoint"><figcaption><b>Figure 7-4.</b> The Viewpoints panel.</figcaption></figure>
+<table>
+<tr><th>To</th><th>Do this</th></tr>
+<tr><td>Show a viewpoint</td><td>Click its name. The camera moves to the viewpoint.</td></tr>
+<tr><td>Replace a viewpoint with the current view</td><td>Click <span class="ui">Update</span>.</td></tr>
+<tr><td>Change the name</td><td>Click <span class="ui">Rename</span>.</td></tr>
+<tr><td>Save a picture</td><td>Click the image button. Stratum 4D saves a 1920 × 1080 PNG file with the name, the date and the legend.</td></tr>
+<tr><td>Remove a viewpoint</td><td>Click the delete button.</td></tr>
+</table>
+<p>Stratum 4D saves the viewpoints with the project.</p>
+
+<h2>Animations</h2>
+<p>An animation is a video of the 4D model that you make yourself. It has three channels of keys:</p>
+<ul>
+<li><b>Camera</b>: where the camera is, and what it looks at.</li>
+<li><b>Date</b>: the playback date at that time of the video.</li>
+<li><b>View</b>: the section planes, the section box, the color mode and the legend.</li>
+</ul>
+<p>Between two camera keys, the camera moves smoothly. Between two date keys, the date moves at a constant speed. A view key stays until the next view key.</p>
+<figure><img src="shots/4d-animation.png" alt="The animation editor with camera, date and view channels"><figcaption><b>Figure 7-5.</b> The animation editor. The red line shows the current time of the video.</figcaption></figure>
+<h3>To make an animation</h3>
+<ol class="steps">
+<li>Set the camera for the start of the video.</li>
+<li>Click <span class="ui">Animation</span>, then <span class="ui">New</span>.<span class="result">The new animation shows the full schedule in 30 seconds. It has one camera key and four date keys.</span></li>
+<li>To change the length, type the number of seconds in <span class="ui">Length</span>. The keys move with the length.</li>
+<li>Click the time scale to move the red line to a time of the video.</li>
+<li>Move the camera. Then click the <span class="ui">Camera</span> channel at the same time, or click <span class="ui">Key camera</span>.<span class="result">A blue key shows on the channel.</span></li>
+<li>Do steps 4 and 5 again for each camera position.</li>
+<li>To see the result, click <span class="ui">Preview</span>.</li>
+</ol>
+<h3>To change a key</h3>
+<ul>
+<li>To move a key to a different time, drag it.</li>
+<li>To remove a key, click it and click <span class="ui">Remove key</span>, or push <kbd>Del</kbd>.</li>
+<li>For a camera key, select how the camera moves to the next key: <span class="ui">Smooth</span>, <span class="ui">Linear</span> or <span class="ui">Jump</span>.</li>
+<li>To add a date key, set the playback date with the Gantt chart or the playback bar. Then click the <span class="ui">Date</span> channel.</li>
+<li>To add a view key, set the sections and the color mode. Then click the <span class="ui">View</span> channel.</li>
+</ul>
+<h3>To export an animation</h3>
+<ol class="steps">
+<li>Click <span class="ui">Export…</span>.</li>
+<li>Select the <span class="ui">Resolution</span> and the <span class="ui">Frame rate</span>.</li>
+<li>At <span class="ui">Output</span>, select <span class="ui">Video (WebM)</span>, or <span class="ui">Series of images (PNG, in a zip file)</span>.</li>
+<li>Select the options for the date, the legend and the ground grid.</li>
+<li>Click <span class="ui">Export</span>.<span class="result">A bar shows the progress. When the export is complete, Stratum 4D saves the file.</span></li>
+</ol>
+<figure><img src="shots/4d-export.png" alt="The export dialog of the animation editor"><figcaption><b>Figure 7-6.</b> The export dialog.</figcaption></figure>
+<div class="note">A video export takes about the length of the animation. Keep the window open until it is complete. On a slow computer, use the series of images. A video editor can join the images into a video.</div>
+<p>Stratum 4D saves the animations with the project.</p>
+
+<h2>Teardown</h2>
+<p>Teardown helps you explain the model to other persons. It moves the parts of the model apart, cuts the model, and shows the work under way. The playback date controls all of these at the same time.</p>
+<figure><img src="shots/4d-teardown.png" alt="The Teardown panel with the cut and the work under way"><figcaption><b>Figure 7-7.</b> Teardown, with a cut and the work under way.</figcaption></figure>
+<h3>To explode the model</h3>
+<ol class="steps">
+<li>Click the Teardown button in the 3D view.<span class="result">The Teardown panel opens.</span></li>
+<li>Under <span class="ui">Explode</span>, select <span class="ui">By storey</span> or <span class="ui">From centre</span>.</li>
+<li>Move the slider to the right.<span class="result">The parts of the model move apart.</span></li>
+</ol>
+<figure><img src="shots/4d-explode.png" alt="The model exploded by storey"><figcaption><b>Figure 7-8.</b> The model, exploded by storey.</figcaption></figure>
+<h3>To cut the model</h3>
+<ol class="steps">
+<li>Under <span class="ui">Cut</span>, select the axis: <span class="ui">X</span>, <span class="ui">Plan</span> or <span class="ui">Z</span>.</li>
+<li>Move the slider to set the position of the cut.</li>
+<li>To show the other side, click <span class="ui">⇄</span>.</li>
+</ol>
+<h3>To show the work under way</h3>
+<p>Select <span class="ui">Work under way</span>. The elements of the activities in progress keep their colors. All other elements become gray. Activities that are longer than 40% of the project do not get this accent, because they would cover the full model.</p>
+<h3>To run a tour</h3>
+<ol class="steps">
+<li>Click <span class="ui">Start tour</span>.<span class="result">The camera moves from one part of the work to the next, and the playback date moves forward.</span></li>
+<li>To take control, move the mouse or push a key. The tour stops.<span class="result">The tour starts again after 25 seconds with no input.</span></li>
+<li>To stop the tour, click <span class="ui">Stop tour</span>.</li>
+</ol>
+<h3>To record a video</h3>
+<ol class="steps">
+<li>Click <span class="ui">Record tour</span>.<span class="result">Stratum 4D records the 3D view and the live panel.</span></li>
+<li>Click <span class="ui">Stop</span>.<span class="result">Stratum 4D saves the video file.</span></li>
+</ol>
+<p>To record the playback without the tour, click the record button on the toolbar.</p>
+<p class="related">Related: Chapter 4 (Projects and files), Chapter 5 (The P6 layout).</p>
+</section>
+<div class="pager"><a href="ch06.html">← 6. The Project layout</a><a href="ch08.html">8. Dashboards and reports →</a></div><p class="related">Stratum 4D User Manual, release 0.12.1. Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Written in ASD-STE100 Simplified Technical English.</p></main></body></html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security and data · Miqyas Labs</title>
+<meta name="description" content="Where Stratum 4D keeps your project data: desktop, shared folder, your own server, and the web demo.">
+<link rel="canonical" href="https://miqyaslabs.com/security.html">
+<meta name="theme-color" content="#0b2545">
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="site.css">
+</head>
+<body>
+<header class="top">
+  <a href="./" class="brand"><img src="miqyas-labs.png" alt="Miqyas Labs" width="178" height="34"></a>
+  <nav>
+    <a href="./#solutions">Solutions</a>
+    <a href="./#plans">Plans</a>
+    <a href="./#contact">Contact</a>
+    <a href="demo/" class="btn">Try the demo</a>
+  </nav>
+</header>
+<main class="doc">
+<p class="kicker">Security and data</p>
+<h1>Where your project data lives</h1>
+<p class="updated">Last updated: 3 November 2026</p>
+<p>Schedules, costs and models are commercial information. Stratum 4D is built so that you decide where they are kept. This page explains each way to use it, so your IT team can choose.</p>
+
+<h2>Ways to run Stratum 4D</h2>
+<table>
+<tr><th>Option</th><th>Where the data is</th><th>Who can open it</th></tr>
+<tr><td>Desktop app (Windows, macOS, Linux)</td><td>A database file on the user's own computer</td><td>That user</td></tr>
+<tr><td>Shared folder</td><td>Your company's Google Drive or OneDrive folder</td><td>People your company gives access to the folder</td></tr>
+<tr><td>Stratum Server</td><td>A PostgreSQL database on your server or private cloud</td><td>Signed-in users, by role (admin, planner, viewer)</td></tr>
+<tr><td>Web demo</td><td>Sample projects only, for one browser session</td><td>The visitor; removed after a day without use</td></tr>
+</table>
+<p>In none of these options are your projects sent to Miqyas Labs.</p>
+
+<h2>Desktop app</h2>
+<ul>
+<li>Works with no internet connection. Projects are in a local database file that you can back up like any other file.</li>
+<li>Connects to Primavera P6 EPPM or the P6 database directly from the user's computer, inside your network.</li>
+<li>Sign-in to a shared Google Drive or OneDrive folder uses the provider's own sign-in page. The sign-in token is kept in the operating system's key store.</li>
+<li>The installers are not yet code-signed. Windows and macOS ask the user to confirm the first time the app opens. Signed installers are planned.</li>
+</ul>
+
+<h2>Stratum Server</h2>
+<ul>
+<li>Runs in your data centre or private cloud with Docker and PostgreSQL. You control the network, backups and retention.</li>
+<li>Users sign in with roles. Every save makes a new version, and a save never overwrites changes that someone else made in the meantime.</li>
+<li>An audit log records every sign-in and every change. Each entry is chained to the one before it, so a changed or removed entry shows when the log is verified. The database refuses edits to it, and it can be exported for an auditor.</li>
+<li>Sending progress to Primavera P6 waits for an admin's approval by default, with an optional two-person rule. The approver approves exactly the content that will be sent.</li>
+<li>Repeated wrong passwords lock the sign-in for 15 minutes. A new password or role ends the user's other sessions at once.</li>
+<li>Scheduled email reports go through your own mail server.</li>
+</ul>
+
+<h2>AI assistants (MCP)</h2>
+<p>The optional MCP server runs on the user's computer and reads only the files and the database that the user points it at. The assistant application shows each tool call before it runs. The server also keeps its own chained log of every tool call, can run read-only or be limited to chosen folders, and tells the assistant that text from schedule files is data, not instructions. The assistant application itself sends the user's questions and the tool results to its AI service, so follow your company's rules before you use it with project data.</p>
+
+<h2>The web demo</h2>
+<ul>
+<li>Each visitor gets a copy of six fictional sample projects for one browser session. A new tab, a new visit or Sign out starts again with fresh samples.</li>
+<li>Session data is kept on our Cloudflare account or in the visitor's browser, and removed after a day without use.</li>
+<li>Do not upload confidential schedules to the demo. Use the desktop app for real projects.</li>
+</ul>
+
+<h2>This website</h2>
+<ul>
+<li>The site is served by Cloudflare over HTTPS.</li>
+<li>Visitor statistics are counted without cookies.</li>
+<li>Details sent with the contact form are stored on our Cloudflare account and used only to answer you. See the <a href="privacy.html">privacy policy</a>.</li>
+</ul>
+
+<h2>Questions from your IT or security team</h2>
+<p>We can answer security questionnaires and help to install Stratum Server inside your network. <a href="./#contact">Contact us</a>.</p>
+</main>
+<footer>
+  <div class="foot-brand">
+    <img src="miqyas-labs-dark.png" alt="Miqyas Labs" width="157" height="30">
+    <p>Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>.</p>
+  </div>
+  <nav class="foot-nav" aria-label="Site">
+    <a href="./">Home</a>
+    <a href="downloads/">Downloads</a>
+    <a href="manual/">Manual</a>
+    <a href="security.html">Security and data</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="ar/" lang="ar">العربية</a>
+  </nav>
+  <p class="copy">© <span id="year">2026</span> Miqyas Labs. All rights reserved.</p>
+</footer>
+<script src="contact.js" defer></script>
+</body>
+</html>

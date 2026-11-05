@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Stratum 4D by Miqyas Labs · Planning and 4D simulation for construction</title>
+<meta name="description" content="Stratum 4D: plan in Primavera P6 and Microsoft Project layouts, link the schedule to the IFC model, play the 4D construction sequence and report progress, in one tool that also works offline. By Miqyas Labs, UAE.">
+<link rel="canonical" href="https://miqyaslabs.com/">
+<link rel="alternate" hreflang="en" href="https://miqyaslabs.com/">
+<link rel="alternate" hreflang="ar" href="https://miqyaslabs.com/ar/">
+<link rel="alternate" hreflang="x-default" href="https://miqyaslabs.com/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Miqyas Labs">
+<meta property="og:title" content="Stratum 4D · Planning and 4D simulation for construction projects">
+<meta property="og:description" content="P6 and MS Project layouts, 4D simulation from IFC models, dashboards and reports in one tool. Try the web demo with six sample projects.">
+<meta property="og:url" content="https://miqyaslabs.com/">
+<meta property="og:image" content="https://miqyaslabs.com/manual/shots/layout-4d.png">
+<meta property="og:locale" content="en_GB">
+<meta property="og:locale:alternate" content="ar_AE">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0b2545">
+<link rel="icon" href="favicon.svg">
+<link rel="stylesheet" href="site.css">
+<link rel="stylesheet" href="hero.css">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@graph":[
+{"@type":"Organization","@id":"https://miqyaslabs.com/#org","name":"Miqyas Labs","url":"https://miqyaslabs.com/","logo":"https://miqyaslabs.com/miqyas-labs.png","slogan":"Engineering Intelligence","areaServed":["AE","SA","QA","OM","KW","BH"],"sameAs":["https://www.linkedin.com/in/junaidquamar/"]},
+{"@type":"SoftwareApplication","name":"Stratum 4D","applicationCategory":"BusinessApplication","applicationSubCategory":"Construction planning and 4D simulation","operatingSystem":"Windows, macOS, Linux, Android, Web","publisher":{"@id":"https://miqyaslabs.com/#org"},"url":"https://miqyaslabs.com/","downloadUrl":"https://miqyaslabs.com/downloads/","softwareHelp":"https://miqyaslabs.com/manual/","featureList":["Primavera P6 layout with XER import and export","Microsoft Project layout with MS Project XML","CPM scheduling and resource levelling","4D simulation from IFC and glTF models","Dashboards, KPIs and PowerPoint export","Works offline on the desktop"]}
+]}
+</script>
+<!-- The live 3D hero loads after the page, and not at all on data-saver connections. -->
+<script>
+(function () {
+  var c = navigator.connection;
+  if (c && (c.saveData || /(^|-)2g$/.test(c.effectiveType || ""))) return;
+  function go() { var s = document.createElement("script"); s.type = "module"; s.src = "hero.js"; document.head.appendChild(s); }
+  function later() { (window.requestIdleCallback || function (f) { setTimeout(f, 200); })(go, { timeout: 1500 }); }
+  if (document.readyState === "complete") later(); else addEventListener("load", later);
+})();
+</script>
+</head>
+<body>
+<header class="top">
+  <a href="./" class="brand"><img src="miqyas-labs.png" alt="Miqyas Labs" width="178" height="34"></a>
+  <nav>
+    <a href="#solutions">Solutions</a>
+    <a href="#stratum">Product</a>
+    <a href="#plans">Plans</a>
+    <a href="#download">Download</a>
+    <a href="#contact">Contact</a>
+    <a href="ar/" lang="ar" class="lang">العربية</a>
+    <a href="demo/" class="btn">Try the demo</a>
+  </nav>
+</header>
+
+<main>
+<section class="hero immersive">
+  <div id="hero-live"></div>
+  <div class="hero-copy">
+    <p class="kicker">Engineering Intelligence</p>
+    <h1>Planning and 4D simulation for construction projects</h1>
+    <p class="lead">Stratum 4D reads your Primavera P6 or Microsoft Project schedule, links it to the 3D model and plays the construction sequence day by day. Behind this text, the engine is building the sample projects from their own schedules.</p>
+    <p class="hero-now" id="hero-now"></p>
+    <p class="cta"><a class="btn big" href="demo/">Try the demo</a> <a class="btn ghost big" href="#contact">Request a demo</a></p>
+  </div>
+</section>
+
+<section id="solutions" class="band light">
+  <h2>Built for the projects you deliver</h2>
+  <p class="sub">Each sector comes with a sample project in the web demo, with its schedule, resources, baseline and 4D model. Open one and change anything: every visitor gets their own copy.</p>
+  <div class="sectors">
+    <a class="sector" href="demo/?project=gis"><span class="tag">Energy and utilities</span><b>Substations and grid</b><span>Long-lead GIS and transformers, civil works, installation and energisation, with the 220 kV GIS substation sample.</span><em>Open the sample →</em></a>
+    <a class="sector" href="demo/?project=road"><span class="tag">Infrastructure</span><b>Roads and highways</b><span>Linear works by section: earthworks, pavement layers, structures and road furniture on a 12 km dual carriageway.</span><em>Open the sample →</em></a>
+    <a class="sector" href="demo/?project=solar"><span class="tag">Renewables</span><b>Solar PV plants</b><span>Piling, trackers and modules block by block, inverter stations and grid tie-in on a 50 MWp plant.</span><em>Open the sample →</em></a>
+    <a class="sector" href="demo/?project=pipeline"><span class="tag">Water</span><b>Pipelines and pump stations</b><span>Trenching, welding, backfill and hydrotests in sections, with the pump station, on a 25 km DN1200 line.</span><em>Open the sample →</em></a>
+    <a class="sector" href="demo/?project=hotel"><span class="tag">Buildings</span><b>MEP fit-out</b><span>Ductwork, piping and containment floor by floor, central plant and testing on a G+6 hotel.</span><em>Open the sample →</em></a>
+    <a class="sector" href="demo/?project=rc"><span class="tag">Buildings</span><b>Structure and envelope</b><span>Foundations, frame, slabs and walls with temporary works, on a small reinforced concrete building.</span><em>Open the sample →</em></a>
+  </div>
+</section>
+
+<section id="stratum" class="band">
+  <img class="lockup" src="stratum-lockup.png" alt="Stratum 4D by Miqyas Labs" width="420" height="117">
+  <div class="cards">
+    <article>
+      <h3>P6 layout</h3>
+      <p>Activities, WBS, EPS, resources, baselines, schedule (F9) and levelling (F10), laid out like P6 Professional. Reads and writes XER, and connects to P6 EPPM.</p>
+    </article>
+    <article>
+      <h3>MS Project layout</h3>
+      <p>The ribbon, an editable Gantt sheet, Task Usage, Team Planner, Network Diagram and the Task Information dialog. Opens and saves MS Project XML.</p>
+    </article>
+    <article>
+      <h3>4D simulation</h3>
+      <p>Load an IFC, glTF, OBJ or FBX model, link elements to activities by rule or by hand, split elements into pours, and compare planned with actual in 3D.</p>
+    </article>
+    <article>
+      <h3>4D presentation</h3>
+      <p>Viewpoints, section planes, an animation editor with camera and date keys, and video export up to 4K for reviews and client meetings.</p>
+    </article>
+    <article>
+      <h3>Dashboards and reports</h3>
+      <p>KPIs against a chosen baseline, the activities behind each figure, PDF and Excel reports by email, and export to an editable PowerPoint deck.</p>
+    </article>
+    <article>
+      <h3>AI assistants</h3>
+      <p>An MCP server lets Claude and other assistants open your schedules, check them, compare updates and record progress, on your own computer.</p>
+    </article>
+  </div>
+</section>
+
+<section class="pair">
+  <figure><img src="manual/shots/layout-p6.png" alt="P6 layout" loading="lazy" width="1440" height="860"><figcaption>P6 layout with the sample GIS substation project.</figcaption></figure>
+  <figure><img src="manual/shots/layout-msp.png" alt="MS Project layout" loading="lazy" width="1440" height="860"><figcaption>The same project in the MS Project layout.</figcaption></figure>
+</section>
+
+<section id="compare" class="band light">
+  <h2>One tool instead of three</h2>
+  <p class="sub">Most project teams plan in P6 or MS Project, build 4D in a separate tool and report in spreadsheets or BI. Stratum 4D covers the three on the same data.</p>
+  <div class="table-wrap">
+    <table class="compare">
+      <thead><tr><th>What you need</th><th>Stratum 4D</th><th>Typical tool set</th></tr></thead>
+      <tbody>
+        <tr><td>P6-style planning, CPM, levelling, XER in and out</td><td class="yes">Included</td><td>Primavera P6</td></tr>
+        <tr><td>MS Project-style planning, MS Project XML</td><td class="yes">Included</td><td>Microsoft Project</td></tr>
+        <tr><td>4D simulation linked to the schedule</td><td class="yes">Included</td><td>A separate 4D tool</td></tr>
+        <tr><td>Dashboards, KPIs, emailed reports, PowerPoint</td><td class="yes">Included</td><td>Spreadsheets or a BI tool</td></tr>
+        <tr><td>Planned vs actual in 3D, at any date</td><td class="yes">Included</td><td>4D tool, after exporting the update</td></tr>
+        <tr><td>Works offline, data on your own computer or server</td><td class="yes">Yes</td><td>Varies by product and licence</td></tr>
+        <tr><td>Desktop, web and Android</td><td class="yes">Yes</td><td>Varies by product</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="fine">Primavera and Oracle are trademarks of Oracle. Microsoft Project is a trademark of Microsoft. Miqyas Labs is not affiliated with them. Stratum 4D reads and writes their file formats.</p>
+</section>
+
+<section id="security" class="band">
+  <h2>Your data stays yours</h2>
+  <div class="cards">
+    <article><h3>Works offline</h3><p>The desktop app keeps projects in a database file on your own computer. Nothing is sent to Miqyas Labs.</p></article>
+    <article><h3>Your own server</h3><p>For teams, Stratum Server runs in your data centre or private cloud, with sign-in roles and saved versions.</p></article>
+    <article><h3>Direct to P6</h3><p>The desktop app or your server connects to P6 EPPM or the P6 database directly, inside your network.</p></article>
+    <article><h3>No lock-in</h3><p>Projects go back out as P6 XER, MS Project XML, Excel or CSV at any time.</p></article>
+  </div>
+  <p class="cta"><a class="btn ghost" href="security.html">Read about security and data</a></p>
+</section>
+
+<section id="plans" class="band light">
+  <h2>Plans</h2>
+  <p class="sub">Licences are per user and per year. Contact us for a quotation for your team.</p>
+  <div class="plans">
+    <article class="plan">
+      <h3>Web demo</h3>
+      <p class="price">Free</p>
+      <ul><li>All three layouts</li><li>Six sample projects</li><li>Your own session, reset when you leave</li></ul>
+      <a class="btn ghost" href="demo/">Try the demo</a>
+    </article>
+    <article class="plan">
+      <h3>Desktop</h3>
+      <p class="price">Single user</p>
+      <ul><li>Windows, macOS and Linux</li><li>P6, MS Project and 4D layouts</li><li>Local database, works offline</li><li>P6 EPPM and database connection</li></ul>
+      <a class="btn" href="#contact" data-interest="Desktop">Ask for a quote</a>
+    </article>
+    <article class="plan featured">
+      <h3>Team</h3>
+      <p class="price">Shared projects</p>
+      <ul><li>Everything in Desktop</li><li>Shared folder or Stratum Server</li><li>Dashboards and emailed reports</li><li>Android app for site teams</li></ul>
+      <a class="btn" href="#contact" data-interest="Team">Ask for a quote</a>
+    </article>
+    <article class="plan">
+      <h3>Enterprise</h3>
+      <p class="price">Your infrastructure</p>
+      <ul><li>Stratum Server on your premises</li><li>Roles and project versions</li><li>Setup, training and support</li><li>Custom reports and integrations</li></ul>
+      <a class="btn" href="#contact" data-interest="Enterprise">Talk to us</a>
+    </article>
+  </div>
+</section>
+
+<section id="download" class="band">
+  <h2>Download</h2>
+  <p>Installers for the latest release. Also: <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-mac-x64.dmg">macOS Intel</a> · <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-linux-amd64.deb">Linux .deb</a> · <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-mcp.zip">AI assistant (MCP) server</a>. The desktop app works offline, keeps projects in a local database and can connect to Primavera P6.</p>
+  <div class="dl">
+    <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-win-x64.exe"><b>Windows</b><span>.exe installer</span></a>
+    <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-mac-arm64.dmg"><b>macOS</b><span>Apple silicon and Intel .dmg</span></a>
+    <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-linux-x86_64.AppImage"><b>Linux</b><span>AppImage and .deb</span></a>
+    <a href="https://pub-9fcb7bb277c74040a4d7ff3a6a07ba7a.r2.dev/latest/Stratum-4D-android.apk"><b>Android</b><span>.apk for phones and tablets</span></a>
+    <a href="demo/"><b>Web</b><span>No installation, sign-in required</span></a>
+  </div>
+</section>
+
+<section class="band light">
+  <h2>User manual</h2>
+  <p>The manual is written in ASD-STE100 Simplified Technical English, with step-by-step procedures and diagrams. Read it online or download the PDF.</p>
+  <p class="cta"><a class="btn" href="manual/">Read online</a> <a class="btn ghost" href="manual/Stratum-4D-Manual.pdf">Download PDF</a></p>
+</section>
+
+<section id="contact" class="band contact">
+  <div class="contact-copy">
+    <h2>Request a demo or a quotation</h2>
+    <p>Tell us about your projects. We will show Stratum 4D on a schedule like yours and answer your questions about licences, setup and P6 integration.</p>
+    <ul class="ticks"><li>A live session with your own XER or MS Project file</li><li>Quotation for your team size</li><li>Help with Stratum Server inside your network</li></ul>
+  </div>
+  <form class="contact-form" id="contact-form" novalidate>
+    <div class="two">
+      <label>Name *<input name="name" autocomplete="name" required maxlength="120"></label>
+      <label>Company<input name="company" autocomplete="organization" maxlength="160"></label>
+    </div>
+    <div class="two">
+      <label>Work email *<input name="email" type="email" autocomplete="email" required maxlength="160"></label>
+      <label>Phone<input name="phone" type="tel" autocomplete="tel" maxlength="40"></label>
+    </div>
+    <div class="two">
+      <label>Role<input name="role" autocomplete="organization-title" maxlength="120" placeholder="Planning manager, PMO…"></label>
+      <label>Interested in
+        <select name="interest">
+          <option>A demo on our project</option>
+          <option>Desktop</option>
+          <option>Team</option>
+          <option>Enterprise</option>
+          <option>Training</option>
+          <option>Something else</option>
+        </select>
+      </label>
+    </div>
+    <label>Message *<textarea name="message" rows="5" required maxlength="4000" placeholder="Your projects, the tools you use today, and what you want to improve."></textarea></label>
+    <label class="hp" aria-hidden="true">Website<input name="website" tabindex="-1" autocomplete="off"></label>
+    <p class="fine">We use these details only to answer you. See the <a href="privacy.html">privacy policy</a>.</p>
+    <button class="btn big" type="submit">Send</button>
+    <p class="form-msg" role="status" aria-live="polite"></p>
+  </form>
+</section>
+</main>
+
+<footer>
+  <div class="foot-brand">
+    <img src="miqyas-labs-dark.png" alt="Miqyas Labs" width="157" height="30" loading="lazy">
+    <p>Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Sample projects shown on this site are fictional.</p>
+  </div>
+  <nav class="foot-nav" aria-label="Site">
+    <a href="#solutions">Solutions</a>
+    <a href="#plans">Plans</a>
+    <a href="downloads/">Downloads</a>
+    <a href="manual/">Manual</a>
+    <a href="security.html">Security and data</a>
+    <a href="privacy.html">Privacy</a>
+    <a href="terms.html">Terms</a>
+    <a href="ar/" lang="ar">العربية</a>
+  </nav>
+  <p class="copy">© <span id="year">2026</span> Miqyas Labs. All rights reserved.</p>
+</footer>
+<script src="contact.js" defer></script>
+</body>
+</html>

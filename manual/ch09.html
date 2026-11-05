@@ -1,0 +1,134 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>9. AI assistants (MCP) – Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body class="web"><nav><a href="index.html"><img src="stratum-lockup-dark.png" alt="Stratum 4D by Miqyas Labs"></a><a href="ch01.html" class=""><span class="num">1</span>Introduction</a><a href="ch02.html" class=""><span class="num">2</span>Installation</a><a href="ch03.html" class=""><span class="num">3</span>First start</a><a href="ch04.html" class=""><span class="num">4</span>Projects and files</a><a href="ch05.html" class=""><span class="num">5</span>The P6 layout</a><a href="ch06.html" class=""><span class="num">6</span>The Project layout</a><a href="ch07.html" class=""><span class="num">7</span>The 4D layout</a><a href="ch08.html" class=""><span class="num">8</span>Dashboards and reports</a><a href="ch09.html" class="on"><span class="num">9</span>AI assistants (MCP)</a><a href="ch10.html" class=""><span class="num">10</span>Stratum Server: users, security and AiSOC</a><a href="ch11.html" class=""><span class="num">11</span>Troubleshooting, shortcuts and glossary</a><a class="pdf" href="Stratum-4D-Manual.pdf">Download the PDF</a></nav><main><section class="chapter" id="ai-assistants">
+<h1><span class="num">9</span>AI assistants (MCP)</h1>
+<p class="purpose">This chapter tells you how to connect an AI assistant to Stratum 4D, and what the assistant can do with your schedules.</p>
+
+<h2>What the MCP server does</h2>
+<p>MCP (Model Context Protocol) is a standard that lets an AI assistant use tools on your computer. The Stratum MCP server gives the assistant the Stratum 4D engine. You ask a question in usual words, for example "Open the last XER and tell me what slipped". The assistant then uses the Stratum tools to find the answer.</p>
+<figure><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 260" role="img" aria-label="How an AI assistant uses Stratum 4D through MCP">
+  <style>.mcp-flow--h{font:700 15px Montserrat,sans-serif;fill:#0b2545}.mcp-flow--w{font:700 15px Montserrat,sans-serif;fill:#fff}.mcp-flow--s{font:12px Inter,sans-serif;fill:#1d2733}.mcp-flow--sw{font:12px Inter,sans-serif;fill:#dfe6ee}.mcp-flow--m{font:12px Inter,sans-serif;fill:#5d6b7a}</style>
+  <rect width="960" height="260" rx="8" fill="#ebecef"/>
+  <rect x="16" y="16" width="928" height="196" rx="10" fill="none" stroke="#9aa5b1" stroke-dasharray="6 5"/>
+  <text class="mcp-flow--m" x="32" y="38">Your computer</text>
+  <g>
+    <rect x="40" y="60" width="230" height="120" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="155" y="92" text-anchor="middle">AI assistant app</text>
+    <text class="mcp-flow--s" x="155" y="116" text-anchor="middle">Claude Desktop, Claude Code</text>
+    <text class="mcp-flow--s" x="155" y="134" text-anchor="middle">or other MCP client</text>
+    <text class="mcp-flow--m" x="155" y="160" text-anchor="middle">Shows each tool call to you</text>
+    <rect x="365" y="60" width="230" height="120" rx="10" fill="#0b2545"/>
+    <text class="mcp-flow--w" x="480" y="92" text-anchor="middle">Stratum MCP server</text>
+    <text class="mcp-flow--sw" x="480" y="116" text-anchor="middle">node stratum-mcp.cjs</text>
+    <text class="mcp-flow--sw" x="480" y="134" text-anchor="middle">The Stratum 4D engine:</text>
+    <text class="mcp-flow--sw" x="480" y="152" text-anchor="middle">schedule, KPIs, checks, compare</text>
+    <rect x="690" y="60" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="805" y="84" text-anchor="middle">Schedule files</text>
+    <text class="mcp-flow--s" x="805" y="104" text-anchor="middle">.xer  .xml  .stratum.json</text>
+    <rect x="690" y="124" width="230" height="56" rx="10" fill="#fff" stroke="#c9d1db"/>
+    <text class="mcp-flow--h" x="805" y="148" text-anchor="middle">Project database</text>
+    <text class="mcp-flow--s" x="805" y="168" text-anchor="middle">stratum.db (desktop app)</text>
+  </g>
+  <g stroke="#d4a574" stroke-width="3" fill="none"><path d="M272 110h88M360 130h-88M597 88h88M597 152h88"/></g>
+  <g fill="#d4a574"><path d="M360 104l10 6-10 6zM272 124l-10 6 10 6zM685 82l10 6-10 6zM685 146l10 6-10 6z"/></g>
+  <text class="mcp-flow--m" x="316" y="102" text-anchor="middle">tool call</text>
+  <text class="mcp-flow--m" x="316" y="150" text-anchor="middle">result</text>
+  <text class="mcp-flow--m" x="480" y="240" text-anchor="middle">The server sends nothing to other computers. Your assistant app sends your question and the results to its AI service.</text>
+</svg>
+<figcaption><b>Figure 9-1.</b> The assistant, the Stratum MCP server and your data.</figcaption></figure>
+<div class="caution">The Stratum MCP server sends no data to other computers. But the assistant application sends your questions and the tool results to its AI service. Obey the data rules of your company before you use an assistant with project data.</div>
+
+<h2>What the assistant can do</h2>
+<table>
+<tr><th>Tool</th><th>Use</th></tr>
+<tr><td><code>open_file</code></td><td>Open a P6 <code>.xer</code>, a Microsoft Project <code>.xml</code> or a <code>.stratum.json</code> file</td></tr>
+<tr><td><code>list_projects</code>, <code>open_project</code></td><td>List and open the projects in the database of the desktop application</td></tr>
+<tr><td><code>summary</code>, <code>list_open</code></td><td>Dates, counts, status and critical activities of an open schedule</td></tr>
+<tr><td><code>list_activities</code>, <code>get_activity</code></td><td>Find activities by text, status, dates or float, and show all data of one activity</td></tr>
+<tr><td><code>schedule</code></td><td>Calculate the schedule (F9), with a new data date if necessary</td></tr>
+<tr><td><code>critical_path</code>, <code>lookahead</code></td><td>The critical path, and the work that starts or finishes in the next days</td></tr>
+<tr><td><code>kpis</code>, <code>kpi_activities</code></td><td>SPI, CPI, BEI, finish variance and the DCMA checks, with the activities of each count</td></tr>
+<tr><td><code>check_schedule</code></td><td>The quality check of Chapter 5</td></tr>
+<tr><td><code>compare</code></td><td>The changes between two schedules</td></tr>
+<tr><td><code>update_activity</code>, <code>update_progress</code></td><td>Record the progress of one activity, or update all activities as planned to a new data date</td></tr>
+<tr><td><code>export</code></td><td>Make a P6 XER, a Microsoft Project XML, a CSV or a Stratum file</td></tr>
+<tr><td><code>save_project</code></td><td>Save the project in the database as a new version</td></tr>
+</table>
+
+<h2>Install the MCP server</h2>
+<p>You must have Node.js 20 or a newer version. You can get it from nodejs.org.</p>
+<ol class="steps">
+<li>On the release page of Stratum 4D, download the file <code>Stratum-4D-&lt;version&gt;-mcp.zip</code>.</li>
+<li>Extract the file to a folder that you keep, for example <code>C:\Stratum\mcp</code>.</li>
+<li>Make sure that <code>stratum-mcp.cjs</code> and <code>sql-wasm.wasm</code> are in the same folder.</li>
+</ol>
+<h3>To connect Claude Desktop</h3>
+<ol class="steps">
+<li>In Claude Desktop, click <span class="ui">Settings › Developer › Edit Config</span>.<span class="result">The file <code>claude_desktop_config.json</code> opens.</span></li>
+<li>Add the lines that follow. Use your folder. On Windows, write each <code>\</code> two times.
+<pre><code>{
+  "mcpServers": {
+    "stratum-4d": {
+      "command": "node",
+      "args": ["C:\\Stratum\\mcp\\stratum-mcp.cjs"]
+    }
+  }
+}</code></pre></li>
+<li>Save the file and start Claude Desktop again.<span class="result">The tools list of the chat shows the Stratum tools.</span></li>
+</ol>
+<h3>To connect Claude Code</h3>
+<p>Type this command. Use your folder.</p>
+<pre><code>claude mcp add stratum-4d -- node /path/to/stratum-mcp.cjs</code></pre>
+<p>Add <code>--scope user</code> to use the server in all your projects. For a different MCP client, start <code>node stratum-mcp.cjs</code> as a stdio server.</p>
+
+<h2>The project database</h2>
+<p>The MCP server finds the database of the desktop application at these locations:</p>
+<table>
+<tr><th>System</th><th>File</th></tr>
+<tr><td>Windows</td><td><code>%APPDATA%\Stratum 4D\stratum.db</code></td></tr>
+<tr><td>macOS</td><td><code>~/Library/Application Support/Stratum 4D/stratum.db</code></td></tr>
+<tr><td>Linux</td><td><code>~/.config/Stratum 4D/stratum.db</code></td></tr>
+</table>
+<p>To use a different file, set the environment variable <code>STRATUM_DB</code> in the configuration of the server.</p>
+<div class="caution">Close the desktop application before you tell the assistant to save a project. If the two save at the same time, one of the saves can fail. Reading is safe while the desktop application is open.</div>
+
+<h2>Safety settings of the MCP server</h2>
+<p>The text in a schedule file comes from other persons. A person can write an instruction to an assistant in an activity name or a note. The Stratum MCP server tells the assistant that this text is data, not an instruction. If a result contains text that looks like an instruction, the server adds a note to the result.</p>
+<p>The server also writes each tool call to a log file on your computer: <code>~/.stratum/mcp-ledger.jsonl</code>. Each line contains a fingerprint of the line before it. Thus a changed line or a removed line shows when you check the file.</p>
+<table>
+<tr><th>Setting (environment variable)</th><th>Effect</th></tr>
+<tr><td><code>STRATUM_MCP_READONLY=1</code></td><td>The server does not write files or the database. <code>export</code> and <code>save_project</code> stop with a message.</td></tr>
+<tr><td><code>STRATUM_MCP_ROOTS</code></td><td>The server reads and writes files only in these folders. On Windows, put <code>;</code> between the folders.</td></tr>
+<tr><td><code>STRATUM_MCP_LEDGER</code></td><td>A different file for the log of tool calls, or <code>off</code> to stop the log</td></tr>
+</table>
+<h3>To set the safety settings for Claude Desktop</h3>
+<ol class="steps">
+<li>Open <code>claude_desktop_config.json</code> as in the procedure above.</li>
+<li>Add an <code>env</code> part to the <code>stratum-4d</code> server. Use your folders.
+<pre><code>"stratum-4d": {
+  "command": "node",
+  "args": ["C:\\Stratum\\mcp\\stratum-mcp.cjs"],
+  "env": {
+    "STRATUM_MCP_ROOTS": "C:\\Projects\\Schedules",
+    "STRATUM_MCP_READONLY": "1"
+  }
+}</code></pre></li>
+<li>Save the file and start Claude Desktop again.</li>
+</ol>
+<h3>To check the log of tool calls</h3>
+<ol class="steps">
+<li>Open a terminal in the folder of the MCP server.</li>
+<li>Type <code>node stratum-mcp.cjs --verify-ledger</code>.<span class="result">The result shows the number of entries, and <code>intact</code> or the first entry that is not correct.</span></li>
+</ol>
+<div class="caution">These settings make a hidden instruction easy to see. They cannot stop all of them. Do not let <code>export</code> and <code>save_project</code> run without a question.</div>
+
+<h2>Examples of questions</h2>
+<ul>
+<li>"Open <code>C:\Schedules\Update 12.xer</code>. What is the finish date? Which activities are on the critical path?"</li>
+<li>"Compare update 11 and update 12. Which activities slipped more than 5 days?"</li>
+<li>"Do a schedule check and list the open activities that have no successor."</li>
+<li>"Give me a three-week look-ahead for the civil works."</li>
+<li>"Set C-4010 to 60% complete with an actual start of 3 November. Update the progress to 10 November, schedule, and export an XER."</li>
+</ul>
+<p>The assistant application shows each tool call before it runs, unless you let the tool run without a question. Do a check of each change before you let it run.</p>
+<p class="related">Related: Chapter 4 (where the database is), Chapter 5 (schedule check and compare), Chapter 10 (security of Stratum Server).</p>
+</section>
+<div class="pager"><a href="ch08.html">← 8. Dashboards and reports</a><a href="ch10.html">10. Stratum Server: users, security and AiSOC →</a></div><p class="related">Stratum 4D User Manual, release 0.12.1. Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Written in ASD-STE100 Simplified Technical English.</p></main></body></html>

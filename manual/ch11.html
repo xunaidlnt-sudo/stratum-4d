@@ -1,0 +1,107 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>11. Troubleshooting, shortcuts and glossary – Stratum 4D User Manual</title><link rel="stylesheet" href="style.css"></head><body class="web"><nav><a href="index.html"><img src="stratum-lockup-dark.png" alt="Stratum 4D by Miqyas Labs"></a><a href="ch01.html" class=""><span class="num">1</span>Introduction</a><a href="ch02.html" class=""><span class="num">2</span>Installation</a><a href="ch03.html" class=""><span class="num">3</span>First start</a><a href="ch04.html" class=""><span class="num">4</span>Projects and files</a><a href="ch05.html" class=""><span class="num">5</span>The P6 layout</a><a href="ch06.html" class=""><span class="num">6</span>The Project layout</a><a href="ch07.html" class=""><span class="num">7</span>The 4D layout</a><a href="ch08.html" class=""><span class="num">8</span>Dashboards and reports</a><a href="ch09.html" class=""><span class="num">9</span>AI assistants (MCP)</a><a href="ch10.html" class=""><span class="num">10</span>Stratum Server: users, security and AiSOC</a><a href="ch11.html" class="on"><span class="num">11</span>Troubleshooting, shortcuts and glossary</a><a class="pdf" href="Stratum-4D-Manual.pdf">Download the PDF</a></nav><main><section class="chapter" id="reference">
+<h1><span class="num">11</span>Troubleshooting, shortcuts and glossary</h1>
+<p class="purpose">This chapter gives solutions to frequent problems, the keyboard shortcuts, and the definitions of the terms in this manual.</p>
+
+<h2>Troubleshooting</h2>
+<table>
+<tr><th>Problem</th><th>Possible cause</th><th>Solution</th></tr>
+<tr><td>Stratum 4D cannot open a Microsoft Project file.</td><td>The file is an <code>.mpp</code> file.</td><td>In Microsoft Project, save the file as XML. Then import the XML file.</td></tr>
+<tr><td>The dates are different from the dates in P6.</td><td>The schedule options are different.</td><td>Click <span class="ui">Project › Schedule…</span>, then <span class="ui">Options…</span>. Set the same options as in P6. Read the log with <span class="ui">View Log</span>.</td></tr>
+<tr><td>Stratum 4D does not save, and shows <span class="ui">Save as new</span>.</td><td>A different person saved the project after you opened it.</td><td>Click <span class="ui">Save as new</span>. Then compare the two versions.</td></tr>
+<tr><td>A widget shows <span class="ui">Needs a baseline</span>.</td><td>A prerequisite of the dashboard is not complete.</td><td>Read the bar at the top of the dashboard. Do the step that it shows, for example assign a baseline.</td></tr>
+<tr><td>A scheduled email was not sent.</td><td>The desktop application was closed, or the mail server is not set.</td><td>Start the desktop application. Set the mail server in <span class="ui">Settings › Email</span>. Look at the result of the last send on the schedule.</td></tr>
+<tr><td>Elements of the model do not show during the simulation.</td><td>The elements have no link to an activity.</td><td>On the <span class="ui">Display</span> tab, look at <span class="ui">Unlinked elements</span>. Link them with a rule or by hand.</td></tr>
+<tr><td><span class="ui">Explode</span> <span class="ui">By storey</span> does not move the model.</td><td>The elements have no <code>Storey</code> property.</td><td>Select <span class="ui">From centre</span>, or add the <code>Storey</code> property to the IFC model.</td></tr>
+<tr><td><span class="ui">Split Task</span> does not split the task.</td><td>You clicked near an end of the bar, or in its completed part.</td><td>Click inside the bar, away from its ends and after its progress.</td></tr>
+<tr><td>A section plane removes almost all of the model.</td><td>The position is a fraction of the full height, and the model has deep foundations.</td><td>Move the slider, or click <span class="ui">⇄</span> to keep the other side.</td></tr>
+<tr><td>The exported video is slower or shorter than the animation.</td><td>The computer cannot draw the frames at the frame rate.</td><td>Use a lower resolution or frame rate. Or export a series of images and join them with a video editor.</td></tr>
+<tr><td>The assistant does not show the Stratum tools.</td><td>The configuration is incorrect, or the assistant application did not start again.</td><td>Do a check of the path in the configuration. Make sure that Node.js 20 or newer is installed. Start the assistant application again.</td></tr>
+<tr><td>The MCP server cannot open the database.</td><td><code>sql-wasm.wasm</code> is not in the folder of <code>stratum-mcp.cjs</code>, or the path is incorrect.</td><td>Put the two files in the same folder. To use a different database file, set <code>STRATUM_DB</code>.</td></tr>
+<tr><td>The sign-in page shows <span class="ui">Too many wrong passwords</span>.</td><td>Stratum Server locked the sign-in after incorrect passwords.</td><td>Wait for the time on the page. Then sign in with the correct password. If you do not know the password, ask the administrator for a new one.</td></tr>
+<tr><td>Stratum 4D shows <span class="ui">Your session ended</span>.</td><td>An administrator changed your password or your role.</td><td>Sign in again.</td></tr>
+<tr><td>The status bar shows <span class="ui">Sent for approval</span>, and P6 does not change.</td><td>The server keeps updates to P6 until an administrator approves them.</td><td>Ask an administrator to approve the request in <span class="ui">Settings › Security</span>.</td></tr>
+<tr><td><span class="ui">Verify the log</span> shows a red line.</td><td>A person changed or removed audit entries in the database.</td><td>Do not change the database. Tell your security team. Keep a copy of the database and of the server log.</td></tr>
+<tr><td>The <span class="ui">AiSOC</span> tab shows <span class="ui">Cannot reach AiSOC</span>.</td><td>The ingest address is incorrect, or AiSOC is stopped.</td><td>Do a check of the address and the port (8081). Start AiSOC. Click <span class="ui">Send waiting events now</span>.</td></tr>
+<tr><td>AiSOC refuses the events (HTTP 401).</td><td>The push token is incorrect or old.</td><td>Make a new token in AiSOC. Type it on the <span class="ui">AiSOC</span> tab and click <span class="ui">Save</span>.</td></tr>
+<tr><td>The assistant says that a file is outside the folders.</td><td><code>STRATUM_MCP_ROOTS</code> does not include the folder of the file.</td><td>Move the file into a permitted folder, or add the folder to <code>STRATUM_MCP_ROOTS</code>.</td></tr>
+</table>
+
+<h2>Keyboard shortcuts</h2>
+<h3>All layouts</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>1</kbd></td><td>P6 layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>2</kbd></td><td>Project layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>3</kbd></td><td>4D layout</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Alt</kbd>+<kbd>4</kbd></td><td>Reports view</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>S</kbd></td><td>Save the project</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Z</kbd> / <kbd>Ctrl</kbd>+<kbd>Y</kbd></td><td>Undo / redo</td></tr>
+</table>
+<h3>P6 layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>O</kbd></td><td>Open</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>P</kbd></td><td>Print</td></tr>
+<tr><td><kbd>Ins</kbd> / <kbd>Del</kbd></td><td>Add / delete an activity</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>L</kbd></td><td>Link the selected activities</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>E</kbd></td><td>Fill down</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F</kbd></td><td>Find</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>A</kbd></td><td>Select all</td></tr>
+<tr><td><kbd>F9</kbd></td><td>Schedule</td></tr>
+<tr><td><kbd>F10</kbd></td><td>Level resources</td></tr>
+</table>
+<h3>Project layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Shift</kbd>+<kbd>F2</kbd></td><td>Task Information</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>F2</kbd></td><td>Link the selected tasks</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>F2</kbd></td><td>Unlink the selected tasks</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>→</kbd></td><td>Indent</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>←</kbd></td><td>Outdent</td></tr>
+<tr><td><kbd>Alt</kbd>+<kbd>F10</kbd></td><td>Assign Resources</td></tr>
+<tr><td><kbd>F2</kbd>, <kbd>Enter</kbd>, <kbd>Tab</kbd></td><td>Change a cell, then go to the next cell</td></tr>
+</table>
+<h3>4D layout</h3>
+<table>
+<tr><th>Keys</th><th>Action</th></tr>
+<tr><td><kbd>Space</kbd></td><td>Play or pause the simulation</td></tr>
+<tr><td><kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>A</kbd></td><td>Link the selected elements to the selected activity</td></tr>
+<tr><td><kbd>Del</kbd></td><td>In the animation editor: remove the selected key</td></tr>
+</table>
+
+<h2>Glossary</h2>
+<table>
+<tr><th>Term</th><th>Meaning</th></tr>
+<tr><td>Activity</td><td>One item of work in the schedule. Microsoft Project calls it a task.</td></tr>
+<tr><td>AiSOC</td><td>An open-source security operations center. Stratum Server can send its audit events to it.</td></tr>
+<tr><td>Approval</td><td>The decision of an administrator to let an update go to P6</td></tr>
+<tr><td>Audit log</td><td>The list of all sign-ins and changes on a Stratum Server. Each entry contains a fingerprint of the entry before it.</td></tr>
+<tr><td>Appearance profile</td><td>The colors and visibility of an element before, during and after its activity</td></tr>
+<tr><td>Baseline</td><td>A copy of the schedule at one time. You compare the current schedule with it.</td></tr>
+<tr><td>BEI</td><td>Baseline Execution Index. The number of activities that finished, divided by the number that had to finish by the data date.</td></tr>
+<tr><td>Critical activity</td><td>An activity that has no total float, or less float than the limit in the schedule options. A delay to it delays the project finish.</td></tr>
+<tr><td>Data date</td><td>The date of the progress. Work before it is actual, and work after it is forecast.</td></tr>
+<tr><td>DCMA 14-point check</td><td>A set of 14 checks of the quality of a schedule, from the US Defense Contract Management Agency</td></tr>
+<tr><td>Element</td><td>One object of the 3D model, for example a wall or a transformer</td></tr>
+<tr><td>Fingerprint (SHA-256)</td><td>A short code that a calculation makes from data. A change to the data gives a different code.</td></tr>
+<tr><td>Key (animation)</td><td>A record of the camera, the date or the view at one time of an animation</td></tr>
+<tr><td>IFC</td><td>Industry Foundation Classes. An open file format for building models.</td></tr>
+<tr><td>Link (4D)</td><td>A connection between an element and an activity</td></tr>
+<tr><td>MCP</td><td>Model Context Protocol. A standard that lets an AI assistant use tools.</td></tr>
+<tr><td>MSPDI</td><td>The XML file format of Microsoft Project</td></tr>
+<tr><td>Relationship</td><td>The logic between two activities: Finish to Start (FS), Start to Start (SS), Finish to Finish (FF) or Start to Finish (SF), with a lag</td></tr>
+<tr><td>Planned vs actual</td><td>A color mode that compares the progress on the current dates with the progress on the baseline dates</td></tr>
+<tr><td>Push token</td><td>The secret code that lets Stratum Server send events to AiSOC</td></tr>
+<tr><td>Rule (4D)</td><td>An instruction that links each element to the activity that has the same value</td></tr>
+<tr><td>S-curve</td><td>A chart of the cumulative cost, hours or progress against time</td></tr>
+<tr><td>Section plane</td><td>A plane that cuts the model and removes one side of it</td></tr>
+<tr><td>Slicer</td><td>A filter on a dashboard. It applies to all the widgets.</td></tr>
+<tr><td>SPI / CPI</td><td>Schedule and Cost Performance Index. Earned value divided by planned value, and earned value divided by actual cost.</td></tr>
+<tr><td>Total float</td><td>The time that an activity can slip before it delays the project finish</td></tr>
+<tr><td>Viewpoint</td><td>A saved view: the date, the camera, the sections and the color mode</td></tr>
+<tr><td>Widget</td><td>One chart, table or number on a dashboard</td></tr>
+<tr><td>XER</td><td>The export file format of Primavera P6</td></tr>
+</table>
+<p class="related">Related: all chapters.</p>
+</section>
+<div class="pager"><a href="ch10.html">← 10. Stratum Server: users, security and AiSOC</a><span></span></div><p class="related">Stratum 4D User Manual, release 0.12.1. Stratum 4D by Miqyas Labs, developed by <a href="https://www.linkedin.com/in/junaidquamar/">Junaid Quamar</a>. Written in ASD-STE100 Simplified Technical English.</p></main></body></html>
