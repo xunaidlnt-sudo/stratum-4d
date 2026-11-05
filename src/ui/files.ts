@@ -3,13 +3,32 @@ import { Capacitor, registerPlugin } from "@capacitor/core";
 /** True inside the Android app (Capacitor). */
 export const isNativeApp = () => Capacitor.isNativePlatform();
 
+/**
+ * True on phones and tablets (Android, iPhone, iPad), in the app or in the browser.
+ * Their file pickers grey out files whose extension they do not know (.xer, .ifc),
+ * so no type filter is set there.
+ */
+export const isMobileDevice = () =>
+  isNativeApp() ||
+  (typeof navigator !== "undefined" &&
+    (/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && (navigator.maxTouchPoints ?? 0) > 1)));
+
 export function pickFile(accept: string): Promise<File | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
-    // Android's picker greys out files whose extension it does not know (.xer, .ifc): allow any file there.
-    if (!isNativeApp()) input.accept = accept;
-    input.onchange = () => resolve(input.files?.[0] ?? null);
+    if (!isMobileDevice()) input.accept = accept;
+    // Some mobile browsers fire "change" only for an input that is in the page.
+    input.style.display = "none";
+    document.body.appendChild(input);
+    input.onchange = () => {
+      resolve(input.files?.[0] ?? null);
+      input.remove();
+    };
+    input.addEventListener("cancel", () => {
+      resolve(null);
+      input.remove();
+    });
     input.click();
   });
 }
@@ -41,11 +60,21 @@ export function download(name: string, data: BlobPart, type = "application/octet
     return;
   }
   const url = URL.createObjectURL(blob);
+  clickLink(url, name);
+  // Mobile browsers read the file after the click returns: keep the link alive for a minute.
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** A download link in the page (Firefox and some mobile browsers ignore one that is not). */
+function clickLink(href: string, name: string) {
   const a = document.createElement("a");
-  a.href = url;
+  a.href = href;
   a.download = name;
+  a.rel = "noopener";
+  a.style.display = "none";
+  document.body.appendChild(a);
   a.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setTimeout(() => a.remove(), 1000);
 }
 
 export function downloadDataUrl(name: string, dataUrl: string) {
@@ -55,10 +84,7 @@ export function downloadDataUrl(name: string, dataUrl: string) {
       .then((b) => saveNative(name, b));
     return;
   }
-  const a = document.createElement("a");
-  a.href = dataUrl;
-  a.download = name;
-  a.click();
+  clickLink(dataUrl, name);
 }
 
 const StratumPrint = registerPlugin<{ print(o: { name: string }): Promise<void> }>("StratumPrint");
