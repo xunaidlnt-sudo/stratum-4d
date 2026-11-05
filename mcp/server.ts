@@ -34,7 +34,7 @@ import { openSqlite } from "../src/services/sql";
 import { checkPath, defaultLedgerFile, guard, guardOptionsFromEnv, INSTRUCTIONS, verifyLedger } from "./guard";
 
 const DAY = 86_400_000;
-const VERSION = "0.12.0";
+const VERSION = "0.12.1";
 
 // ---------------------------------------------------------------- open schedules
 
